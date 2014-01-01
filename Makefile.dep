@@ -1,0 +1,4 @@
+test.o: test.c ywdlist.h
+ywdlist.o: ywdlist.c ywdlist.h
+ywq.o: ywq.c
+ywrcu.o: ywrcu.c
