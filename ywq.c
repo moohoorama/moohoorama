@@ -29,73 +29,35 @@ void   ywqPush( struct ywq * _head, struct ywq * _target )
 
     oldPrev->next = _target;
 }
-static struct ywq dummy;
 struct ywq  * ywqPop( struct ywq * _head )
 {
-    struct ywq * oldNext = NULL;
-    struct ywq * oldNextNext;
-    int          tryCount = 0;
+    struct ywq * target = NULL;
+    struct ywq * linker = NULL;
 
-    do {
-        do {
-            for(;;) {
-                tryCount ++;
-                oldNext     = _head->next;
-                if( oldNext == _head ) return NULL;
-                oldNextNext = oldNext->next;
-                __sync_synchronize();
-                if( ( oldNextNext != _head ) ||
-                    ( oldNext == &dummy ) ) break;
-                dummy.prev=dummy.next=NULL;
-                dummy.meta=1;
-                assert( dummy.size == 0 );
-                __sync_add_and_fetch( &dummy.size, 1 );
-                ywqPush( _head, &dummy );
-            }
-            if( oldNextNext->prev != oldNext )
-            {
-                printf("        %d %d\n",oldNext->prev->meta,oldNextNext->prev->meta );
-                printf("        %d %d\n",oldNext->meta,oldNextNext->meta );
-                printf("    %d\n",dummy.size);
-                printList();
-                assert( oldNextNext->prev == oldNext );
-            }
-            if( oldNextNext != oldNext->next )
-            {
-                printf("        %d %d\n",oldNext->meta,oldNextNext->meta );
-                printList();
-                assert( oldNextNext == oldNext->next );
-            }
-        } while( !__sync_bool_compare_and_swap( &_head->next, oldNext, oldNextNext ) );
-        if( !__sync_bool_compare_and_swap( &oldNextNext->prev, oldNext, _head ))
-        {
-            printf("@@@@@@\n");
-        }
-        if( oldNext == &dummy )
-        {
-            __sync_add_and_fetch( &dummy.size, -1 );
-        }
-        __sync_add_and_fetch( &_head->size, -1 );
-    } while( oldNext == &dummy );
-
-    /*
-    assert( oldNextNext == oldNext->next );
-    if( oldNextNext != oldNext->next )
+    if( _head->prev == _head )
     {
-        assert( oldNextNext == _head );
-
-        oldNextNext = oldNext->next;
-        _head->next = oldNextNext;
-        printf("        %d %d\n",oldNext->meta,oldNextNext->meta );
+        return NULL; /* Really Emtpy */
     }
-    */
 
-    return (struct ywq*)oldNext;
+    do
+    {
+        target = _head->next;
+        linker = target->next;
+        while( target->prev != _head )
+        {
+            linker = target;
+            target = target->prev;
+        }
+    } while( !__sync_bool_compare_and_swap( &linker->prev, target, _head ) );
+    
+    _head->next = linker;
+
+    return target;
 }
 
-const int tryCount = 65536;
+#define tryCount 1024
 static struct ywq head;
-static struct ywq slot[16][65536];
+static struct ywq slot[16][tryCount];
 
 void printList()
 {
@@ -114,15 +76,15 @@ void printList()
 void * pushRoutine( void * arg )
 {
     int          num = (int)arg;
-    struct ywq * iter;
     int          i;
-    int          prev=0;
 
-    for( i = 0 ; i < 65536 ; i ++ )
+    for( i = 0 ; i < tryCount ; i ++ )
     {
         slot[num][i].meta = i + 100000;
         ywqPush( &head, &slot[num][i] );
     }
+
+    return NULL;
 }
 void * popRoutine( void * arg )
 {
@@ -132,7 +94,7 @@ void * popRoutine( void * arg )
     int          prev=0;
 
     prev = 100000;
-    for( i = 0 ; i < 65536 ; i ++ )
+    for( i = 0 ; i < tryCount ; i ++ )
     {
         while( !(iter = ywqPop( &head )) );
         if( iter->meta != prev )
@@ -169,7 +131,7 @@ void   ywqTest()
     printf("PushTest:\n");
 
     if(0)
-    for( i = 0 ; i < 65536 ; i ++ )
+    for( i = 0 ; i < tryCount ; i ++ )
     {
         ywqInit( &head );
 
@@ -181,16 +143,15 @@ void   ywqTest()
         k = 0;
         YWQ_FOREACH_PREV( iter, &head )
             k++;
-        assert( k == 65536*THREAD_COUNT);
+        assert( k == tryCount*THREAD_COUNT);
         printf("%d\n",i);
     }
 
     printf("PushPullTest:\n");
 
-    for( i = 0 ; i < 65536 ; i ++ )
+    ywqInit( &head );
+    for( i = 0 ; i < tryCount ; i ++ )
     {
-        dummy.size = 0;
-        ywqInit( &head );
         assert( 0 == pthread_create( &pt[0], NULL/*attr*/, pushRoutine, (void*)0 ) );
         assert( 0 == pthread_create( &pt[1], NULL/*attr*/, popRoutine, (void*)1 ) );
         pthread_join( pt[0],(void**)&k );
