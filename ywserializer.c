@@ -6,7 +6,6 @@
 #include "ywutil.h"
 #include "ywserializer.h"
 
-#define VAR_DECL( type,name) type name;
 #define VAR_WRITE(type,name) do{                       \
     if( sizeof(type)!=write( fd,&name,sizeof(type) ) ) \
     {                                                  \
@@ -29,13 +28,16 @@ int ywsTest()
 {
     int fd;
 
-#define VAR_LIST(_)     \
-    _(int, varA)        \
-    _(int, varB)        \
-    _(int, varC)        \
-    _(int, varD)        \
+#define VAR_LIST(OPR)     \
+    OPR(int, varA)        \
+    OPR(int, varB)        \
+    OPR(int, varC)        \
+    OPR(int, varD)
     {
-        VAR_LIST( VAR_DECL );
+        int varA;
+        int varB;
+        int varC;
+        int varD;
 
         varA = 1;
         varB = 2;
@@ -57,17 +59,22 @@ int ywsTest()
 
         VAR_LIST( VAR_PRINT );
     }
+#undef  VAR_LIST
 
-#define VAR_LIST(_)       \
-    _(int, varA)          \
-    _(int, varB[seq]) \
-    _(int, varC)          \
-    _(int, varD)          \
+#define VAR_LIST(OPR)                 \
+    OPR(int, varA)                    \
+    for(int seq=0; seq<varA; seq++){  \
+        OPR(int, varB[seq])           \
+    }                                 \
+    OPR(int, varC)                    \
+    OPR(int, varD)
     {
-        VAR_LIST( VAR_DECL );
+        int varA;
+        int varB[16]={5,6};
+        int varC;
+        int varD;
 
-        varA = 1;
-        varB = 2;
+        varA = 3;
         varC = 3;
         varD = 4;
 
@@ -76,7 +83,6 @@ int ywsTest()
         VAR_LIST( VAR_WRITE );
         close( fd );
 
-        varA=varB=varC=varD=0;
         VAR_LIST( VAR_PRINT );
 
         fd = open( "ser.test", O_RDONLY );
@@ -86,6 +92,7 @@ int ywsTest()
 
         VAR_LIST( VAR_PRINT );
     }
+#undef  VAR_LIST
 
 
     return 1;

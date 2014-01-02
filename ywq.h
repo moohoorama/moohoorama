@@ -10,6 +10,7 @@ struct ywq
     struct ywq   * next;
     void         * data;
     uint32_t       meta;
+    uint32_t       size;
 };
 
 #define YWQ_FOREACH(i,h) for( (i) = (h)->next ; (i) != (h) ; (i) = (i)->next )

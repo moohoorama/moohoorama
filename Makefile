@@ -1,6 +1,7 @@
 OPTIMIZATION?=-O0
 STD=-std=c99 -pedantic
 WARN=-Wall -Wimplicit-function-declaration
+#-Werror
 OPT=$(OPTIMIZATION)
 
 PREFIX?=/usr/local
@@ -58,7 +59,7 @@ dep:
 $(BIN): $(LIBS)
 	$(Y_CC) -o $@ $^ $(ARC) $(FINAL_LIBS)
 
-test: $(BIN)
+test: $(BIN) all
 	@(./runtest)
 
 clean:

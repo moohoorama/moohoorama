@@ -10,19 +10,18 @@
 #define BUF_SIZE 8192
 
 //typedef void (*__sighandler_t) (int);
-void *sig_handler(int signo)
+void sig_handler(int signo)
 {
     printf("I Received SIGINT(%d)\n", SIGINT);
 
     dump_stack();
-
-    return 0;
 }
 
 void ywuGlobalInit()
 {
-//    signal(SIGINT, sig_handler);
-    signal(SIGINT, SIG_IGN);
+    signal(SIGBUS, sig_handler);
+    signal(SIGSEGV, sig_handler);
+//    signal(SIGINT, SIG_IGN);
 }
 
 
