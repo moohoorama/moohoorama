@@ -6,24 +6,6 @@
 #include "ywutil.h"
 #include "ywserializer.h"
 
-#define VAR_WRITE(type,name) do{                       \
-    if( sizeof(type)!=write( fd,&name,sizeof(type) ) ) \
-    {                                                  \
-        printf("%s %d\n",#name,sizeof(type));          \
-        return 0;                                      \
-    }                                                  \
-    } while( 0 );
-#define VAR_READ(type,name) do{                        \
-    if( sizeof(type)!=read( fd,&name,sizeof(type) ) )  \
-    {                                                  \
-        printVar( #name, sizeof(type), (char*)&name ); \
-        return 0;                                      \
-    }                                                  \
-    } while( 0 );
-#define VAR_PRINT(type,name) do{                       \
-        printVar( #name, sizeof(type), (char*)&name ); \
-    } while( 0 );
-
 int ywsTest()
 {
     int fd;

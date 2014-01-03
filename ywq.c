@@ -99,7 +99,6 @@ void * popRoutine( void * arg )
         while( !(iter = ywqPop( &head )) );
         if( iter->meta != prev )
         {
-            printf(" m : %d   p :%d\n", iter->meta, prev );
             assert( iter->meta == prev );
         }
         prev ++;
@@ -130,7 +129,6 @@ void   ywqTest()
 
     printf("PushTest:\n");
 
-    if(0)
     for( i = 0 ; i < tryCount ; i ++ )
     {
         ywqInit( &head );
@@ -144,7 +142,6 @@ void   ywqTest()
         YWQ_FOREACH_PREV( iter, &head )
             k++;
         assert( k == tryCount*THREAD_COUNT);
-        printf("%d\n",i);
     }
 
     printf("PushPullTest:\n");

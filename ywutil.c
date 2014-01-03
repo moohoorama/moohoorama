@@ -48,7 +48,7 @@ void dump_stack()
     free(strings);
 }
 
-void printVar( char * name, uint32_t size, char * buf )
+void printVar( const char * name, uint32_t size, char * buf )
 {
     printf("%-16s:",name);
     switch( size )

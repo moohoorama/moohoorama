@@ -5,7 +5,7 @@
 
 void ywuGlobalInit();
 void dump_stack();
-void printVar( char * name, uint32_t size, char * buf );
+void printVar( const char * name, uint32_t size, char * buf );
 void printHex( uint32_t size, char * buf );
 
 #endif
