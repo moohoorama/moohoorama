@@ -26,7 +26,7 @@ int ywsTest()
         varC = 3;
         varD = 4;
 
-        fd = open( "ser.test", O_CREAT | O_RDWR );
+        fd = open( "ser.test", O_CREAT | O_RDWR, 644 );
         if( !fd ) return 0;
         VAR_LIST( VAR_WRITE );
         close( fd );
@@ -34,7 +34,7 @@ int ywsTest()
         varA=varB=varC=varD=0;
         VAR_LIST( VAR_PRINT );
 
-        fd = open( "ser.test", O_RDONLY );
+        fd = open( "ser.test", O_RDONLY, 644 );
         if( !fd ) return 0;
         VAR_LIST( VAR_READ );
         close( fd );
@@ -60,14 +60,14 @@ int ywsTest()
         varC = 3;
         varD = 4;
 
-        fd = open( "ser.test", O_CREAT | O_RDWR );
+        fd = open( "ser.test", O_CREAT | O_RDWR, 644 );
         if( !fd ) return 0;
         VAR_LIST( VAR_WRITE );
         close( fd );
 
         VAR_LIST( VAR_PRINT );
 
-        fd = open( "ser.test", O_RDONLY );
+        fd = open( "ser.test", O_RDONLY, 644 );
         if( !fd ) return 0;
         VAR_LIST( VAR_READ );
         close( fd );

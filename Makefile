@@ -1,7 +1,7 @@
 OPTIMIZATION?=-O3
-STD=-std=c99 -pedantic
-WARN=-Wall -Wimplicit-function-declaration
-#-Werror
+#STD=-std=c99 -pedantic
+STD= -pedantic
+WARN=-Wall -Werror
 OPT=$(OPTIMIZATION)
 
 PREFIX?=/usr/local
@@ -29,6 +29,7 @@ QUIET_INSTALL = @printf '    %b %b\n' $(LINKCOLOR)INSTALL$(ENDCOLOR) $(BINCOLOR)
 endif
 
 Y_CC=$(QUIET_CC)$(CC) $(FINAL_CFLAGS)
+Y_CXX=$(QUIET_CC)$(CXX) $(FINAL_CFLAGS)
 Y_LD=$(QUIET_LINK)$(CC) $(FINAL_LDFLAGS)
 INSTALL=$(QUIET_INSTALL)$(INSTALL)
 
@@ -50,14 +51,14 @@ all: $(BIN)
 include Makefile.dep
 
 dep:
-	$(Y_CC) -MM *.c > Makefile.dep
+	$(Y_CXX) -MM *.c > Makefile.dep
 .PHONY: dep
 
 %.o: %.c 
-	$(Y_CC) -c $<
+	$(Y_CXX) -c $<
 
 $(BIN): $(LIBS)
-	$(Y_CC) -o $@ $^ $(ARC) $(FINAL_LIBS)
+	$(Y_CXX) -o $@ $^ $(ARC) $(FINAL_LIBS)
 
 test: $(BIN) all
 	@(./runtest)

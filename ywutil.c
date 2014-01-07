@@ -62,9 +62,9 @@ void printVar( const char * name, uint32_t size, char * buf )
         case 4:
             printf("0x%08x %u\n",*(uint32_t*)buf,*(uint32_t*)buf);
             break;
-        case 8:
-            printf("0x%016llx %llu\n",*(uint64_t*)buf,*(uint64_t*)buf);
-            break;
+//        case 8:
+//            printf("0x%016llx %llu\n",*(uint64_t*)buf,*(uint64_t*)buf);
+//            break;
         default:
             printf("\n");
             printHex( size, buf );
@@ -73,9 +73,9 @@ void printVar( const char * name, uint32_t size, char * buf )
 }
 void printHex( uint32_t size, char * buf )
 {
-    int i, j;
-    int oldI;
-    int line_size = 16;
+    uint32_t i, j;
+    uint32_t oldI;
+    uint32_t line_size = 16;
 
     for( i=0; i<size; )
     {

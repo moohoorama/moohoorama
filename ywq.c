@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "ywq.h"
 
@@ -19,6 +20,7 @@ void   ywqPush( struct ywq * _head, struct ywq * _target )
     do
     {
         oldPrev = _head->prev;
+        __sync_synchronize();
         _target->prev = oldPrev;
         _target->next = _head;
 
@@ -36,6 +38,7 @@ struct ywq  * ywqPop( struct ywq * _head )
 
     if( _head->prev == _head )
     {
+        __sync_synchronize();
         return NULL; /* Really Emtpy */
     }
 
@@ -43,11 +46,13 @@ struct ywq  * ywqPop( struct ywq * _head )
     {
         target = _head->next;
         linker = target->next;
+        __sync_synchronize();
         while( target->prev != _head )
         {
             linker = target;
             target = target->prev;
         }
+        __sync_synchronize();
     } while( !__sync_bool_compare_and_swap( &linker->prev, target, _head ) );
     
     _head->next = linker;
@@ -55,9 +60,10 @@ struct ywq  * ywqPop( struct ywq * _head )
     return target;
 }
 
-#define tryCount 1024
+#define ITER_COUNT 64
+#define TRY_COUNT  1024
 static struct ywq head;
-static struct ywq slot[16][tryCount];
+static struct ywq slot[16][TRY_COUNT];
 
 void printList()
 {
@@ -78,7 +84,7 @@ void * pushRoutine( void * arg )
     int          num = (int)arg;
     int          i;
 
-    for( i = 0 ; i < tryCount ; i ++ )
+    for( i = 0 ; i < TRY_COUNT ; i ++ )
     {
         slot[num][i].meta = i + 100000;
         ywqPush( &head, &slot[num][i] );
@@ -91,15 +97,22 @@ void * popRoutine( void * arg )
     int          num = (int)arg;
     struct ywq * iter;
     int          i;
-    int          prev=0;
+    int          prev     =0;
+    int          prevRatio=0;
+    int          tryCount =0;
 
     prev = 100000;
     for( i = 0 ; i < tryCount ; i ++ )
     {
         while( !(iter = ywqPop( &head )) );
-        if( iter->meta != prev )
+        if( (int)iter->meta != prev )
         {
-            assert( iter->meta == prev );
+            assert( (int)iter->meta == prev );
+        }
+        if( i*10/TRY_COUNT != prevRatio )
+        {
+            printf("%d%%\n",prevRatio );
+            prevRatio = i*10/TRY_COUNT;
         }
         prev ++;
     }
@@ -129,7 +142,7 @@ void   ywqTest()
 
     printf("PushTest:\n");
 
-    for( i = 0 ; i < tryCount ; i ++ )
+    for( i = 0 ; i < ITER_COUNT ; i ++ )
     {
         ywqInit( &head );
 
@@ -141,16 +154,18 @@ void   ywqTest()
         k = 0;
         YWQ_FOREACH_PREV( iter, &head )
             k++;
-        assert( k == tryCount*THREAD_COUNT);
+        assert( k == TRY_COUNT*THREAD_COUNT);
     }
 
     printf("PushPullTest:\n");
 
     ywqInit( &head );
-    for( i = 0 ; i < tryCount ; i ++ )
+    for( i = 0 ; i < ITER_COUNT ; i ++ )
     {
-        assert( 0 == pthread_create( &pt[0], NULL/*attr*/, pushRoutine, (void*)0 ) );
+        printf("--%d\n",i);
         assert( 0 == pthread_create( &pt[1], NULL/*attr*/, popRoutine, (void*)1 ) );
+        usleep( 10000 );
+        assert( 0 == pthread_create( &pt[0], NULL/*attr*/, pushRoutine, (void*)0 ) );
         pthread_join( pt[0],(void**)&k );
         pthread_join( pt[1],(void**)&k );
     }
