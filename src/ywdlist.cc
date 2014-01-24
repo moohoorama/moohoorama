@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "ywdlist.h"
+#include <ywdlist.h>
 
 #define YWDL_LINK( c, n ) if(c) (c)->next = (n); if(n) (n)->prev=(c);
 

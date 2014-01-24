@@ -2,7 +2,7 @@ OPTIMIZATION?=-O3
 #STD=-std=c99 -pedantic
 STD= -pedantic
 WARN=-Wall -Werror
-OPT=$(OPTIMIZATION)
+OPT=$(OPTIMIZATION) -I./include/
 
 PREFIX?=/usr/local
 INSTALL_BIN=$(PREFIX)/bin
@@ -54,8 +54,10 @@ dep:
 	$(Y_CXX) -MM *.c > Makefile.dep
 .PHONY: dep
 
-%.o: %.c 
-	$(Y_CXX) -c $<
+.cc.o:
+	cpplint.py include/*.h
+	cpplint.py $<
+	$(Y_CXX) -o $@ -c $<
 
 $(BIN): $(LIBS)
 	$(Y_CXX) -o $@ $^ $(ARC) $(FINAL_LIBS)
