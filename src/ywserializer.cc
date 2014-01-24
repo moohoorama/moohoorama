@@ -1,13 +1,15 @@
+/* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "ywutil.h"
-#include "ywserializer.h"
+#include <ywutil.h>
+#include <ywserializer.h>
 
-int ywsTest()
-{
+int ywsTest() {
+    /*
     int fd;
 
 #define VAR_LIST(OPR)     \
@@ -15,32 +17,30 @@ int ywsTest()
     OPR(int, varB)        \
     OPR(int, varC)        \
     OPR(int, varD)
-    {
-        int varA;
-        int varB;
-        int varC;
-        int varD;
+    int varA;
+    int varB;
+    int varC;
+    int varD;
 
-        varA = 1;
-        varB = 2;
-        varC = 3;
-        varD = 4;
+    varA = 1;
+    varB = 2;
+    varC = 3;
+    varD = 4;
 
-        fd = open( "ser.test", O_CREAT | O_RDWR, 644 );
-        if( !fd ) return 0;
-        VAR_LIST( VAR_WRITE );
-        close( fd );
+    fd = open( "ser.test", O_CREAT | O_RDWR, 644 );
+    if( !fd ) return 0;
+    VAR_LIST( VAR_WRITE );
+    close( fd );
 
-        varA=varB=varC=varD=0;
-        VAR_LIST( VAR_PRINT );
+    varA=varB=varC=varD=0;
+    VAR_LIST( VAR_PRINT );
 
-        fd = open( "ser.test", O_RDONLY, 644 );
-        if( !fd ) return 0;
-        VAR_LIST( VAR_READ );
-        close( fd );
+    fd = open( "ser.test", O_RDONLY, 644 );
+    if( !fd ) return 0;
+    VAR_LIST( VAR_READ );
+    close( fd );
 
-        VAR_LIST( VAR_PRINT );
-    }
+    VAR_LIST( VAR_PRINT );
 #undef  VAR_LIST
 
 #define VAR_LIST(OPR)                 \
@@ -76,6 +76,6 @@ int ywsTest()
     }
 #undef  VAR_LIST
 
-
+*/
     return 1;
 }

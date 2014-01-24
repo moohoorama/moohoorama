@@ -1,0 +1,7 @@
+:%s/( /(/g
+:%s/ )/)/g
+:%s/for(/for (/g
+:%s/if(/if (/g
+:%s/while(/while (/g
+:%s/ ;/;/g
+

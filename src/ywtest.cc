@@ -1,3 +1,5 @@
+/* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
+
 #include <stdio.h>
 #include <pthread.h>
 #include <assert.h>
@@ -14,18 +16,17 @@ TEST(Queue, Basic) {
 }
 
 TEST(Serialization, Basic) {
-    EXPECT_TRUE( ywsTest() );
+    EXPECT_TRUE(ywsTest());
 }
 
 TEST(Dump, Basic) {
     char test[]="ABCDEF";
-    printHex( sizeof(test), (char*)test );
+    printHex(sizeof(test), test);
     dump_stack();
 }
 
 
-int main( int argc, char ** argv )
-{
+int main(int argc, char ** argv) {
     ywGlobalInit();
 
     ::testing::InitGoogleTest(&argc, argv);

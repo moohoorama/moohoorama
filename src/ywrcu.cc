@@ -1,8 +1,9 @@
-#include <unistd.h>
+/* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
+
 #include <pthread.h>
 #include <unistd.h>
 
-#include "ywrcu.h"
+#include <ywrcu.h>
 
 /************ DECALRE *************/
 

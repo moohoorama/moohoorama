@@ -2,7 +2,7 @@ OPTIMIZATION?=-O3
 #STD=-std=c99 -pedantic
 STD= -pedantic
 WARN=-Wall -Werror
-OPT=$(OPTIMIZATION) -I./include/
+OPT=$(OPTIMIZATION) -I./include/ -rdynamic
 
 PREFIX?=/usr/local
 INSTALL_BIN=$(PREFIX)/bin
@@ -11,7 +11,7 @@ DEBUG=-g -ggdb
 
 FINAL_CFLAGS=$(STD) $(WARN) $(OPT) $(DEBUG) $(CFLAGS) $(REDIS_CFLAGS)
 FINAL_LDFLAGS=$(LDFLAGS) $(REDIS_LDFLAGS) $(DEBUG)
-FINAL_LIBS=-lm -lpthread
+FINAL_LIBS=-lm -lpthread -lgtest
 
 #FINAL_CFLAGS+= -I../deps/hiredis -I../deps/linenoise -I../deps/lua/src
 
@@ -37,7 +37,7 @@ $(shell ./build_config.sh build_config.mk)
 
 include build_config.mk
 
-LIBS=$(SOURCES:.c=.o)
+LIBS=$(SOURCES:.cc=.o)
 #LIBS=ywdlist.o ywtest.o ywq.o ywutil.o ywmain.o
 BIN=ywtest
 
@@ -66,4 +66,5 @@ test: $(BIN) all
 	@(./runtest)
 
 clean:
-	rm -rf $(BIN) $(LIBS)
+#rm -rf $(BIN) $(LIBS)
+	echo $(BIN) $(LIBS)
