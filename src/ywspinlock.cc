@@ -1,24 +1,35 @@
-#include <ywspinlock.h>
+/* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
 
-bool ywSpinLock::tryRLock(){
-    uint32_t prev = status;
+#include <ywspinlock.h>
+#include <assert.h>
+
+bool ywSpinLock::tryRLock() {
+    int32_t prev = status;
     if (prev < 0)
         return false;
     return __sync_bool_compare_and_swap(&status, prev, prev+1);
 }
 
-bool ywSpinLock::tryWLock(){
-    uint32_t prev = status;
+bool ywSpinLock::tryWLock() {
+    int32_t prev = status;
     if (prev)
         return false;
     return __sync_bool_compare_and_swap(&status, prev, WLOCK);
 }
 
-bool ywSpinLock::RLock(uint32_t timeout){
-    int i;
+void ywSpinLock::release() {
+    if (status < 0) {
+        assert(__sync_bool_compare_and_swap(&status, WLOCK, NONE));
+    } else {
+        __sync_fetch_and_sub(&status, 1);
+    }
+}
+
+bool ywSpinLock::RLock(uint32_t timeout) {
+    uint32_t i;
 
     for (i = 0; i < timeout; ++i) {
-        if (tryRLock()){
+        if (tryRLock()) {
             return true;
         }
     }
@@ -27,11 +38,11 @@ bool ywSpinLock::RLock(uint32_t timeout){
     return false;
 }
 
-bool ywSpinLock::WLock(uint32_t timeout){
-    int i;
+bool ywSpinLock::WLock(uint32_t timeout) {
+    uint32_t i;
 
     for (i = 0; i < timeout; ++i) {
-        if (tryWLock()){
+        if (tryWLock()) {
             return true;
         }
     }
@@ -39,3 +50,5 @@ bool ywSpinLock::WLock(uint32_t timeout){
 
     return false;
 }
+
+

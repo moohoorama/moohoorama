@@ -66,5 +66,4 @@ test: $(BIN) all
 	@(./runtest)
 
 clean:
-#rm -rf $(BIN) $(LIBS)
-	echo $(BIN) $(LIBS)
+	rm $(BIN) $(LIBS)

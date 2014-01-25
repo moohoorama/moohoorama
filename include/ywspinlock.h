@@ -7,20 +7,23 @@
 
 class ywSpinLock {
  public:
-    static final uint32_t NONE  = 0;
-    static final uint32_t WLOCK = 0;
-    static final uint32_t DEFAULT_TIMEOUT = 1000000;
+    static const int32_t NONE  = 0;
+    static const int32_t WLOCK = -1;
+    static const uint32_t DEFAULT_TIMEOUT = 1000000;
+
     bool tryRLock();
     bool tryWLock();
+    void release();
 
     bool RLock(uint32_t timeout = DEFAULT_TIMEOUT);
     bool WLock(uint32_t timeout = DEFAULT_TIMEOUT);
+
 
     ywSpinLock():status(0), miss_count(0) {
     }
 
  private:
-    uint32_t status;
+    int32_t status;
     uint32_t miss_count;
 };
 
