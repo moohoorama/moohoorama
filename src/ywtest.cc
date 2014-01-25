@@ -10,6 +10,7 @@
 #include <ywserializer.h>
 #include <ywmain.h>
 #include <ywspinlock.h>
+#include <ywsl.h>
 #include <gtest/gtest.h>
 
 TEST(Queue, Basic) {
@@ -100,7 +101,58 @@ TEST(Atomic, Count) {
     EXPECT_EQ(THREAD_COUNT * 65536, count);
 }
 
+TEST(SyncList, Basic) {
+    ywSyncList   list;
+    ywNode       node[8];
+    int          i;
 
+    list.print();
+    for (i = 0; i < 8; ++i) {
+        EXPECT_TRUE(list.add(&node[i]));
+        list.print();
+    }
+    for (i = 0; i < 8; ++i) {
+        EXPECT_TRUE(list.remove(&node[i]));
+        list.print();
+    }
+}
+
+const int    THREAD_COUNT = 32;
+ywSyncList   list;
+ywNode       node[THREAD_COUNT][8192];
+
+void * sl_test_routine(void * arg) {
+    int  num = reinterpret_cast<int>(arg);
+    int  i;
+
+    for (i = 0; i < 8192; ++i) {
+        node[num][i].data = reinterpret_cast<void*>(num*100000+i);
+        while (!list.add(&node[num][i])) {
+        }
+    }
+    for (i = 0; i < 8192; ++i) {
+        while (!list.remove(&node[num][i])) {
+        }
+    }
+
+    return NULL;
+}
+
+
+TEST(SyncList, Concurrency) {
+    pthread_t  pt[THREAD_COUNT];
+    int        i;
+
+    for (i = 0; i< THREAD_COUNT; ++i) {
+        assert(0 == pthread_create(
+                    &pt[i], NULL, sl_test_routine,
+                    reinterpret_cast<void*>(i)));
+    }
+    for (i = 0; i< THREAD_COUNT; ++i)
+        pthread_join(pt[i], NULL);
+
+    list.print();
+}
 
 int main(int argc, char ** argv) {
     ywGlobalInit();

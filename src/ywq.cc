@@ -54,7 +54,7 @@ struct ywq  * ywqPop(struct ywq * _head) {
     return target;
 }
 
-#define ITER_COUNT 64
+#define ITER_COUNT 8
 #define TRY_COUNT  1024
 static struct ywq head;
 static struct ywq slot[16][TRY_COUNT];
