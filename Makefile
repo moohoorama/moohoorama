@@ -2,7 +2,7 @@ OPTIMIZATION?=-O3
 #STD=-std=c99 -pedantic
 STD= -pedantic
 WARN=-Wall -Werror
-OPT=$(OPTIMIZATION) -I./include/ -rdynamic
+OPT=$(OPTIMIZATION) -I./include/ -rdynamic -std=c++0x
 
 PREFIX?=/usr/local
 INSTALL_BIN=$(PREFIX)/bin

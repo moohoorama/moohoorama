@@ -1,5 +1,4 @@
 /* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
-
 #include <stdio.h>
 #include <pthread.h>
 #include <assert.h>
@@ -11,8 +10,12 @@
 #include <ywmain.h>
 #include <ywspinlock.h>
 #include <ywsl.h>
+#include <ywskiplist.h>
 #include <gtest/gtest.h>
 
+#include <map>
+
+#ifdef DEBUG
 TEST(Queue, Basic) {
     ywqTest();
 }
@@ -152,6 +155,74 @@ TEST(SyncList, Concurrency) {
         pthread_join(pt[i], NULL);
 
     list.print();
+}
+#endif
+
+TEST(SkipList, LevelTest) {
+    uint32_t   stat[ywSkipList::MAX_LEVEL] = {0};
+    uint32_t   i;
+    uint32_t   j;
+    uint32_t   degree;
+    uint32_t   val;
+    uint32_t   expect;
+    static const uint32_t TEST_COUNT = 1024*16;
+    for (j = 1; j < ywSkipList::MAX_LEVEL; ++j) {
+        ywSkipList yw_skip_list(j);
+
+        memset(&stat, 0, sizeof(stat));
+
+        printf("Level:%d\n", j);
+        for (i = 0; i < TEST_COUNT; ++i) {
+            stat[ yw_skip_list.get_new_level() ]++;
+        }
+        degree = yw_skip_list.getDegree();
+        val = TEST_COUNT;
+        for (i = 1; i <= j; ++i) {
+            if (i == j || val < degree) {
+                break;
+            } else {
+                expect = val * (degree-1)/degree;
+                EXPECT_EQ(expect, stat[i]);
+                val -= expect;
+            }
+            printf("%8d : %8d\n", i, stat[i]);
+        }
+    }
+}
+TEST(SkipList, InsertDeleteTest) {
+    ywSkipList yw_skip_list;
+    uint32_t   i;
+
+    for (i = 1; i < 4096; ++i) {
+        EXPECT_TRUE(yw_skip_list.insert(i));
+    }
+
+    for (i = 1; i < 4096; ++i) {
+        EXPECT_TRUE(yw_skip_list.remove(i));
+    }
+    yw_skip_list.print();
+}
+TEST(SkipList, InsertPerformance) {
+    ywSkipList yw_skip_list;
+    uint32_t   rnd;
+    uint32_t   i;
+
+    rnd = 3;
+    for (i = 0; i < 1024*1024*16; ++i) {
+        rnd = rand_r(&rnd);
+        EXPECT_TRUE(yw_skip_list.insert(rnd));
+    }
+}
+TEST(Map, InsertPerformance) {
+    std::map<uint32_t, uint32_t> test_map;
+    uint32_t                rnd;
+    uint32_t                i;
+
+    rnd = 3;
+    for (i = 0; i < 1024*1024*16; ++i) {
+        rnd = rand_r(&rnd);
+        test_map[rnd]=rnd;
+    }
 }
 
 int main(int argc, char ** argv) {
