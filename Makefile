@@ -1,15 +1,16 @@
-OPTIMIZATION?=-O3
+OPTIMIZATION?=-O0
 #STD=-std=c99 -pedantic
 STD= -pedantic
 WARN=-Wall -Werror
 OPT=$(OPTIMIZATION) -I./include/ -rdynamic -std=c++0x
+DEFINE=-DMAX_PROCESSOR_COUNT=32
 
 PREFIX?=/usr/local
 INSTALL_BIN=$(PREFIX)/bin
 INSTALL=install
 DEBUG=-g -ggdb
 
-FINAL_CFLAGS=$(STD) $(WARN) $(OPT) $(DEBUG) $(CFLAGS) $(REDIS_CFLAGS)
+FINAL_CFLAGS=$(STD) $(WARN) $(OPT) $(DEBUG) $(CFLAGS) $(REDIS_CFLAGS) $(DEFINE)
 FINAL_LDFLAGS=$(LDFLAGS) $(REDIS_LDFLAGS) $(DEBUG)
 FINAL_LIBS=-lm -lpthread -lgtest
 

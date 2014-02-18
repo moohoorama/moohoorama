@@ -12,6 +12,8 @@
 #include <ywsl.h>
 #include <ywskiplist.h>
 #include <gtest/gtest.h>
+#include <ywthread.h>
+#include <ywaccumulator.h>
 
 #include <map>
 
@@ -158,6 +160,27 @@ TEST(SyncList, Concurrency) {
 }
 #endif
 
+TEST(ThreadPool, Basic) {
+    threadpool_test();
+}
+
+TEST(Accumulator, BasicPerformance) {
+    accumulator_test();
+}
+
+TEST(Atomic, BasicPerformance) {
+    atomic_stat_test();
+}
+
+
+const uint32_t  SK_THREAD_COUNT = 4;
+const uint32_t  SK_TEST_COUNT = 1024*1024;
+ywSkipList      g_skip_list;
+typedef struct test_arg_struct {
+    uint num;
+    uint op;
+} test_arg;
+
 TEST(SkipList, LevelTest) {
     uint32_t   stat[ywSkipList::MAX_LEVEL] = {0};
     uint32_t   i;
@@ -165,18 +188,17 @@ TEST(SkipList, LevelTest) {
     uint32_t   degree;
     uint32_t   val;
     uint32_t   expect;
-    static const uint32_t TEST_COUNT = 1024*16;
     for (j = 1; j < ywSkipList::MAX_LEVEL; ++j) {
         ywSkipList yw_skip_list(j);
 
         memset(&stat, 0, sizeof(stat));
 
         printf("Level:%d\n", j);
-        for (i = 0; i < TEST_COUNT; ++i) {
+        for (i = 0; i < SK_TEST_COUNT; ++i) {
             stat[ yw_skip_list.get_new_level() ]++;
         }
         degree = yw_skip_list.getDegree();
-        val = TEST_COUNT;
+        val = SK_TEST_COUNT;
         for (i = 1; i <= j; ++i) {
             if (i == j || val < degree) {
                 break;
@@ -189,18 +211,20 @@ TEST(SkipList, LevelTest) {
         }
     }
 }
+
 TEST(SkipList, InsertDeleteTest) {
     ywSkipList yw_skip_list;
     uint32_t   i;
 
-    for (i = 1; i < 4096; ++i) {
+    for (i = 1; i < SK_TEST_COUNT; ++i) {
         EXPECT_TRUE(yw_skip_list.insert(i));
     }
+    yw_skip_list.print_stat();
 
-    for (i = 1; i < 4096; ++i) {
+    for (i = 1; i < SK_TEST_COUNT; ++i) {
         EXPECT_TRUE(yw_skip_list.remove(i));
     }
-    yw_skip_list.print();
+    yw_skip_list.print_stat();
 }
 TEST(SkipList, InsertPerformance) {
     ywSkipList yw_skip_list;
@@ -208,18 +232,58 @@ TEST(SkipList, InsertPerformance) {
     uint32_t   i;
 
     rnd = 3;
-    for (i = 0; i < 1024*1024*16; ++i) {
+    for (i = 0; i < SK_TEST_COUNT; ++i) {
         rnd = rand_r(&rnd);
         EXPECT_TRUE(yw_skip_list.insert(rnd));
     }
 }
+
+void * skip_test_routine(void * arg) {
+    test_arg   *targ = reinterpret_cast<test_arg*>(arg);
+    uint32_t    i;
+    uint32_t    count = SK_TEST_COUNT / SK_THREAD_COUNT;
+
+    if (targ->op == 0) {
+        for (i = 0; i < count; ++i) {
+            EXPECT_TRUE(g_skip_list.insert(i + targ->num * count));
+        }
+    } else {
+        for (i = 0; i < count; ++i) {
+            EXPECT_TRUE(g_skip_list.remove(i + targ->num * count));
+        }
+    }
+
+    return NULL;
+}
+
+TEST(SkipList, ConcurrencyInsertDelete) {
+    pthread_t  pt[SK_THREAD_COUNT];
+    test_arg   targ[SK_THREAD_COUNT];
+    uint32_t   i;
+
+    for (i = 0; i< SK_THREAD_COUNT; ++i) {
+        targ[i].num = i+1;
+        targ[i].op  = 0;/*insert*/
+        assert(0 == pthread_create(
+                &pt[i], NULL, skip_test_routine,
+                &targ[i]));
+            //                    reinterpret_cast<void*>(i)));
+    }
+
+    for (i = 0; i< SK_THREAD_COUNT; ++i)
+        pthread_join(pt[i], NULL);
+
+    g_skip_list.print_stat();
+    EXPECT_EQ(SK_TEST_COUNT, g_skip_list.get_key_count());
+}
+
 TEST(Map, InsertPerformance) {
     std::map<uint32_t, uint32_t> test_map;
     uint32_t                rnd;
     uint32_t                i;
 
     rnd = 3;
-    for (i = 0; i < 1024*1024*16; ++i) {
+    for (i = 0; i < SK_TEST_COUNT; ++i) {
         rnd = rand_r(&rnd);
         test_map[rnd]=rnd;
     }

@@ -22,7 +22,7 @@ struct ywskNodeStruct {
 class ywSkipList {
  public:
     static const uint32_t DEGREE    = 3;
-    static const uint32_t MAX_LEVEL = 32/(1 << DEGREE);
+    static const uint32_t MAX_LEVEL = 64/(1 << DEGREE);
     static const keyType  INIT_KEY  = 0;
 
     static const uint32_t getDegree() {
@@ -30,14 +30,25 @@ class ywSkipList {
     }
 
     explicit ywSkipList():level(MAX_LEVEL), key_count(0), node_count(0),
-        next_trav(0), down_trav(0) {
+        seq(0), next_trav(0), down_trav(0) {
         init();
     }
     explicit ywSkipList(uint32_t _level):
         level(_level), key_count(0), node_count(0),
-        next_trav(0), down_trav(0) {
+        seq(0), next_trav(0), down_trav(0) {
         init();
     }
+
+    ywskNode *begin() {
+        return &heads[level-1];
+    }
+    ywskNode *end() {
+        return &heads[level-1];
+    }
+    ywskNode *fetchNext(ywskNode * cursor) {
+        return cursor->next;
+    }
+
 
     bool insert(keyType target) {
         ywskNode  *traverse_history[MAX_LEVEL];
@@ -62,17 +73,19 @@ class ywSkipList {
         for (i = 1; i <=new_node_level; ++i) {
             prev_node = traverse_history[ level - i];
 
-            ++node_count;
             new_node       = new ywskNode();
             new_node->key  = target;
             new_node->down = down_node;
             down_node = new_node;
 
-            new_node->next  = prev_node->next;
-            prev_node->next = new_node;
+            do {
+                new_node->next  = prev_node->next;
+            } while ( !__sync_bool_compare_and_swap(
+                    &prev_node->next, new_node->next, new_node));
+//            __sync_add_and_fetch(&node_count, 1);
         }
 
-        ++key_count;
+//        __sync_add_and_fetch(&key_count, 1);
         return true;
     }
 
@@ -97,11 +110,11 @@ class ywSkipList {
             free_node         = target_node->next;
             target_node->next = free_node->next;
 
-            --node_count;
+            __sync_add_and_fetch(&node_count, -1);
             delete free_node;
         }
         if (i != 1) {
-            --key_count;
+            __sync_add_and_fetch(&key_count, -1);
         }
 
         return true;
@@ -129,29 +142,43 @@ class ywSkipList {
         }
         print_stat();
     }
+
     void print_stat() {
-        printf("node_count : %d\n", node_count);
-        printf("key_count  : %d\n", key_count);
-        printf("next_trav  : %"PRIu64"\n", next_trav);
-        printf("down_trav  : %"PRIu64"\n", down_trav);
+        printf("node_count    : %d\n", node_count);
+        printf("key_count     : %d\n", key_count);
+        printf("next_trav     : %"PRIu64"\n", next_trav);
+        printf("down_trav     : %"PRIu64"\n", down_trav);
+        if (down_trav) {
+            printf("search_ratio  : %f\n",
+                   static_cast<float>(next_trav)/down_trav);
+        }
         printf("\n");
     }
+
     uint32_t  get_new_level() {
-        static uint32_t seq = 0;
-        uint32_t i;
-        uint32_t mask;
+        uint64_t i;
+        uint64_t mask;
         ++seq;
         for (i = level-1; i > 0; --i) {
-            mask = (1 << i*DEGREE) - 1;
+            mask = static_cast<uint64_t>((1 << i*DEGREE) - 1);
             if ((seq & mask) == mask) {
                 return i+1;
             }
         }
         return 1;
     }
+
     ywskNode *search(keyType target) {
         ywskNode  *traverse_history[MAX_LEVEL];
         return _search(target, traverse_history);
+    }
+
+    uint32_t get_key_count() {
+        return key_count;
+    }
+
+    uint32_t get_node_count() {
+        return node_count;
     }
 
  private:
@@ -177,9 +204,9 @@ class ywSkipList {
             if (!isLast(cursor->next, level_cursor) &&
                 cursor->next->key < target) {
                 cursor = cursor->next;
-//                ++next_trav;
+                ++next_trav;
             } else {
-//                ++down_trav;
+                ++down_trav;
                 traverse_history[level_cursor] = cursor;
                 level_cursor++;
                 if (level_cursor >= level) {
@@ -201,6 +228,7 @@ class ywSkipList {
     uint32_t  level;
     uint32_t  key_count;
     uint32_t  node_count;
+    uint64_t  seq;
     uint64_t  next_trav;
     uint64_t  down_trav;
 };
