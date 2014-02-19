@@ -3,8 +3,7 @@
 #ifndef INCLUDE_YWQ_H_
 #define INCLUDE_YWQ_H_
 
-#include <stdint.h>
-#include <stdio.h>
+#include <ywcommon.h>
 
 struct ywq {
     struct ywq   * prev;

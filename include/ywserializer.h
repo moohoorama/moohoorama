@@ -3,10 +3,7 @@
 #ifndef INCLUDE_YWSERIALIZER_H_
 #define INCLUDE_YWSERIALIZER_H_
 
-#include <stdio.h>
-#include <stdint.h>
-#include <pthread.h>
-#include <assert.h>
+#include <ywcommon.h>
 
 /* precondition : declare variables fd & size */
 #define VAR_WRITE(type, name) do {                           \

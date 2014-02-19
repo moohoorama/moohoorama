@@ -10,18 +10,19 @@ typedef void (*ywTaskFunc)(void *arg);
 
 class ywThreadPool{
  public:
-    static const int32_t MAX_QUEUE_SIZE   = 64;
-    static const int32_t SLEEP_INTERVAL   = 100;
+    static const int32_t     MAX_QUEUE_SIZE   = 64;
+    static const int32_t     SLEEP_INTERVAL   = 10;
+    static int32_t           NULL_ARG_PTR;
 
  private:
     ywThreadPool():
         g_tid(0),
+        thread_count(0),
         block_add_task(true),
         done(false),
         queue_begin(0),
         queue_end(0) {
-        thread_count = get_processor_count();
-        assert(thread_count <= MAX_PROCESSOR_COUNT);
+        thread_count = 0;
         init();
     }
     explicit ywThreadPool(int32_t _thread_count):
@@ -45,14 +46,17 @@ class ywThreadPool{
         return &gInstance;
     }
 
+    static inline void    null_func(void *arg) {}
+
     static inline int32_t get_processor_count() {
         return sysconf(_SC_NPROCESSORS_ONLN);
     }
 
-    inline ywTID get_thread_id() {
+    static inline ywTID get_thread_id() {
         static __thread ywTID tid = -1;
         if (_UNLIKELY(tid == -1)) {
-            tid = __sync_fetch_and_add(&g_tid, 1);
+            tid = __sync_fetch_and_add(
+                &get_instance()->g_tid, 1);
         }
         return tid;
     }
@@ -78,11 +82,11 @@ class ywThreadPool{
                 &queue_end, prev, next));
 
         while (!__sync_bool_compare_and_swap(
-                &funcs[prev], NULL, func)) {
+                &funcs[prev], (ywTaskFunc)null_func, func)) {
         }
 
         assert(__sync_bool_compare_and_swap(
-                &args[prev], NULL, arg));
+                &args[prev], &NULL_ARG_PTR, arg));
 
         return true;
     }
@@ -111,6 +115,8 @@ class ywThreadPool{
         while (get_running_thread_count()) {
             usleep(SLEEP_INTERVAL);
         }
+        assert(queue_end == queue_begin);
+
         set_block_add_task(false);
     }
 
@@ -122,16 +128,16 @@ class ywThreadPool{
         do {
             prev = queue_begin;
             *func = funcs[prev];
-            if (*func == NULL) {
+            if (*func == null_func) {
                 return false;
             }
             *arg  = args[prev];
             next = (prev + 1) % MAX_QUEUE_SIZE;
         } while ( !__sync_bool_compare_and_swap(
-                &funcs[prev], *func, NULL));
+                &funcs[prev], *func, (ywTaskFunc)null_func));
 
         assert(__sync_bool_compare_and_swap(
-                &args[prev], *arg, NULL));
+                &args[prev], *arg, &NULL_ARG_PTR));
         assert(__sync_bool_compare_and_swap(
                 &queue_begin, prev, next));
 
@@ -144,8 +150,8 @@ class ywThreadPool{
     bool        block_add_task;
     bool        done;
 
-    pthread_t   pt[MAX_PROCESSOR_COUNT];
-    bool        running[MAX_PROCESSOR_COUNT];
+    pthread_t   pt[MAX_THREAD_COUNT];
+    bool        running[MAX_THREAD_COUNT];
 
     int32_t     queue_begin;
     int32_t     queue_end;

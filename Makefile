@@ -3,7 +3,8 @@ OPTIMIZATION?=-O0
 STD= -pedantic
 WARN=-Wall -Werror
 OPT=$(OPTIMIZATION) -I./include/ -rdynamic -std=c++0x
-DEFINE=-DMAX_PROCESSOR_COUNT=32
+DEFINE=-DMAX_THREAD_COUNT=128 -DCACHE_LINE_SIZE=64
+#-DDEBUG -DREPORT
 
 PREFIX?=/usr/local
 INSTALL_BIN=$(PREFIX)/bin
@@ -56,11 +57,11 @@ dep:
 .PHONY: dep
 
 .cc.o:
-	cpplint.py include/*.h
 	cpplint.py $<
 	$(Y_CXX) -o $@ -c $<
 
 $(BIN): $(LIBS)
+	cpplint.py include/*.h
 	$(Y_CXX) -o $@ $^ $(ARC) $(FINAL_LIBS)
 
 test: $(BIN) all

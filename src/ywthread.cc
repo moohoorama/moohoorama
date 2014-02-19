@@ -4,14 +4,25 @@
 #include <gtest/gtest.h>
 
 ywThreadPool ywThreadPool::gInstance;
+int32_t      ywThreadPool::NULL_ARG_PTR;
 
 void ywThreadPool::init() {
     pthread_attr_t  attr;
     int32_t         i;
     cpu_set_t      *cmask;
 
+    if (thread_count == 0) {
+        thread_count = get_processor_count();
+    }
+    assert(thread_count <= MAX_THREAD_COUNT);
+
     assert(cmask = CPU_ALLOC(thread_count));
     assert(0 == pthread_attr_init(&attr) );
+
+    for (i = 0; i < MAX_QUEUE_SIZE; ++i) {
+        funcs[i] = null_func;
+        args[i]  = &NULL_ARG_PTR;
+    }
 
     for (i = 0; i < thread_count; ++i) {
         assert(0 == pthread_create(
@@ -84,4 +95,5 @@ void threadpool_test() {
     EXPECT_FALSE(tpool->add_task(sleep_task, &act));
     tpool->set_block_add_task(false);
     EXPECT_TRUE(tpool->add_task(sleep_task, &act));
+    tpool->wait_to_idle();
 }

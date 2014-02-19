@@ -3,7 +3,7 @@
 #ifndef INCLUDE_YWRCU_H_
 #define INCLUDE_YWRCU_H_
 
-#include <stdint.h>
+#include <ywcommon.h>
 
 #define RCU_TIME_MAX      (UINT32_MAX-2)
 #define RCU_STATE_STABLE  (RCU_TIME_MAX+1)

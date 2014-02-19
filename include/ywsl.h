@@ -2,8 +2,7 @@
 #ifndef INCLUDE_YWSL_H_
 #define INCLUDE_YWSL_H_
 
-#include <stdlib.h>
-#include <stdint.h>
+#include <ywcommon.h>
 #include <ywspinlock.h>
 
 typedef struct _ywNode {
