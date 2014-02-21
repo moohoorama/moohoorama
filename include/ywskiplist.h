@@ -231,10 +231,10 @@ class ywSkipList {
     }
 
     void print_stat() {
-        printf("node_count    : %"PRIu64"\n", node_count.get());
-        printf("key_count     : %"PRIu64"\n", key_count.get());
-        printf("next_trav     : %"PRIu64"\n", next_trav.get());
-        printf("down_trav     : %"PRIu64"\n", down_trav.get());
+        printf("node_count    : %" PRIu64 "\n", node_count.get());
+        printf("key_count     : %" PRIu64 "\n", key_count.get());
+        printf("next_trav     : %" PRIu64 "\n", next_trav.get());
+        printf("down_trav     : %" PRIu64 "\n", down_trav.get());
         if (down_trav.get()) {
             printf("search_ratio  : %f\n",
                    static_cast<float>(next_trav.get())/down_trav.get());

@@ -14,6 +14,10 @@
 #include <gtest/gtest.h>
 #include <ywthread.h>
 #include <ywaccumulator.h>
+#include <stdlib.h>
+#include <vector>
+#include <algorithm>
+
 
 #ifdef __DEBUG
 TEST(Queue, Basic) {
@@ -156,7 +160,6 @@ TEST(SyncList, Concurrency) {
 
     list.print();
 }
-#endif
 
 TEST(ThreadPool, Basic) {
     threadpool_test();
@@ -190,6 +193,95 @@ TEST(SkipList, ConcurrentInsert) {
 }
 TEST(SkipList, ConcurrentRemove) {
     skiplist_conc_remove_test();
+}
+#endif
+
+static const int32_t DATA_SIZE = 1024*1024;
+int32_t data[DATA_SIZE];
+
+TEST(BinarySearch, GenerateData) {
+    int32_t i;
+    int32_t rnd = 2;
+
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+        data[i] = rnd % DATA_SIZE*4;
+    }
+    std::sort(&data[0], &data[DATA_SIZE-1]);
+    data[0] = 0;
+    data[DATA_SIZE-1] = INT32_MAX;
+}
+
+TEST(BinarySearch, std) {
+    int32_t i;
+    int32_t rnd = 2;
+    bool    ret;
+
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+        ret = std::binary_search(&data[0], &data[DATA_SIZE-1],
+                rnd % DATA_SIZE*4);
+    }
+    printf("%d\n", ret);
+}
+
+TEST(BinarySearch, Branch) {
+    int32_t i;
+    int32_t rnd = 2;
+    int32_t val;
+    int32_t min;
+    int32_t max;
+    int32_t mid;
+
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+
+        val = rnd % DATA_SIZE*4;
+
+        min = 0;
+        max = DATA_SIZE-1;
+        do {
+            mid = (min+max)/2;
+            if (val < data[mid]) {
+                max = mid - 1;
+            } else {
+                min = mid + 1;
+            }
+        } while (min <= max);
+        mid = (min+max)/2;
+
+        assert(data[mid] <= val);
+        assert(data[mid+1] >=  val);
+    }
+}
+
+TEST(BinarySearch, NoBranch) {
+    int32_t i;
+    int32_t rnd = 2;
+    int32_t val;
+    int32_t size;
+    int32_t half;
+    int32_t idx;
+
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+
+        val = rnd % DATA_SIZE*4;
+
+        size = DATA_SIZE;
+        idx = 0;
+        do {
+            half = size/2;
+            idx  = idx * 2 + (val >= data[size*idx + half]);
+            size = half;
+        } while (size > 1);
+
+
+        if (!((data[idx] <= val) && (val <= data[idx+1]))) {
+            printf("[%d]=%d <> %d\n", idx, data[idx], val);
+            assert(false);
+        }
+    }
 }
 
 int main(int argc, char ** argv) {
