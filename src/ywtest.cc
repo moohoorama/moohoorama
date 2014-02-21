@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 #include <ywthread.h>
 #include <ywaccumulator.h>
+#include <math.h>
 
 #ifdef __DEBUG
 TEST(Queue, Basic) {
@@ -156,7 +157,6 @@ TEST(SyncList, Concurrency) {
 
     list.print();
 }
-#endif
 
 TEST(ThreadPool, Basic) {
     threadpool_test();
@@ -191,6 +191,95 @@ TEST(SkipList, ConcurrentInsert) {
 TEST(SkipList, ConcurrentRemove) {
     skiplist_conc_remove_test();
 }
+#endif
+
+static const uint32_t DATA_SIZE = 1024*1024*4;
+#define MIN cursor[0]
+#define MAX cursor[1]
+#define MID cursor[2]
+
+#include <vector>
+#include <algorithm>
+
+TEST(BinarySearch, BranchMethod) {
+    std::vector<uint32_t> data(DATA_SIZE);
+    uint32_t i;
+    uint32_t size;
+    uint32_t min, mid, max;
+    uint32_t compare = 0;
+    uint32_t rnd = 2;
+
+    /*insertData*/
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(&rnd) % DATA_SIZE;
+        data[i]=rnd;
+    }
+    std::sort(data.begin(), data.end());
+    rnd = 2;
+    size = DATA_SIZE;
+
+    for (i = 0; i < DATA_SIZE; ++i) {
+        min = 0;
+        max = size-1;
+        rnd = rand_r(&rnd) % DATA_SIZE;
+
+        do {
+            compare++;
+            mid = (min + max)/2;
+            if (rnd < data[mid]) {
+                max = mid - 1;
+            } else {
+                min = mid + 1;
+            }
+        } while (min <= max);
+//        printf("%12d %12d %12d\n", data[mid], rnd, data[mid+1]);
+    }
+    printf("Compare:%d\n", compare);
+}
+
+
+TEST(BinarySearch, NoBranchMethod) {
+//    uint32_t data[DATA_SIZE];
+    std::vector<uint32_t> data(DATA_SIZE);
+    uint32_t i;
+    uint32_t size;
+    uint32_t j;
+    uint32_t log_size;
+    register uint32_t cursor[3];
+    uint32_t sign;
+    uint32_t compare = 0;
+    uint32_t rnd = 2;
+
+    /*insertData*/
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(&rnd) % DATA_SIZE;
+        data[i]=rnd;
+    }
+    std::sort(data.begin(), data.end());
+    rnd = 2;
+
+    size = DATA_SIZE;
+    log_size = ffsl(i)-1;
+//    printf("%d,%d\n", size, log_size);
+    for (i = 0; i < DATA_SIZE; ++i) {
+        MIN = 0;
+        MAX = size-1;
+        rnd = rand_r(&rnd) % DATA_SIZE;
+
+        for (j = 0; j <= log_size; ++j) {
+//        do {
+            compare++;
+            MID = (MIN + MAX)/2;
+//            sign = (rnd < data[MID]);
+            sign = (rnd - data[MID])>>31;
+            cursor[ sign ] = MID - (sign*2-1);
+        }
+//        printf("%12d %12d %12d\n", data[MID], rnd, data[MID+1]);
+//        } while (MIN <= MAX);
+    }
+    printf("Compare:%d\n", compare);
+}
+
 
 int main(int argc, char ** argv) {
     ywGlobalInit();

@@ -1,4 +1,4 @@
-OPTIMIZATION?=-O0
+OPTIMIZATION?=-O3
 #STD=-std=c99 -pedantic
 STD= -pedantic
 WARN=-Wall -Werror
