@@ -151,7 +151,7 @@ TEST(SyncList, Concurrency) {
     int        i;
 
     for (i = 0; i< THREAD_COUNT; ++i) {
-        assert(0 == pthread_create(
+        ASSERT_EQ(0, pthread_create(
                     &pt[i], NULL, sl_test_routine,
                     reinterpret_cast<void*>(i)));
     }
@@ -196,8 +196,14 @@ TEST(SkipList, ConcurrentRemove) {
 }
 #endif
 
-static const int32_t DATA_SIZE = 1024*1024;
+static const int32_t DATA_SIZE = 256;
+static const int32_t TRY_COUNT = 1024*16;
 int32_t data[DATA_SIZE];
+
+typedef bool (*compareFunc)(int32_t a, int32_t b);
+bool compare_int(int32_t a, int32_t b) {
+    return a < b;
+}
 
 TEST(BinarySearch, GenerateData) {
     int32_t i;
@@ -214,75 +220,191 @@ TEST(BinarySearch, GenerateData) {
 
 TEST(BinarySearch, std) {
     int32_t i;
+    int32_t j;
     int32_t rnd = 2;
     bool    ret;
 
-    for (i = 0; i < DATA_SIZE; ++i) {
-        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
-        ret = std::binary_search(&data[0], &data[DATA_SIZE-1],
-                rnd % DATA_SIZE*4);
+    for (j = 0; j < TRY_COUNT; ++j) {
+        for (i = 0; i < DATA_SIZE; ++i) {
+            rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+            ret = std::binary_search(&data[0], &data[DATA_SIZE-1],
+                    rnd % DATA_SIZE*4);
+        }
     }
     printf("%d\n", ret);
 }
 
 TEST(BinarySearch, Branch) {
     int32_t i;
+    int32_t j;
     int32_t rnd = 2;
     int32_t val;
     int32_t min;
     int32_t max;
     int32_t mid;
 
-    for (i = 0; i < DATA_SIZE; ++i) {
-        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+    for (j = 0; j < TRY_COUNT; ++j) {
+        for (i = 0; i < DATA_SIZE; ++i) {
+            rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+            val = rnd % DATA_SIZE*4;
 
-        val = rnd % DATA_SIZE*4;
-
-        min = 0;
-        max = DATA_SIZE-1;
-        do {
+            min = 0;
+            max = DATA_SIZE-1;
+            do {
+                mid = (min+max)/2;
+                if (val < data[mid]) {
+                    max = mid - 1;
+                } else {
+                    min = mid + 1;
+                }
+            } while (min <= max);
             mid = (min+max)/2;
-            if (val < data[mid]) {
-                max = mid - 1;
-            } else {
-                min = mid + 1;
-            }
-        } while (min <= max);
-        mid = (min+max)/2;
 
-        assert(data[mid] <= val);
-        assert(data[mid+1] >=  val);
+            if (!((data[mid] <= val) && (val <= data[mid+1]))) {
+                printf("[%d]=%d <> %d <> %d\n",
+                        mid, data[mid], val, data[mid+1]);
+                ASSERT_TRUE(false);
+            }
+        }
+    }
+}
+
+
+TEST(BinarySearch, Branch_func_pointer) {
+    int32_t i;
+    int32_t j;
+    int32_t rnd = 2;
+    int32_t val;
+    int32_t min;
+    int32_t max;
+    int32_t mid;
+    compareFunc func = compare_int;
+
+    for (j = 0; j < TRY_COUNT; ++j) {
+        for (i = 0; i < DATA_SIZE; ++i) {
+            rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+            val = rnd % DATA_SIZE*4;
+
+            min = 0;
+            max = DATA_SIZE-1;
+            do {
+                mid = (min+max)/2;
+                // if (val < data[mid]) {
+                if (func(val, data[mid])) {
+                    max = mid - 1;
+                } else {
+                    min = mid + 1;
+                }
+            } while (min <= max);
+            mid = (min+max)/2;
+
+            if (!((data[mid] <= val) && (val <= data[mid+1]))) {
+                printf("[%d]=%d <> %d <> %d\n",
+                        mid, data[mid], val, data[mid+1]);
+                ASSERT_TRUE(false);
+            }
+        }
     }
 }
 
 TEST(BinarySearch, NoBranch) {
     int32_t i;
+    int32_t j;
     int32_t rnd = 2;
     int32_t val;
     int32_t size;
-    int32_t half;
+    int32_t sign;
     int32_t idx;
+    compareFunc func = compare_int;
 
-    for (i = 0; i < DATA_SIZE; ++i) {
-        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+    for (j = 0; j < TRY_COUNT; ++j) {
+        for (i = 0; i < DATA_SIZE; ++i) {
+            rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+            val = rnd % DATA_SIZE*4;
 
-        val = rnd % DATA_SIZE*4;
+            size = DATA_SIZE;
+            idx = 0;
+            do {
+                // sign = val >= data[size * idx + (size >> 1)];
+                sign = !func(val, data[size * idx + (size >> 1)]);
+                idx  = (idx << 1) + (sign);
+                size >>= 1;
+            } while (size > 1);
 
-        size = DATA_SIZE;
-        idx = 0;
-        do {
-            half = size/2;
-            idx  = idx * 2 + (val >= data[size*idx + half]);
-            size = half;
-        } while (size > 1);
 
-
-        if (!((data[idx] <= val) && (val <= data[idx+1]))) {
-            printf("[%d]=%d <> %d\n", idx, data[idx], val);
-            assert(false);
+            if (!((data[idx] <= val) && (val <= data[idx+1]))) {
+                printf("[%d]=%d <> %d <> %d\n",
+                        idx, data[idx], val, data[idx+1]);
+                ASSERT_TRUE(false);
+            }
         }
     }
 }
+
+TEST(BinarySearch, NoBranch2) {
+    int32_t i;
+    int32_t j;
+    int32_t rnd = 2;
+    int32_t cur[2];
+    int32_t mid;
+    int32_t sign;
+    int32_t val;
+    compareFunc func = compare_int;
+
+    for (j = 0; j < TRY_COUNT; ++j) {
+        for (i = 0; i < DATA_SIZE; ++i) {
+            rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+            val = rnd % DATA_SIZE*4;
+
+            cur[0] = 0;
+            cur[1] = DATA_SIZE-1;
+            do {
+                mid = (cur[0] + cur[1]) >> 1;
+                sign = func(val, data[mid]);
+                cur[sign] = mid - sign * 2 + 1;
+            } while (cur[0] <= cur[1]);
+
+            mid = (cur[0] + cur[1]) >> 1;
+
+            if (!((data[mid] <= val) && (val <= data[mid+1]))) {
+                printf("%d [%d]=%d <> %d <> %d\n",
+                        i, mid, data[mid], val, data[mid+1]);
+                ASSERT_TRUE(false);
+            }
+        }
+    }
+}
+
+TEST(BinarySearch, NoBranch3) {
+    int32_t i;
+    int32_t j;
+    int32_t rnd = 2;
+    int32_t idx;
+    int32_t size;
+    int32_t val;
+    compareFunc func = compare_int;
+
+    for (j = 0; j < TRY_COUNT; ++j) {
+        for (i = 0; i < DATA_SIZE; ++i) {
+            rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+            val = rnd % DATA_SIZE*4;
+
+            idx  = 0;
+            size   = DATA_SIZE;
+            do {
+                size >>= 1;
+                idx += size*(!func(val, data[idx + size]));
+            } while (size > 1 );
+
+            if (!((data[idx] <= val) && (val <= data[idx+1]))) {
+                printf("%d [%d]=%d <> %d <> %d\n",
+                        i, idx, data[idx], val, data[idx+1]);
+                ASSERT_TRUE(false);
+            }
+        }
+    }
+}
+
 
 int main(int argc, char ** argv) {
     ywGlobalInit();
