@@ -181,7 +181,7 @@ TEST(SkipList, ConcurrentRemove) {
 }
 #endif
 static const int32_t DATA_SIZE = 1024*1024;
-static const int32_t TRY_COUNT = 1;
+static const int32_t TRY_COUNT = 32;
 int32_t data[DATA_SIZE];
 
 typedef bool (*compareFunc)(int32_t a, int32_t b);
@@ -447,6 +447,22 @@ TEST(FBTree, Search) {
         }
     }
 }
+
+TEST(FBTree, Remove) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t val;
+
+    rnd = 2;
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+        val = rnd % DATA_SIZE*4;
+        if (val) {
+            fb_remove(fbt, val);
+        }
+    }
+}
+
 
 std::map<int32_t, int32_t> test_map;
 

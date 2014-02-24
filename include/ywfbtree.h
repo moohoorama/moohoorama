@@ -14,6 +14,8 @@ bool  fb_remove(void *_fbt, fbKey key);
 void *fb_find(void *_fbt, fbKey key);
 void  fb_dump(void *_fbt);
 
+void  fb_validation(void *_fdt);
+
 void  fb_basic_test();
 
 #endif  // INCLUDE_YWFBTREE_H_

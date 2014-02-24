@@ -8,7 +8,7 @@
 
 static const int32_t FB_SLOT_MAX       = 128;
 static const int32_t FB_LAST_SLOT      = FB_SLOT_MAX-1;
-static const int32_t fb_split_nodePOINT     = FB_SLOT_MAX/2;
+static const int32_t FB_SPLITPOINT     = FB_SLOT_MAX/2;
 static const fbKey   FB_NIL_KEY        = UINT32_MAX;
 static const fbKey   FB_LEFT_MOST_KEY  = 0;
 static const int32_t FB_DEPTH_MAX      = 10;
@@ -38,6 +38,7 @@ inline bool     fb_is_full_node(fbn_t *fbn);
 inline bool     fb_is_empty_node(fbn_t *fbn);
 
 inline void     fb_dump_node(int height, fbn_t *fbn);
+inline void     fb_validation_node(int height, fbn_t *fbn);
 
 /************* DataStructure **********/
 struct fbNodeStruct {
@@ -140,14 +141,15 @@ bool  fb_remove(void *_fbt, fbKey key) {
 
     while (fb_is_empty_node(cursor->node)) {
         fb_free_node(cursor->node);
-        --fbs.depth;
         if (fbs.depth == 0) { /* remove root*/
-            --fbt->level;
             fbt->root  = fb_nil_node;
+            fbt->level = 0;
             break;
         }
+        --fbs.depth;
         cursor = &fbs.cursor[ fbs.depth ];
         fb_remove_in_node(cursor->node, cursor->idx);
+        cursor->node->key[0] = FB_LEFT_MOST_KEY;
     }
 
     return true;
@@ -169,6 +171,12 @@ void  fb_dump(void *_fbt) {
     fbt_t   *fbt = fb_get_handle(_fbt);
 
     fb_dump_node(fbt->level, fbt->root);
+}
+
+void fb_validation(void *_fbt) {
+    fbt_t   *fbt = fb_get_handle(_fbt);
+
+    fb_validation_node(fbt->level, fbt->root);
 }
 
 /********************* Internal Functions *************/
@@ -247,12 +255,12 @@ bool fb_split_node(fbt_t *fbt, fbn_t *fbn, fbs_t *fbs) {
     } else {
         /* 5:5 split*/
         memcpy(fbn_right->key,
-               fbn->key + fb_split_nodePOINT,
-               sizeof(fbn->key[0]) * fb_split_nodePOINT);
+               fbn->key + FB_SPLITPOINT,
+               sizeof(fbn->key[0]) * FB_SPLITPOINT);
         memcpy(fbn_right->child,
-               fbn->child + fb_split_nodePOINT,
-               sizeof(fbn->child[0]) * fb_split_nodePOINT);
-        reset_idx = fb_split_nodePOINT;
+               fbn->child + FB_SPLITPOINT,
+               sizeof(fbn->child[0]) * FB_SPLITPOINT);
+        reset_idx = FB_SPLITPOINT;
     }
 
     if (fbs->depth == 0) { /* It's a root node.*/
@@ -284,6 +292,23 @@ bool fb_split_node(fbt_t *fbt, fbn_t *fbn, fbs_t *fbs) {
     fb_reset_node(fbn, reset_idx);
     return true;
 }
+
+void fb_validation_node(int height, fbn_t *fbn) {
+    fbKey prev_key = 0;
+
+    for (int32_t i = 0; i < FB_SLOT_MAX; ++i) {
+        assert(prev_key <= fbn->key[i]);
+        prev_key = fbn->key[i];
+        if (fbn->key[i] == FB_NIL_KEY) {
+            break;
+        }
+
+        if (height > 1) {
+            fb_validation_node(height-1, fbn->child[i]);
+        }
+    }
+}
+
 
 void fb_dump_node(int height, fbn_t *fbn) {
     printf("%12s %12s\n"
@@ -378,9 +403,11 @@ void fb_basic_test() {
     for (i = 0; i < TEST_SIZE; ++i) {
         fb_insert(fbt, i*2, reinterpret_cast<void*>(i*2));
     }
+    /*
     for (i = 0; i < TEST_SIZE*2; ++i) {
         ASSERT_EQ(i & ~1, reinterpret_cast<uint32_t>(fb_find(fbt, i)));
     }
+    */
     for (i = 0; i < TEST_SIZE; ++i) {
         if ((ret=fb_find(fbt, i*2))) {
             if (!fb_remove(fbt, i*2)) {
