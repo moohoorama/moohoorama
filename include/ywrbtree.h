@@ -27,7 +27,10 @@ node_t      *rb_create_tree();
 bool         rb_insert(node_t **root, key_t key);
 bool         rb_remove(node_t **root, key_t key);
 bool         rb_print(int level, node_t *node);
+node_t      *rb_find(node_t **root, key_t key);
 int32_t      rb_validation(node_t *root);
 void         rb_infix(node_t *root);
+
+int32_t      rb_get_compare_count();
 
 #endif  // INCLUDE_YWRBTREE_H_

@@ -32,6 +32,8 @@ int32_t      compare(node_t *node, key_t key);
 node_t     **__traverse(node_t **root, key_t key, node_t **parent);
 bool         recover(node_t **root, node_t *node);
 
+static       int32_t compare_count = 0;
+
 /************************ RELATION *************************/
 inline node_t *grand_parent(node_t * _node) {
     if (_node->parent != nil_node)
@@ -143,9 +145,9 @@ node_t *create_node(key_t _key) {
 }
 
 inline int32_t compare(node_t *node, key_t key) {
-    if (node != nil_node)
-        return key - node->key;
-    return 0;
+    if (node == nil_node)
+        return 0;
+    return key - node->key;
 }
 
 #define NORMAL
@@ -161,6 +163,7 @@ node_t **__traverse(node_t **root, key_t key, node_t **parent) {
 #ifdef NORMAL
     *parent = nil_node;
     while ((ret = compare(*cur, key))) {
+        ++compare_count;
         *parent = *cur;
         if (ret < 0) {
             cur = &LEFT_CHILD(*cur);
@@ -181,6 +184,10 @@ node_t **__traverse(node_t **root, key_t key, node_t **parent) {
 #endif
 
     return cur;
+}
+
+int32_t      rb_get_compare_count() {
+    return compare_count;
 }
 
 bool rb_print(int level, node_t *node) {
@@ -210,8 +217,8 @@ bool rb_print(int level, node_t *node) {
     }
 }
 
+
 int32_t rb_validation(node_t *node) {
-    return true;
     int32_t  child_black_cnt;
     int32_t  cur_black_cnt = 0;
     node_t  *child;
@@ -273,7 +280,6 @@ bool rb_insert(node_t **root, key_t key) {
         *target = new_node;
 
         if (recover(root, new_node)) {
-            (void)rb_validation(*root);
             return true;
         }
         return false;
@@ -282,6 +288,13 @@ bool rb_insert(node_t **root, key_t key) {
     new_node->color = RB_BLACK;
 
     return true;
+}
+node_t      *rb_find(node_t **root, key_t key) {
+    node_t **target;
+    node_t  *parent;
+
+    target = __traverse(root, key, &parent);
+    return *target;
 }
 
 node_t *get_maximum(node_t *node) {
@@ -303,7 +316,8 @@ bool rb_remove(node_t **root, key_t key) {
 
     target = *__traverse(root, key, &parent);
 
-    if (target->key != key) {
+    if ((target->key != key) ||
+        (target != nil_node)) {
         return false;
     }
 
@@ -327,7 +341,6 @@ bool rb_remove(node_t **root, key_t key) {
     replace_child(root, target, child);
     delete target;
 
-    (void)rb_validation(*root);
     return true;
 }
 
@@ -450,6 +463,8 @@ bool recover(node_t **root, node_t *node) {
      *R       R          B*/
     assert(get_color(uncle(node)) == RB_BLACK);
 
+    balanced_rotate(root, grand_parent(node), get_side(node));
+    /*
     node->parent->color       = RB_BLACK;
     grand_parent(node)->color = RB_RED;
     if (get_side(node) == RB_LEFT) {
@@ -457,6 +472,7 @@ bool recover(node_t **root, node_t *node) {
     } else {
         rotate_left(root, grand_parent(node));
     }
+    */
 
     return true;
 }

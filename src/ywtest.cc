@@ -15,6 +15,7 @@
 #include <ywthread.h>
 #include <ywaccumulator.h>
 #include <stdlib.h>
+#include <ywrbtree.h>
 #include <vector>
 #include <algorithm>
 
@@ -196,13 +197,64 @@ TEST(SkipList, ConcurrentRemove) {
 }
 #endif
 
-static const int32_t DATA_SIZE = 256;
-static const int32_t TRY_COUNT = 1024*16;
+static const int32_t DATA_SIZE = 1024*64;
+static const int32_t TRY_COUNT = 16;
 int32_t data[DATA_SIZE];
 
 typedef bool (*compareFunc)(int32_t a, int32_t b);
 bool compare_int(int32_t a, int32_t b) {
     return a < b;
+}
+
+static node_t *root = rb_create_tree();
+
+TEST(RBTree, Generate) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t val;
+
+    rnd = 2;
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+        rb_insert(&root, rnd % DATA_SIZE*4);
+        val = rnd % DATA_SIZE*4;
+        if (val) {
+            rb_insert(&root, val);
+        }
+    }
+    rb_validation(root);
+}
+
+TEST(RBTree, Search) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t j;
+    int32_t val;
+
+    for (j = 0; j < TRY_COUNT; ++j) {
+        for (i = 0; i < DATA_SIZE; ++i) {
+            rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+            val = rnd % DATA_SIZE*4;
+            rb_find(&root, val);
+        }
+    }
+    printf("CompareCount : %d\n", rb_get_compare_count());
+    printf("try_count    : %d\n", TRY_COUNT*DATA_SIZE);
+    printf("AVG_COMPARE  : %d\n", rb_get_compare_count()/TRY_COUNT/DATA_SIZE);
+}
+TEST(RBTree, Remove) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t val;
+
+    rnd = 2;
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+        val = rnd % DATA_SIZE*4;
+        if (val) {
+            rb_remove(&root, val);
+        }
+    }
 }
 
 TEST(BinarySearch, GenerateData) {
@@ -345,40 +397,6 @@ TEST(BinarySearch, NoBranch2) {
     int32_t i;
     int32_t j;
     int32_t rnd = 2;
-    int32_t cur[2];
-    int32_t mid;
-    int32_t sign;
-    int32_t val;
-    compareFunc func = compare_int;
-
-    for (j = 0; j < TRY_COUNT; ++j) {
-        for (i = 0; i < DATA_SIZE; ++i) {
-            rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
-            val = rnd % DATA_SIZE*4;
-
-            cur[0] = 0;
-            cur[1] = DATA_SIZE-1;
-            do {
-                mid = (cur[0] + cur[1]) >> 1;
-                sign = func(val, data[mid]);
-                cur[sign] = mid - sign * 2 + 1;
-            } while (cur[0] <= cur[1]);
-
-            mid = (cur[0] + cur[1]) >> 1;
-
-            if (!((data[mid] <= val) && (val <= data[mid+1]))) {
-                printf("%d [%d]=%d <> %d <> %d\n",
-                        i, mid, data[mid], val, data[mid+1]);
-                ASSERT_TRUE(false);
-            }
-        }
-    }
-}
-
-TEST(BinarySearch, NoBranch3) {
-    int32_t i;
-    int32_t j;
-    int32_t rnd = 2;
     int32_t idx;
     int32_t size;
     int32_t val;
@@ -404,6 +422,7 @@ TEST(BinarySearch, NoBranch3) {
         }
     }
 }
+
 
 
 int main(int argc, char ** argv) {
