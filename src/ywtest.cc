@@ -216,7 +216,6 @@ TEST(RBTree, Generate) {
     rnd = 2;
     for (i = 0; i < DATA_SIZE; ++i) {
         rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
-        rb_insert(&root, rnd % DATA_SIZE*4);
         val = rnd % DATA_SIZE*4;
         if (val) {
             rb_insert(&root, val);

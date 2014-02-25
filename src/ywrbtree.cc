@@ -22,8 +22,7 @@ void         recovery_black_count_balance(node_t **root, node_t *node);
 void         balanced_rotate(node_t **root, node_t *node, node_side_t side);
 bool         recover(node_t **root, node_t *node);
 
-void         rotate_left(node_t **root, node_t *node);
-void         rotate_right(node_t **root, node_t *node);
+void         rotate(node_t **root, node_t *node, node_side_t side);
 
 void         replace_child(node_t **root, node_t *org_child, node_t *new_child);
 
@@ -81,53 +80,22 @@ inline void replace_child(node_t **root, node_t *org_child, node_t *new_child) {
     }
 }
 
-/*     P             P     
- *    @             @    
- *   N             C   
- *  . @    =>     @ .  
- * 1   C         N   3 
- *    @ .       . @    
- *   2   3     1   2       */
-inline void rotate_left(node_t **root, node_t *node) {
-    node_t *child  = RIGHT_CHILD(node);
-    node_t *node_2 = LEFT_CHILD(child);
+void         rotate(node_t **root, node_t *node, node_side_t side) {
+    node_t *child = node->child[!side];
+    node_t *grandson = child->child[side];
 
-    debug("rotate_left : root(%d), node(%d), child(%d)\n",
-           (*root)->key,
-           node->key,
-           child->key);
+    debug("rotate_%d : root(%d), node(%d), child(%d)\n",
+          side,
+          (*root)->key,
+          node->key,
+          child->key);
 
+    child->child[side] = node;
     replace_child(root, node, child);
-    LEFT_CHILD(child)  = node;
-    node->parent       = child;
-    RIGHT_CHILD(node)  = node_2;
-    if (node_2 != nil_node) {
-        node_2->parent     = node;
-    }
-}
-
-/*   P          P     
- *    @          @    
- *     N          C   
- *    @ .   =>   . @  
- *   C   3      1   N 
- *  . @            @ .   
- * 1   2          2   3 */
-inline void rotate_right(node_t **root, node_t *node) {
-    node_t *child  = LEFT_CHILD(node);
-    node_t *node_2 = RIGHT_CHILD(child);
-
-    debug("rotate_right : root(%d), node(%d), child(%d)\n",
-           (*root)->key,
-           node->key,
-           child->key);
-
-    replace_child(root, node, child);
-    RIGHT_CHILD(child) = node;
-    node->parent       = child;
-    LEFT_CHILD(node)   = node_2;
-    if (node_2 != nil_node) {
-        node_2->parent     = node;
+    node->parent = child;
+    node->child[!side] = grandson;
+    if (grandson != nil_node) {
+        grandson->parent = node;
     }
 }
 
@@ -150,17 +118,10 @@ inline int32_t compare(node_t *node, key_t key) {
     return key - node->key;
 }
 
-#define NORMAL
-
-inline int32_t get_sign(int32_t ret) {
-    return static_cast<uint32_t>(ret)>>31;
-}
-
 node_t **__traverse(node_t **root, key_t key, node_t **parent) {
     node_t  **cur = root;
     int32_t ret;
 
-#ifdef NORMAL
     *parent = nil_node;
     while ((ret = compare(*cur, key))) {
         ++compare_count;
@@ -171,17 +132,6 @@ node_t **__traverse(node_t **root, key_t key, node_t **parent) {
             cur = &RIGHT_CHILD(*cur);
         }
     }
-#else
-    int32_t sign;
-
-    *parent = nil_node;
-    while (*cur != nil_node) {
-        *parent = *cur;
-        ret = (*cur)->key - key;
-        sign = get_sign(ret);
-        cur = &(*cur)->child[sign];
-    }
-#endif
 
     return cur;
 }
@@ -193,19 +143,19 @@ int32_t      rb_get_compare_count() {
 bool rb_print(int level, node_t *node) {
     int i;
 
-    if (level >= 160/7) {
+    if (level >= 160/9) {
         printf("...\n");
         return true;
     }
     if (node != nil_node) {
-        printf("%c%-4d- ",
+        printf("%c%-6d- ",
                'R' - ('R'-'B') * get_color(node),
                node->key);
         if (!rb_print(level+1, RIGHT_CHILD(node))) {
             printf("\n");
         }
         for (i = 0; i <= level; ++i) {
-            printf("       ");
+            printf("         ");
         }
         if (!rb_print(level+1, LEFT_CHILD(node))) {
             printf("\n");
@@ -390,11 +340,7 @@ void recovery_black_count_balance(node_t **root, node_t *node) {
     s_node->color = s_node->parent->color;
     node->parent->color = RB_BLACK;
     s_node->child[!side]->color = RB_BLACK;
-    if (side == RB_LEFT) {
-        rotate_left(root, node->parent);
-    } else {
-        rotate_right(root, node->parent);
-    }
+    rotate(root, node->parent, side);
 
     return;
 }
@@ -405,11 +351,7 @@ void balanced_rotate(node_t **root, node_t *node, node_side_t side) {
     node->child[side]->color = node->color;
     node->color = RB_RED;
 
-    if (side == RB_LEFT) {
-        rotate_right(root, node);
-    } else {
-        rotate_left(root, node);
-    }
+    rotate(root, node, !side);
 }
 
 bool recover(node_t **root, node_t *node) {
@@ -445,16 +387,9 @@ bool recover(node_t **root, node_t *node) {
     /*  B    B
      * R  or  R
      *  R    R */
-    if (get_side(node) == RB_LEFT) {
-        if (get_side(node->parent) == RB_RIGHT) {
-            rotate_right(root, node->parent);
-            node = RIGHT_CHILD(node);
-        }
-    } else { /* right */
-        if (get_side(node->parent) == RB_LEFT) {
-            rotate_left(root, node->parent);
-            node = LEFT_CHILD(node);
-        }
+    if (get_side(node) != get_side(node->parent)) {
+        rotate(root, node->parent, get_side(node->parent));
+        node = node->child[get_side(node)];
     }
 
     /* case5 */
