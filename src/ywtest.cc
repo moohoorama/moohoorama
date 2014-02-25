@@ -16,9 +16,9 @@
 #include <ywaccumulator.h>
 #include <stdlib.h>
 #include <ywrbtree.h>
+#include <ywmempool.h>
 #include <vector>
 #include <algorithm>
-
 
 #ifdef __DEBUG
 TEST(Queue, Basic) {
@@ -289,7 +289,6 @@ TEST(BinarySearch, std) {
                     rnd % DATA_SIZE*4);
         }
     }
-    printf("%d\n", ret);
 }
 
 TEST(BinarySearch, Branch) {
@@ -429,7 +428,9 @@ TEST(BinarySearch, NoBranch2) {
     }
 }
 
-
+TEST(MemPool, Basic) {
+    ywMemPool test;
+}
 
 int main(int argc, char ** argv) {
     ywGlobalInit();

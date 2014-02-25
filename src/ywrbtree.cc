@@ -229,11 +229,19 @@ bool rb_insert(node_t **root, key_t key) {
 }
 
 node_t      *rb_find(node_t **root, key_t key) {
-    node_t **target;
-    node_t  *parent;
+    node_t  *cur = *root;
+    int32_t side;
+    int32_t _compare_count = 0;
 
-    target = __traverse(root, key, &parent);
-    return *target;
+    while (key != cur->key) {
+        side = cur->key < key;
+        ++_compare_count;
+        cur = cur->child[side];
+    }
+
+    compare_count.mutate(_compare_count);
+
+    return cur;
 }
 
 node_t *get_maximum(node_t *node) {
@@ -393,7 +401,8 @@ bool recover(node_t **root, node_t *node) {
 }
 
 const int32_t  RB_THREAD_COUNT = 4;
-const int32_t  RB_TEST_COUNT = 1024*32;
+const int32_t  RB_TEST_RANGE = 10;
+const int32_t  RB_TEST_COUNT = 1024*1024;
 
 typedef struct test_arg_struct {
     node_t  **root;
@@ -404,28 +413,24 @@ typedef struct test_arg_struct {
 void rb_test_routine(void * arg) {
     test_arg   *targ = reinterpret_cast<test_arg*>(arg);
     int32_t     i;
+    int32_t     j;
 
     if (targ->op == 0) { /*insert remove */
         for (i = 0; i < RB_TEST_COUNT; ++i) {
-            rb_insert(targ->root,   80008);
-            rb_remove(targ->root,   80008);
-            rb_insert(targ->root,  100008);
-            rb_remove(targ->root,  100008);
-            rb_insert(targ->root,  480008);
-            rb_remove(targ->root,  480008);
-            rb_insert(targ->root,  520008);
-            rb_remove(targ->root,  520008);
-            rb_insert(targ->root, 1080008);
-            rb_remove(targ->root, 1080008);
-            rb_insert(targ->root, 1020008);
-            rb_remove(targ->root, 1020008);
+            for (j = 0; j < RB_TEST_RANGE; ++j) {
+                rb_insert(targ->root,  100001 + j*2);
+            }
+            for (j = 0; j < RB_TEST_RANGE; ++j) {
+                rb_remove(targ->root,  100001 + j*2);
+            }
         }
         printf("Mutate done.\n");
     } else {
-        for (i = 0; i < RB_TEST_COUNT*10; ++i) {
-            ASSERT_TRUE(rb_find(targ->root,  100000));
-            ASSERT_TRUE(rb_find(targ->root,  500000));
-            ASSERT_TRUE(rb_find(targ->root, 1000000));
+        for (i = 0; i < RB_TEST_COUNT; ++i) {
+            for (j = 0; j < RB_TEST_RANGE; ++j) {
+                node_t * node = rb_find(targ->root,  100000 + j*2);
+                assert(node->key == 100000 + j*2);
+            }
         }
         printf("Find done.\n");
     }
@@ -434,9 +439,9 @@ void rbtree_concunrrency_test(node_t **root) {
     test_arg   targ[RB_THREAD_COUNT];
     int32_t    i;
 
-    rb_insert(root,  100000);
-    rb_insert(root,  500000);
-    rb_insert(root, 1000000);
+    for (i = 0; i < RB_TEST_RANGE; ++i) {
+        rb_insert(root,  100000 + i*2);
+    }
 
     printf("CompareCount : %lld\n", rb_get_compare_count());
     printf("try_count    : %d\n", RB_TEST_COUNT*10);
@@ -453,6 +458,10 @@ void rbtree_concunrrency_test(node_t **root) {
     }
 
     ywThreadPool::get_instance()->wait_to_idle();
+
+    for (i = 0; i < RB_TEST_RANGE; ++i) {
+        rb_remove(root,  100000 + i*2);
+    }
 
     printf("CompareCount : %lld\n", rb_get_compare_count());
     printf("try_count    : %d\n", RB_TEST_COUNT*10);

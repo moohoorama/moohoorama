@@ -15,12 +15,12 @@ static const node_side_t RB_LEFT     = 0;
 static const node_side_t RB_RIGHT    = 1;
 static const node_side_t RB_SIDE_MAX = 2;
 
-typedef struct  nodeStruct node_t;
+typedef struct nodeStruct node_t;
 struct nodeStruct {
-    node_color_t   color;
-    node_t       * parent;
-    node_t       * child[RB_SIDE_MAX];
-    key_t          key;
+    node_color_t       color;
+    node_t           * parent;
+    node_t           * child[RB_SIDE_MAX];
+    key_t              key;
 };
 
 typedef struct rbTreeStruct rb_t;
