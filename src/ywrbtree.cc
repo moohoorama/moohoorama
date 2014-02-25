@@ -267,7 +267,7 @@ bool rb_remove(node_t **root, key_t key) {
     target = *__traverse(root, key, &parent);
 
     if ((target->key != key) ||
-        (target != nil_node)) {
+        (target == nil_node)) {
         return false;
     }
 
@@ -337,6 +337,7 @@ void recovery_black_count_balance(node_t **root, node_t *node) {
         balanced_rotate(root, s_node, side);
         s_node = sibling(node);
     }
+    /* bring balck from other side */
     s_node->color = s_node->parent->color;
     node->parent->color = RB_BLACK;
     s_node->child[!side]->color = RB_BLACK;
@@ -399,15 +400,6 @@ bool recover(node_t **root, node_t *node) {
     assert(get_color(uncle(node)) == RB_BLACK);
 
     balanced_rotate(root, grand_parent(node), get_side(node));
-    /*
-    node->parent->color       = RB_BLACK;
-    grand_parent(node)->color = RB_RED;
-    if (get_side(node) == RB_LEFT) {
-        rotate_right(root, grand_parent(node));
-    } else {
-        rotate_left(root, grand_parent(node));
-    }
-    */
 
     return true;
 }

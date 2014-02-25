@@ -254,6 +254,8 @@ TEST(RBTree, Remove) {
             rb_remove(&root, val);
         }
     }
+    rb_validation(root);
+    rb_print(0, root);
 }
 
 TEST(BinarySearch, GenerateData) {
