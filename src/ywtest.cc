@@ -197,8 +197,8 @@ TEST(SkipList, ConcurrentRemove) {
 }
 #endif
 
-static const int32_t DATA_SIZE = 1024*64;
-static const int32_t TRY_COUNT = 16;
+static const int32_t DATA_SIZE = 1024*1024;
+static const int32_t TRY_COUNT = 1;
 int32_t data[DATA_SIZE];
 
 typedef bool (*compareFunc)(int32_t a, int32_t b);
@@ -237,10 +237,15 @@ TEST(RBTree, Search) {
             rb_find(&root, val);
         }
     }
-    printf("CompareCount : %d\n", rb_get_compare_count());
+    printf("CompareCount : %lld\n", rb_get_compare_count());
     printf("try_count    : %d\n", TRY_COUNT*DATA_SIZE);
-    printf("AVG_COMPARE  : %d\n", rb_get_compare_count()/TRY_COUNT/DATA_SIZE);
+    printf("AVG_COMPARE  : %lld\n", rb_get_compare_count()/TRY_COUNT/DATA_SIZE);
 }
+
+TEST(RBTree, concurrency) {
+    rbtree_concunrrency_test(&root);
+}
+
 TEST(RBTree, Remove) {
     int32_t rnd = 2;
     int32_t i;

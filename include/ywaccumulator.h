@@ -29,9 +29,9 @@ class ywAccumulator{
 
     void mutate(T delta) {
         if (use_atomic == true) {
-            __sync_add_and_fetch(get_ptr(0, slot_idx), delta);
+            __sync_add_and_fetch(data[0], delta);
         } else {
-            *(get_ptr(ywThreadPool::get_thread_id(), slot_idx)) += delta;
+            *data[ywThreadPool::get_thread_id()] += delta;
         }
     }
 
@@ -39,7 +39,7 @@ class ywAccumulator{
         int32_t i;
 
         for (i = 0; i < MAX_THREAD_COUNT; ++i) {
-            *(get_ptr(i, slot_idx)) = 0;
+            *data[i] = 0;
         }
     }
 
@@ -48,7 +48,7 @@ class ywAccumulator{
         T       val = 0;
 
         for (i = 0; i < MAX_THREAD_COUNT; ++i) {
-            val += *(get_ptr(i, slot_idx));
+            val += *data[i];
         }
         return val;
     }
@@ -73,6 +73,8 @@ class ywAccumulator{
  private:
     bool alloc_slot() {
         ywsllNode * free_ptr;
+        int32_t     i;
+
         if (!lock()) {
             return false;
         }
@@ -92,6 +94,11 @@ class ywAccumulator{
                     new T[SLOT_COUNT*MAX_THREAD_COUNT];
             }
         }
+
+        for (i = 0; i < MAX_THREAD_COUNT; ++i) {
+            data[i] = get_ptr(i, slot_idx);
+        }
+
         reset();
 #ifdef REPORT
         report();
@@ -128,6 +135,7 @@ class ywAccumulator{
     }
 
     int32_t             slot_idx;
+    T                  *data[MAX_THREAD_COUNT];
 
     static T           *root[CHUNK_COUNT];
     static int32_t      global_idx;

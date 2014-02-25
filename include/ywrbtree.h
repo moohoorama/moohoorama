@@ -23,6 +23,12 @@ struct nodeStruct {
     key_t          key;
 };
 
+typedef struct rbTreeStruct rb_t;
+
+struct rbTreeStruct {
+    node_t * root;
+};
+
 node_t      *rb_create_tree();
 bool         rb_insert(node_t **root, key_t key);
 bool         rb_remove(node_t **root, key_t key);
@@ -31,6 +37,7 @@ node_t      *rb_find(node_t **root, key_t key);
 int32_t      rb_validation(node_t *root);
 void         rb_infix(node_t *root);
 
-int32_t      rb_get_compare_count();
+int64_t      rb_get_compare_count();
+void         rbtree_concunrrency_test(node_t **root);
 
 #endif  // INCLUDE_YWRBTREE_H_
