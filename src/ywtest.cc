@@ -19,6 +19,7 @@
 #include <ywbtree.h>
 #include <ywfbtree.h>
 
+#include <map>
 #include <vector>
 #include <algorithm>
 
@@ -443,6 +444,38 @@ TEST(FBTree, Search) {
             if (fb_find(fbt, val)) {
                 assert(fb_find(fbt, val));
             }
+        }
+    }
+}
+
+std::map<int32_t, int32_t> test_map;
+
+TEST(STD_MAP, Generate) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t val;
+
+    rnd = 2;
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+        val = rnd % DATA_SIZE*4;
+        if (val) {
+            test_map[val] = val;
+        }
+    }
+}
+
+TEST(STD_MAP, Search) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t j;
+    int32_t val;
+
+    for (j = 0; j < TRY_COUNT; ++j) {
+        for (i = 0; i < DATA_SIZE; ++i) {
+            rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+            val = rnd % DATA_SIZE*4;
+            ASSERT_EQ(val, test_map[val]);
         }
     }
 }
