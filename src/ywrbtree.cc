@@ -4,38 +4,56 @@
 #include <ywthread.h>
 #include <ywaccumulator.h>
 #include <gtest/gtest.h>
+#include <ywmempool.h>
+
+/********************* Data structure ******************/
+typedef int32_t node_color_t;
+static const node_color_t RB_RED     = 0;
+static const node_color_t RB_BLACK   = 1;
+
+typedef int32_t node_side_t;
+static const node_side_t RB_LEFT     = 0;
+static const node_side_t RB_RIGHT    = 1;
+static const node_side_t RB_SIDE_MAX = 2;
+
+typedef struct nodeStruct node_t;
+struct nodeStruct {
+    node_color_t       color;
+    node_t           * parent;
+    node_t           * child[RB_SIDE_MAX];
+    key_t              key;
+    void             * data;
+};
+
+typedef struct rbTreeStruct rb_t;
+struct rbTreeStruct {
+    node_t * root;
+};
 
 #define LEFT_CHILD(node) ((node)->child[RB_LEFT])
 #define RIGHT_CHILD(node) ((node)->child[RB_RIGHT])
 #define debug(...)
 
 node_t nil_node_instance={RB_BLACK, &nil_node_instance,
-    {&nil_node_instance, &nil_node_instance}, 0};
+    {&nil_node_instance, &nil_node_instance}, 0, NULL};
 node_t *nil_node=&nil_node_instance;
 
 /************************ DECLARE *************************/
-node_t      *grand_parent(node_t * _node);
-node_t      *right(node_t *_node);
-node_side_t  get_side(node_t *_node);
-node_t      *sibling(node_t * _node);
-node_t      *uncle(node_t *_node);
-node_color_t get_color(node_t * _node);
 
-void         recovery_black_count_balance(node_t **root, node_t *node);
-void         balanced_rotate(node_t **root, node_t *node, node_side_t side);
-bool         recover(node_t **root, node_t *node);
+ywAccumulator<int64_t>        compare_count;
+ywMemPool<node_t>             rb_node_pool;
+ywMemPool<rb_t>               rb_tree_pool;
 
-void         rotate(node_t **root, node_t *node, node_side_t side);
-
-void         replace_child(node_t **root, node_t *org_child, node_t *new_child);
-
-node_t      *create_node(key_t _key);
-node_t     **__traverse(node_t **root, key_t key, node_t **parent);
-bool         recover(node_t **root, node_t *node);
-
-ywAccumulator<int64_t, false> compare_count;
+void recovery_black_count_balance(rb_t *rbt, node_t *node);
+void balanced_rotate(rb_t *rbt, node_t *node, node_side_t side);
+bool recover(rb_t *rbt, node_t *node);
+void rotate(rb_t *rbt, node_t *node, node_side_t side);
+void replace_child(rb_t *rbt, node_t *org_child, node_t *new_child);
 
 /************************ RELATION *************************/
+inline rb_t* get_handle(void *rbt) {
+    return reinterpret_cast<rb_t*>(rbt);
+}
 inline node_t *grand_parent(node_t * _node) {
     return _node->parent->parent;
 }
@@ -58,9 +76,9 @@ inline node_color_t get_color(node_t * _node) {
     return _node->color;
 }
 
-inline void replace_child(node_t **root, node_t *org_child, node_t *new_child) {
-    if (*root == org_child) {
-        *root             = new_child;
+inline void replace_child(rb_t *rbt, node_t *org_child, node_t *new_child) {
+    if (rbt->root == org_child) {
+        rbt->root         = new_child;
         new_child->color  = RB_BLACK;
         new_child->parent = nil_node;
     } else {
@@ -71,18 +89,18 @@ inline void replace_child(node_t **root, node_t *org_child, node_t *new_child) {
     }
 }
 
-inline void rotate(node_t **root, node_t *node, node_side_t side) {
+inline void rotate(rb_t *rbt, node_t *node, node_side_t side) {
     node_t *child = node->child[!side];
     node_t *grandson = child->child[side];
 
     debug("rotate_%d : root(%d), node(%d), child(%d)\n",
           side,
-          (*root)->key,
+          rbt->root->key,
           node->key,
           child->key);
 
     child->child[side] = node;
-    replace_child(root, node, child);
+    replace_child(rbt, node, child);
     node->parent = child;
     node->child[!side] = grandson;
     if (grandson != nil_node) {
@@ -90,21 +108,22 @@ inline void rotate(node_t **root, node_t *node, node_side_t side) {
     }
 }
 
-inline node_t *create_node(key_t _key) {
+inline node_t *create_node(key_t _key, void * _data) {
     node_t * ret;
 
-    ret = new node_t();
+    ret = rb_node_pool.alloc();
     ret->color  = RB_RED;
     ret->parent = nil_node;
     ret->child[RB_LEFT]= nil_node;
     ret->child[RB_RIGHT]= nil_node;
     ret->key    = _key;
+    ret->data   = _data;
 
     return ret;
 }
 
-node_t **__traverse(node_t **root, key_t key, node_t **parent) {
-    node_t  **cur = root;
+node_t **__traverse(rb_t *rbt, key_t key, node_t **parent) {
+    node_t  **cur = &rbt->root;
     int32_t side;
     int32_t _compare_count = 0;
 
@@ -127,7 +146,7 @@ int64_t      rb_get_compare_count() {
     return compare_count.get();
 }
 
-bool rb_print(int level, node_t *node) {
+bool __rb_print(node_t *node, int level) {
     int i;
 
     if (level >= 160/9) {
@@ -138,13 +157,13 @@ bool rb_print(int level, node_t *node) {
         printf("%c%-6d- ",
                'R' - ('R'-'B') * get_color(node),
                node->key);
-        if (!rb_print(level+1, RIGHT_CHILD(node))) {
+        if (!__rb_print(RIGHT_CHILD(node), level+1)) {
             printf("\n");
         }
         for (i = 0; i <= level; ++i) {
             printf("         ");
         }
-        if (!rb_print(level+1, LEFT_CHILD(node))) {
+        if (!__rb_print(LEFT_CHILD(node), level+1)) {
             printf("\n");
         }
         return true;
@@ -154,8 +173,13 @@ bool rb_print(int level, node_t *node) {
     }
 }
 
+void rb_print(void *_rbt) {
+    rb_t *rbt = get_handle(_rbt);
 
-int32_t rb_validation(node_t *node) {
+    __rb_print(rbt->root, 0);
+}
+
+int32_t __rb_validation(node_t *node) {
     int32_t  child_black_cnt;
     int32_t  cur_black_cnt = 0;
     node_t  *child;
@@ -169,7 +193,7 @@ int32_t rb_validation(node_t *node) {
                        (get_color(child) == RB_BLACK));
                 assert(child->parent == node);
             }
-            child_black_cnt = rb_validation(child);
+            child_black_cnt = __rb_validation(child);
             if (cur_black_cnt) {
                 assert(child_black_cnt == cur_black_cnt);
             } else {
@@ -184,56 +208,76 @@ int32_t rb_validation(node_t *node) {
     return cur_black_cnt;
 }
 
-void rb_infix(node_t *node) {
+void    rb_validation(void * _rbt) {
+    rb_t *rbt = get_handle(_rbt);
+
+    (void)__rb_validation(rbt->root);
+}
+
+void __rb_infix(node_t *node) {
     if (node != nil_node) {
         assert(get_color(node) == RB_BLACK ||
                get_color(node->parent) == RB_BLACK);
         if (LEFT_CHILD(node) != nil_node) {
             assert(LEFT_CHILD(node)->parent == node);
-            rb_infix(LEFT_CHILD(node));
+            __rb_infix(LEFT_CHILD(node));
         }
         printf("%-2d ", node->key);
         if (RIGHT_CHILD(node) != nil_node) {
             assert(RIGHT_CHILD(node)->parent == node);
-            rb_infix(RIGHT_CHILD(node));
+            __rb_infix(RIGHT_CHILD(node));
         }
     }
 }
 
-node_t      *rb_create_tree() {
-    return nil_node;
+void rb_infix(void * _rbt) {
+    rb_t *rbt = get_handle(_rbt);
+
+    __rb_infix(rbt->root);
 }
 
-bool rb_insert(node_t **root, key_t key) {
-    node_t  *new_node = create_node(key);
+void *rb_create_tree() {
+    rb_t * rbt = rb_tree_pool.alloc();
+    rbt->root = nil_node;
+
+    return reinterpret_cast<void*>(rbt);
+}
+
+bool rb_insert(void *_rbt, key_t key, void * data) {
+    rb_t    *rbt = get_handle(_rbt);
+    node_t  *new_node = create_node(key, data);
     node_t **target;
     node_t  *parent;
 
-    if (*root != nil_node) {
-        target = __traverse(root, key, &parent);
+    if (rbt->root != nil_node) {
+        target = __traverse(rbt, key, &parent);
         if (*target != nil_node) {
             return false;
         }
         new_node->parent = parent;
         *target = new_node;
 
-        if (recover(root, new_node)) {
+        if (recover(rbt, new_node)) {
             return true;
         }
         return false;
     }
-    *root = new_node;
+    rbt->root = new_node;
     new_node->color = RB_BLACK;
 
     return true;
 }
 
-node_t      *rb_find(node_t **root, key_t key) {
-    node_t  *cur = *root;
+void        *rb_find(void *_rbt, key_t key) {
+    rb_t    *rbt = get_handle(_rbt);
+    node_t  *cur = rbt->root;
     int32_t side;
     int32_t _compare_count = 0;
 
     while (key != cur->key) {
+        if (_UNLIKELY(cur == nil_node)) {
+            break;
+        }
         side = cur->key < key;
         ++_compare_count;
         cur = cur->child[side];
@@ -241,7 +285,7 @@ node_t      *rb_find(node_t **root, key_t key) {
 
     compare_count.mutate(_compare_count);
 
-    return cur;
+    return cur->data;
 }
 
 node_t *get_maximum(node_t *node) {
@@ -252,8 +296,9 @@ node_t *get_maximum(node_t *node) {
     return node;
 }
 
-bool rb_remove(node_t **root, key_t key) {
-    if (*root == nil_node) {
+bool rb_remove(void *_rbt, key_t key) {
+    rb_t *rbt = get_handle(_rbt);
+    if (rbt->root == nil_node) {
         return false;
     }
 
@@ -261,7 +306,7 @@ bool rb_remove(node_t **root, key_t key) {
     node_t *child;
     node_t *parent;
 
-    target = *__traverse(root, key, &parent);
+    target = *__traverse(rbt, key, &parent);
 
     if ((target->key != key) ||
         (target == nil_node)) {
@@ -281,16 +326,16 @@ bool rb_remove(node_t **root, key_t key) {
     }
 
     if (get_color(target) == RB_BLACK) {
-        recovery_black_count_balance(root, target);
+        recovery_black_count_balance(rbt, target);
     }
 
-    replace_child(root, target, child);
-    delete target;
+    replace_child(rbt, target, child);
+    rb_node_pool.free_mem(target);
 
     return true;
 }
 
-void recovery_black_count_balance(node_t **root, node_t *node) {
+void recovery_black_count_balance(rb_t *rbt, node_t *node) {
     node_t      *s_node;
     node_side_t  side = get_side(node);
 
@@ -308,7 +353,7 @@ void recovery_black_count_balance(node_t **root, node_t *node) {
         (get_color(LEFT_CHILD(s_node)) == RB_BLACK) &&
         (get_color(RIGHT_CHILD(s_node)) == RB_BLACK)) {
         s_node->color = RB_RED;
-        recovery_black_count_balance(root, node->parent);
+        recovery_black_count_balance(rbt, node->parent);
         return;
     }
 
@@ -323,38 +368,38 @@ void recovery_black_count_balance(node_t **root, node_t *node) {
     }
 
     if (get_color(s_node) == RB_RED) {
-        balanced_rotate(root, node->parent, !side);
-        recovery_black_count_balance(root, node);
+        balanced_rotate(rbt, node->parent, !side);
+        recovery_black_count_balance(rbt, node);
         return;
     }
 
     /* rotation*/
     if (get_color(s_node->child[side]) == RB_RED) {
-        balanced_rotate(root, s_node, side);
+        balanced_rotate(rbt, s_node, side);
         s_node = sibling(node);
     }
     /* bring balck from other side */
     s_node->color = s_node->parent->color;
     node->parent->color = RB_BLACK;
     s_node->child[!side]->color = RB_BLACK;
-    rotate(root, node->parent, side);
+    rotate(rbt, node->parent, side);
 
     return;
 }
 
-void balanced_rotate(node_t **root, node_t *node, node_side_t side) {
+void balanced_rotate(rb_t *rbt, node_t *node, node_side_t side) {
     assert(node->child[side]->color == RB_RED);
 
     node->child[side]->color = node->color;
     node->color = RB_RED;
 
-    rotate(root, node, !side);
+    rotate(rbt, node, !side);
 }
 
-bool recover(node_t **root, node_t *node) {
+bool recover(rb_t *rbt, node_t *node) {
     assert(get_color(node) == RB_RED);
 
-    if (*root == node) {
+    if (rbt->root == node) {
         node->color = RB_BLACK;
         return true;
     }
@@ -376,7 +421,7 @@ bool recover(node_t **root, node_t *node) {
         node->parent->color = RB_BLACK;
         uncle(node)->color = RB_BLACK;
         grand_parent(node)->color = RB_RED;
-        recover(root, grand_parent(node));
+        recover(rbt, grand_parent(node));
         return true;
     }
 
@@ -385,7 +430,7 @@ bool recover(node_t **root, node_t *node) {
      * R  or  R
      *  R    R */
     if (get_side(node) != get_side(node->parent)) {
-        rotate(root, node->parent, get_side(node->parent));
+        rotate(rbt, node->parent, get_side(node->parent));
         node = node->child[get_side(node)];
     }
 
@@ -395,7 +440,7 @@ bool recover(node_t **root, node_t *node) {
      *R       R          B*/
     assert(get_color(uncle(node)) == RB_BLACK);
 
-    balanced_rotate(root, grand_parent(node), get_side(node));
+    balanced_rotate(rbt, grand_parent(node), get_side(node));
 
     return true;
 }
@@ -405,7 +450,7 @@ const int32_t  RB_TEST_RANGE = 10;
 const int32_t  RB_TEST_COUNT = 1024*1024;
 
 typedef struct test_arg_struct {
-    node_t  **root;
+    void     *rbt;
     int32_t   num;
     int32_t   op;
 } test_arg;
@@ -418,54 +463,40 @@ void rb_test_routine(void * arg) {
     if (targ->op == 0) { /*insert remove */
         for (i = 0; i < RB_TEST_COUNT; ++i) {
             for (j = 0; j < RB_TEST_RANGE; ++j) {
-                rb_insert(targ->root,  100001 + j*2);
+                rb_insert(targ->rbt,  100001 + j*2, NULL);
             }
             for (j = 0; j < RB_TEST_RANGE; ++j) {
-                rb_remove(targ->root,  100001 + j*2);
+                rb_remove(targ->rbt,  100001 + j*2);
             }
         }
-        printf("Mutate done.\n");
     } else {
         for (i = 0; i < RB_TEST_COUNT; ++i) {
             for (j = 0; j < RB_TEST_RANGE; ++j) {
-                node_t * node = rb_find(targ->root,  100000 + j*2);
-                assert(node->key == 100000 + j*2);
+                int32_t data = reinterpret_cast<int32_t>(
+                    rb_find(targ->rbt,  100000 + j*2));
+                assert(data == 100000 + j*2);
             }
         }
-        printf("Find done.\n");
     }
 }
-void rbtree_concunrrency_test(node_t **root) {
+void rbtree_concunrrency_test(void * rbt) {
     test_arg   targ[RB_THREAD_COUNT];
     int32_t    i;
 
     for (i = 0; i < RB_TEST_RANGE; ++i) {
-        rb_insert(root,  100000 + i*2);
+        rb_insert(rbt,  100000 + i*2, reinterpret_cast<void*>(100000 + i*2));
     }
 
-    printf("CompareCount : %lld\n", rb_get_compare_count());
-    printf("try_count    : %d\n", RB_TEST_COUNT*10);
-    printf("AVG_COMPARE  : %lld\n",
-           rb_get_compare_count()/(
-               RB_TEST_COUNT*10*(RB_THREAD_COUNT)));
-
     for (i = 0; i< RB_THREAD_COUNT; ++i) {
-        targ[i].root = root;
+        targ[i].rbt  = rbt;
         targ[i].num  = i;
         targ[i].op   = 1;
         ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
                 rb_test_routine, &targ[i]));
     }
-
     ywThreadPool::get_instance()->wait_to_idle();
 
     for (i = 0; i < RB_TEST_RANGE; ++i) {
-        rb_remove(root,  100000 + i*2);
+        rb_remove(rbt,  100000 + i*2);
     }
-
-    printf("CompareCount : %lld\n", rb_get_compare_count());
-    printf("try_count    : %d\n", RB_TEST_COUNT*10);
-    printf("AVG_COMPARE  : %lld\n",
-           rb_get_compare_count()/(
-               RB_TEST_COUNT*10*(RB_THREAD_COUNT)));
 }

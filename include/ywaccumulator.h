@@ -8,7 +8,7 @@
 #include <ywspinlock.h>
 #include <ywsll.h>
 
-template<typename T, bool use_atomic>
+template<typename T, bool use_atomic = false>
 class ywAccumulator{
     static const int32_t  NULL_SLOT_IDX = -1;
 

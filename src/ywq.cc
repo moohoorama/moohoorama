@@ -1,10 +1,11 @@
 /* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
 
 #include <stdio.h>
-#include <pthread.h>
 #include <assert.h>
 #include <unistd.h>
+#include <gtest/gtest.h>
 
+#include <ywthread.h>
 #include <ywq.h>
 
 void printList();
@@ -71,7 +72,7 @@ void printList() {
     printf("\n");
 }
 
-void * pushRoutine(void * arg) {
+void pushRoutine(void * arg) {
     int          num = reinterpret_cast<int>(arg);
     int          i;
 
@@ -79,11 +80,8 @@ void * pushRoutine(void * arg) {
         slot[num][i].meta = i + 100000;
         ywqPush(&head, &slot[num][i]);
     }
-
-    return NULL;
 }
-void * popRoutine(void * arg) {
-    int          num = reinterpret_cast<int>(arg);
+void popRoutine(void * arg) {
     struct ywq * iter;
     int          i;
     int          prev      = 0;
@@ -103,40 +101,31 @@ void * popRoutine(void * arg) {
         }
         prev++;
     }
-
-    return reinterpret_cast<void*>(num);
 }
 
 #define THREAD_COUNT 16
 void   ywqTest() {
-    pthread_t    pt[16];
     int          i;
     int          j;
     int          k;
     struct ywq * iter;
 
-    printf("BasicTest:\n");
 
     ywqInit(&head);
     slot[0][0].meta = 10000;
     ywqPush(&head, &slot[0][0]);
     iter = ywqPop(&head);
-    printf("[%d]\n", iter->meta);
     ywqPush(&head, &slot[0][0]);
     iter = ywqPop(&head);
-    printf("[%d]\n", iter->meta);
-
-    printf("PushTest:\n");
 
     for (i = 0; i < ITER_COUNT; i ++) {
         ywqInit(&head);
 
-        for (j = 0; j < THREAD_COUNT; j ++)
-            assert(0 == pthread_create(
-                        &pt[j], NULL/*attr*/, pushRoutine,
-                        reinterpret_cast<void*>(j)));
-        for (j = 0; j < THREAD_COUNT; j ++)
-            pthread_join(pt[j], NULL);
+        for (j = 0; j < THREAD_COUNT; j ++) {
+            ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+                    pushRoutine, reinterpret_cast<void*>(j)));
+        }
+        ywThreadPool::get_instance()->wait_to_idle();
 
         k = 0;
         YWQ_FOREACH_PREV(iter, &head)
@@ -144,17 +133,13 @@ void   ywqTest() {
         assert(k == TRY_COUNT*THREAD_COUNT);
     }
 
-    printf("PushPullTest:\n");
-
     ywqInit(&head);
     for (i = 0; i < ITER_COUNT; i ++) {
-        printf("--%d\n", i);
-        assert(0 == pthread_create(&pt[1], NULL/*attr*/, popRoutine,
-                    reinterpret_cast<void*>(1)));
+        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+                popRoutine, reinterpret_cast<void*>(1)));
         usleep(10000);
-        assert(0 == pthread_create(&pt[0], NULL/*attr*/, pushRoutine,
-                    reinterpret_cast<void*>(0)));
-        pthread_join(pt[0], NULL);
-        pthread_join(pt[1], NULL);
+        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+                pushRoutine, reinterpret_cast<void*>(0)));
+        ywThreadPool::get_instance()->wait_to_idle();
     }
 }

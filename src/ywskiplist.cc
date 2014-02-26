@@ -27,7 +27,6 @@ void skiplist_level_test() {
 
         memset(&stat, 0, sizeof(stat));
 
-        printf("Level:%d\n", j);
         for (i = 0; i < SK_TEST_COUNT; ++i) {
             stat[ yw_skip_list.get_new_level() ]++;
         }
@@ -41,7 +40,6 @@ void skiplist_level_test() {
                 ASSERT_EQ(expect, stat[i]);
                 val -= expect;
             }
-            printf("%8d : %8d\n", i, stat[i]);
         }
     }
 }

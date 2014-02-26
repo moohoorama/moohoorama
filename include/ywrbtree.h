@@ -6,38 +6,17 @@
 #include <ywcommon.h>
 
 typedef int32_t key_t;
-typedef int32_t node_color_t;
-static const node_color_t RB_RED     = 0;
-static const node_color_t RB_BLACK   = 1;
 
-typedef int32_t node_side_t;
-static const node_side_t RB_LEFT     = 0;
-static const node_side_t RB_RIGHT    = 1;
-static const node_side_t RB_SIDE_MAX = 2;
-
-typedef struct nodeStruct node_t;
-struct nodeStruct {
-    node_color_t       color;
-    node_t           * parent;
-    node_t           * child[RB_SIDE_MAX];
-    key_t              key;
-};
-
-typedef struct rbTreeStruct rb_t;
-
-struct rbTreeStruct {
-    node_t * root;
-};
-
-node_t      *rb_create_tree();
-bool         rb_insert(node_t **root, key_t key);
-bool         rb_remove(node_t **root, key_t key);
-bool         rb_print(int level, node_t *node);
-node_t      *rb_find(node_t **root, key_t key);
-int32_t      rb_validation(node_t *root);
-void         rb_infix(node_t *root);
+void        *rb_create_tree();
+void         rb_delete_tree(void *rbt);
+bool         rb_insert(void *rbt, key_t key, void * data);
+bool         rb_remove(void *rbt, key_t key);
+void         rb_print(void *rbt);
+void        *rb_find(void *rbt, key_t key);
+void         rb_validation(void *rbt);
+void         rb_infix(void * rbt);
 
 int64_t      rb_get_compare_count();
-void         rbtree_concunrrency_test(node_t **root);
+void         rbtree_concunrrency_test(void * rbt);
 
 #endif  // INCLUDE_YWRBTREE_H_

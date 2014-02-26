@@ -15,4 +15,8 @@
 #include <assert.h>
 #include <unistd.h>
 
+static const size_t  KB = 1024;
+static const size_t  MB = 1024*KB;
+static const size_t  GB = 1024*MB;
+
 #endif  // INCLUDE_YWCOMMON_H_

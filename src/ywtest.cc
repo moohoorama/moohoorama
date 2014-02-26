@@ -1,7 +1,8 @@
 /* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
 #include <stdio.h>
-#include <pthread.h>
 #include <assert.h>
+#include <gtest/gtest.h>
+#include <stdlib.h>
 
 #include <ywdlist.h>
 #include <ywq.h>
@@ -11,16 +12,18 @@
 #include <ywspinlock.h>
 #include <ywsl.h>
 #include <ywskiplist.h>
-#include <gtest/gtest.h>
 #include <ywthread.h>
 #include <ywaccumulator.h>
-#include <stdlib.h>
 #include <ywrbtree.h>
 #include <ywmempool.h>
+#include <ywbtree.h>
+#include <ywfbtree.h>
+
 #include <vector>
 #include <algorithm>
 
-#ifdef __DEBUG
+#ifdef TTTT
+
 TEST(Queue, Basic) {
     ywqTest();
 }
@@ -37,18 +40,16 @@ TEST(Dump, Basic) {
 
 ywSpinLock global_spin_lock;
 
-void * add_routine(void * arg) {
+void add_routine(void * arg) {
     int *var = reinterpret_cast<int*>(arg);
     int  i;
 
     for (i = 0; i < 65536; ++i) {
         __sync_fetch_and_add(var, 1);
     }
-
-    return NULL;
 }
 
-void * spin_routine(void * arg) {
+void spin_routine(void * arg) {
     int *var = reinterpret_cast<int*>(arg);
     int  i;
 
@@ -58,8 +59,6 @@ void * spin_routine(void * arg) {
         (*var)++;
         global_spin_lock.release();
     }
-
-    return NULL;
 }
 
 TEST(Spinlock, Basic) {
@@ -77,34 +76,28 @@ TEST(Spinlock, Basic) {
 }
 TEST(Spinlock, Count) {
     const int  THREAD_COUNT = 32;
-    pthread_t  pt[THREAD_COUNT];
     int        count = 0;
     int        i;
 
     for (i = 0; i< THREAD_COUNT; ++i) {
-        assert(0 == pthread_create(
-                    &pt[i], NULL/*attr*/, spin_routine,
-                    reinterpret_cast<void*>(&count)));
+        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+                spin_routine, reinterpret_cast<void*>(&count)));
     }
-    for (i = 0; i< THREAD_COUNT; ++i)
-        pthread_join(pt[i], NULL);
+    ywThreadPool::get_instance()->wait_to_idle();
 
     ASSERT_EQ(THREAD_COUNT * 65536, count);
 }
 
 TEST(Atomic, Count) {
     const int  THREAD_COUNT = 32;
-    pthread_t  pt[THREAD_COUNT];
     int        count = 0;
     int        i;
 
     for (i = 0; i< THREAD_COUNT; ++i) {
-        assert(0 == pthread_create(
-                    &pt[i], NULL/*attr*/, add_routine,
-                    reinterpret_cast<void*>(&count)));
+        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+                add_routine, reinterpret_cast<void*>(&count)));
     }
-    for (i = 0; i< THREAD_COUNT; ++i)
-        pthread_join(pt[i], NULL);
+    ywThreadPool::get_instance()->wait_to_idle();
 
     ASSERT_EQ(THREAD_COUNT * 65536, count);
 }
@@ -114,14 +107,11 @@ TEST(SyncList, Basic) {
     ywNode       node[8];
     int          i;
 
-    list.print();
     for (i = 0; i < 8; ++i) {
         ASSERT_TRUE(list.add(&node[i]));
-        list.print();
     }
     for (i = 0; i < 8; ++i) {
         ASSERT_TRUE(list.remove(&node[i]));
-        list.print();
     }
 }
 
@@ -129,7 +119,7 @@ const int    THREAD_COUNT = 32;
 ywSyncList   list;
 ywNode       node[THREAD_COUNT][8192];
 
-void * sl_test_routine(void * arg) {
+void sl_test_routine(void * arg) {
     int  num = reinterpret_cast<int>(arg);
     int  i;
 
@@ -142,24 +132,17 @@ void * sl_test_routine(void * arg) {
         while (!list.remove(&node[num][i])) {
         }
     }
-
-    return NULL;
 }
 
 
 TEST(SyncList, Concurrency) {
-    pthread_t  pt[THREAD_COUNT];
     int        i;
 
     for (i = 0; i< THREAD_COUNT; ++i) {
-        ASSERT_EQ(0, pthread_create(
-                    &pt[i], NULL, sl_test_routine,
-                    reinterpret_cast<void*>(i)));
+        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+                sl_test_routine, reinterpret_cast<void*>(i)));
     }
-    for (i = 0; i< THREAD_COUNT; ++i)
-        pthread_join(pt[i], NULL);
-
-    list.print();
+    ywThreadPool::get_instance()->wait_to_idle();
 }
 
 TEST(ThreadPool, Basic) {
@@ -196,7 +179,6 @@ TEST(SkipList, ConcurrentRemove) {
     skiplist_conc_remove_test();
 }
 #endif
-
 static const int32_t DATA_SIZE = 1024*1024;
 static const int32_t TRY_COUNT = 1;
 int32_t data[DATA_SIZE];
@@ -206,63 +188,7 @@ bool compare_int(int32_t a, int32_t b) {
     return a < b;
 }
 
-static node_t *root = rb_create_tree();
-
-TEST(RBTree, Generate) {
-    int32_t rnd = 2;
-    int32_t i;
-    int32_t val;
-
-    rnd = 2;
-    for (i = 0; i < DATA_SIZE; ++i) {
-        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
-        val = rnd % DATA_SIZE*4;
-        if (val) {
-            rb_insert(&root, val);
-        }
-    }
-    rb_validation(root);
-}
-
-TEST(RBTree, Search) {
-    int32_t rnd = 2;
-    int32_t i;
-    int32_t j;
-    int32_t val;
-
-    for (j = 0; j < TRY_COUNT; ++j) {
-        for (i = 0; i < DATA_SIZE; ++i) {
-            rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
-            val = rnd % DATA_SIZE*4;
-            rb_find(&root, val);
-        }
-    }
-    printf("CompareCount : %lld\n", rb_get_compare_count());
-    printf("try_count    : %d\n", TRY_COUNT*DATA_SIZE);
-    printf("AVG_COMPARE  : %lld\n", rb_get_compare_count()/TRY_COUNT/DATA_SIZE);
-}
-
-TEST(RBTree, concurrency) {
-    rbtree_concunrrency_test(&root);
-}
-
-TEST(RBTree, Remove) {
-    int32_t rnd = 2;
-    int32_t i;
-    int32_t val;
-
-    rnd = 2;
-    for (i = 0; i < DATA_SIZE; ++i) {
-        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
-        val = rnd % DATA_SIZE*4;
-        if (val) {
-            rb_remove(&root, val);
-        }
-    }
-    rb_validation(root);
-    rb_print(0, root);
-}
-
+#ifdef TTTT
 TEST(BinarySearch, GenerateData) {
     int32_t i;
     int32_t rnd = 2;
@@ -280,12 +206,12 @@ TEST(BinarySearch, std) {
     int32_t i;
     int32_t j;
     int32_t rnd = 2;
-    bool    ret;
+    int32_t ret;
 
     for (j = 0; j < TRY_COUNT; ++j) {
         for (i = 0; i < DATA_SIZE; ++i) {
             rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
-            ret = std::binary_search(&data[0], &data[DATA_SIZE-1],
+            ret |= std::binary_search(&data[0], &data[DATA_SIZE-1],
                     rnd % DATA_SIZE*4);
         }
     }
@@ -428,8 +354,109 @@ TEST(BinarySearch, NoBranch2) {
     }
 }
 
+#endif
+
+static void * rbt = rb_create_tree();
+
+TEST(RBTree, Generate) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t val;
+
+    rnd = 2;
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+        val = rnd % DATA_SIZE*4;
+        if (val) {
+            rb_insert(rbt, val, NULL);
+        }
+    }
+    rb_validation(rbt);
+}
+
+TEST(RBTree, Search) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t j;
+    int32_t val;
+
+    for (j = 0; j < TRY_COUNT; ++j) {
+        for (i = 0; i < DATA_SIZE; ++i) {
+            rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+            val = rnd % DATA_SIZE*4;
+            rb_find(rbt, val);
+        }
+    }
+//    ASSERT_EQ(8872084, rb_get_compare_count());
+}
+
+/*
+TEST(RBTree, concurrency) {
+    rbtree_concunrrency_test(rbt);
+}
+*/
+
+TEST(RBTree, Remove) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t val;
+
+    rnd = 2;
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+        val = rnd % DATA_SIZE*4;
+        if (val) {
+            rb_remove(rbt, val);
+        }
+    }
+    rb_validation(rbt);
+    rb_print(rbt);
+}
+
+void *fbt = fb_create();
+
+TEST(FBTree, Generate) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t val;
+
+    rnd = 2;
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+        val = rnd % DATA_SIZE*4;
+        if (val) {
+            fb_insert(fbt, val, NULL);
+        }
+    }
+}
+
+TEST(FBTree, Search) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t j;
+    int32_t val;
+
+    for (j = 0; j < TRY_COUNT; ++j) {
+        for (i = 0; i < DATA_SIZE; ++i) {
+            rnd = rand_r(reinterpret_cast<uint32_t*>(&rnd));
+            val = rnd % DATA_SIZE*4;
+            if (fb_find(fbt, val)) {
+                assert(fb_find(fbt, val));
+            }
+        }
+    }
+}
+
+
+
+TEST(FBTree, Basic) {
+    fb_basic_test();
+}
+
 TEST(MemPool, Basic) {
-    ywMemPool test;
+    ywMemPool<int> test;
+
+    test.free_mem(test.alloc());
 }
 
 int main(int argc, char ** argv) {

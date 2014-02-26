@@ -1,4 +1,4 @@
-OPTIMIZATION?=-O3
+OPTIMIZATION?=-O0
 #STD=-std=c99 -pedantic
 STD= -pedantic
 WARN=-Wall -Werror
@@ -66,6 +66,12 @@ $(BIN): $(LIBS)
 
 test: $(BIN) all
 	@(./runtest)
+
+cachegrind: $(BIN) all
+	@(./runcache)
+
+callgrind: $(BIN) all
+	@(./runcall)
 
 clean:
 	rm $(BIN) $(LIBS)
