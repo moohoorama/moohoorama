@@ -13,6 +13,7 @@ bool  fb_insert(void *_fbt, fbKey key, void *data);
 bool  fb_remove(void *_fbt, fbKey key);
 void *fb_find(void *_fbt, fbKey key);
 void  fb_dump(void *_fbt);
+void  fb_report(void *_fbt);
 
 void  fb_validation(void *_fdt);
 

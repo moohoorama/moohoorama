@@ -18,7 +18,7 @@ class ywMemPool {
     static const size_t  PRIVATE_ALLOC_THRESHOLD = UNIT * 128;
     static const size_t  PRIVATE_FREE_THRESHOLD = UNIT * 256;
 
-    static const size_t  CHUNK_MAX_COUNT = 1*GB / chunk_size;
+    static const int32_t CHUNK_MAX_COUNT = 1*GB / chunk_size;
 
     static const int32_t SHARED_IDX = MAX_THREAD_COUNT;
     static const int32_t MAX_IDX    = MAX_THREAD_COUNT+1;
@@ -129,6 +129,9 @@ class ywMemPool {
     bool alloc_chunk(int tid) {
         if (move_from_shared_area(tid))
             return true;
+        if (chunk_idx >= CHUNK_MAX_COUNT) {
+            return false;
+        }
         char      * chunk = reinterpret_cast<char*>(malloc(chunk_size));
         ywdl_t    * ptr;
         size_t      i;
@@ -137,15 +140,22 @@ class ywMemPool {
             return false;
         }
 
+        shared_area_lock.WLock();
+        if (chunk_idx >= CHUNK_MAX_COUNT) {
+            shared_area_lock.release();
+            free(chunk);
+            return false;
+        }
+        chunk_array[ chunk_idx++ ] = chunk;
+        shared_area_lock.release();
+        size[CHUNK_STAT][tid] += chunk_size;
+
+
         for (i = 0; i + UNIT <= chunk_size; i += UNIT) {
             ptr = reinterpret_cast<ywdl_t*>(chunk+i);
             ywdl_attach(&free_list[tid], ptr);
             size[FREE_STAT][tid] += UNIT;
         }
-        shared_area_lock.WLock();
-        chunk_array[ chunk_idx++ ] = chunk;
-        shared_area_lock.release();
-        size[CHUNK_STAT][tid] += chunk_size;
         return true;
     }
 
