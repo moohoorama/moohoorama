@@ -16,8 +16,8 @@ static const node_side_t RB_LEFT     = 0;
 static const node_side_t RB_RIGHT    = 1;
 static const node_side_t RB_SIDE_MAX = 2;
 
-typedef struct nodeStruct node_t;
-struct nodeStruct {
+typedef struct rbNodeStruct node_t;
+struct rbNodeStruct {
     node_color_t       color;
     node_t           * parent;
     node_t           * child[RB_SIDE_MAX];
@@ -27,7 +27,8 @@ struct nodeStruct {
 
 typedef struct rbTreeStruct rb_t;
 struct rbTreeStruct {
-    node_t * root;
+    node_t  * root;
+    int32_t   compare_count;
 };
 
 #define LEFT_CHILD(node) ((node)->child[RB_LEFT])
@@ -112,12 +113,14 @@ inline node_t *create_node(key_t _key, void * _data) {
     node_t * ret;
 
     ret = rb_node_pool.alloc();
-    ret->color  = RB_RED;
-    ret->parent = nil_node;
-    ret->child[RB_LEFT]= nil_node;
-    ret->child[RB_RIGHT]= nil_node;
-    ret->key    = _key;
-    ret->data   = _data;
+    if (ret) {
+        ret->color  = RB_RED;
+        ret->parent = nil_node;
+        ret->child[RB_LEFT]= nil_node;
+        ret->child[RB_RIGHT]= nil_node;
+        ret->key    = _key;
+        ret->data   = _data;
+    }
 
     return ret;
 }
@@ -249,9 +252,14 @@ bool rb_insert(void *_rbt, key_t key, void * data) {
     node_t **target;
     node_t  *parent;
 
+    if (!new_node) {
+        return false;
+    }
+
     if (rbt->root != nil_node) {
         target = __traverse(rbt, key, &parent);
         if (*target != nil_node) {
+            rb_node_pool.free_mem(new_node);
             return false;
         }
         new_node->parent = parent;
@@ -260,6 +268,7 @@ bool rb_insert(void *_rbt, key_t key, void * data) {
         if (recover(rbt, new_node)) {
             return true;
         }
+        rb_node_pool.free_mem(new_node);
         return false;
     }
     rbt->root = new_node;
@@ -447,7 +456,7 @@ bool recover(rb_t *rbt, node_t *node) {
 
 const int32_t  RB_THREAD_COUNT = 4;
 const int32_t  RB_TEST_RANGE = 10;
-const int32_t  RB_TEST_COUNT = 1024*1024;
+const int32_t  RB_TEST_COUNT = 1024*64;
 
 typedef struct test_arg_struct {
     void     *rbt;
