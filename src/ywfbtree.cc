@@ -393,7 +393,9 @@ inline int32_t fb_search_in_node(fbn_t *fbn, fbKey key) {
 
     do {
         size >>= 1;
-        idx += size*(key >= fbn->key[idx + size]);
+        if (key >= fbn->key[idx + size]) {
+            idx += size;
+        }
     } while (size > 1);
 
     idx -= (key < fbn->key[idx]);

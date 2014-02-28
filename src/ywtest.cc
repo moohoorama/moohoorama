@@ -212,6 +212,43 @@ TEST(BinarySearch, GenerateData) {
     std::sort(&data[0], &data[DATA_SIZE]);
 }
 
+int32_t NoBranchSearch(int32_t key) {
+    int32_t *idx;
+    int32_t size;
+    int32_t *mid;
+
+    idx  = data;
+    size = DATA_SIZE;
+    do {
+        size >>= 1;
+        mid = idx+size;
+        if (key >= *mid) {
+            idx = mid;
+        }
+    } while (size > 0);
+
+    return *mid;
+}
+
+
+TEST(BinarySearch, NoBranch) {
+    int32_t i;
+    int32_t rnd = 2;
+    int32_t val;
+
+    for (i = 0; i < TRY_COUNT; ++i) {
+        if (i % DATA_SIZE == 0) {
+            rnd = 2;
+        }
+        rnd = get_next_rnd(rnd);
+        val = rnd % INT32_MAX;
+
+        assert(NoBranchSearch(val) == val);
+//        assert(NoBranchSearch(val) > 0);
+    }
+}
+
+
 TEST(BinarySearch, std) {
     int32_t i;
     int32_t rnd = 2;
@@ -296,33 +333,6 @@ TEST(BinarySearch, Branch_func_pointer) {
         assert(ret == rnd);
     }
 }
-
-TEST(BinarySearch, NoBranch) {
-    int32_t i;
-    int32_t rnd = 2;
-    int32_t idx;
-    int32_t size;
-    int32_t val;
-    int32_t ret = 0;
-
-    for (i = 0; i < TRY_COUNT; ++i) {
-        if (i % DATA_SIZE == 0) {
-            rnd = 2;
-        }
-        rnd = get_next_rnd(rnd);
-        val = rnd % INT32_MAX;
-
-        idx  = 0;
-        size = DATA_SIZE;
-        do {
-            size >>= 1;
-            idx += size*(val >= data[idx + size]);
-        } while (size > 1 );
-        ret = data[idx];
-        assert(ret == rnd);
-    }
-}
-
 static void * rbt = rb_create_tree();
 
 TEST(RBTree, Generate) {
