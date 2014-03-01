@@ -257,7 +257,7 @@ class ywSkipList {
 
     ywskNode *search(ywKeyType target) {
         ywskNode  *traverse_history[MAX_LEVEL];
-        return _search(target, traverse_history);
+        return _search(target, traverse_history)->next;
     }
 
     uint64_t get_key_count() {

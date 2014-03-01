@@ -28,7 +28,7 @@ struct rbNodeStruct {
 typedef struct rbTreeStruct rb_t;
 struct rbTreeStruct {
     node_t  * root;
-    int32_t   compare_count;
+    char      reserved_area[28];
 };
 
 #define LEFT_CHILD(node) ((node)->child[RB_LEFT])
@@ -41,7 +41,6 @@ node_t *nil_node=&nil_node_instance;
 
 /************************ DECLARE *************************/
 
-ywAccumulator<int64_t>        compare_count;
 ywMemPool<node_t>             rb_node_pool;
 ywMemPool<rb_t>               rb_tree_pool;
 
@@ -128,7 +127,6 @@ inline node_t *create_node(key_t _key, void * _data) {
 node_t **__traverse(rb_t *rbt, key_t key, node_t **parent) {
     node_t  **cur = &rbt->root;
     int32_t side;
-    int32_t _compare_count = 0;
 
     *parent = nil_node;
     while (key != (*cur)->key) {
@@ -136,17 +134,15 @@ node_t **__traverse(rb_t *rbt, key_t key, node_t **parent) {
             break;
         }
         side = (*cur)->key < key;
-        ++_compare_count;
         *parent = *cur;
         cur = &(*cur)->child[side];
     }
 
-    compare_count.mutate(_compare_count);
     return cur;
 }
 
 int64_t      rb_get_compare_count() {
-    return compare_count.get();
+    return 0;
 }
 
 bool __rb_print(node_t *node, int level) {
@@ -281,18 +277,14 @@ void        *rb_find(void *_rbt, key_t key) {
     rb_t    *rbt = get_handle(_rbt);
     node_t  *cur = rbt->root;
     int32_t side;
-    int32_t _compare_count = 0;
 
     while (key != cur->key) {
         if (_UNLIKELY(cur == nil_node)) {
             break;
         }
         side = cur->key < key;
-        ++_compare_count;
         cur = cur->child[side];
     }
-
-    compare_count.mutate(_compare_count);
 
     return cur->data;
 }

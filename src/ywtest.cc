@@ -18,15 +18,22 @@
 #include <ywmempool.h>
 #include <ywbtree.h>
 #include <ywfbtree.h>
+#include <ywrcuref.h>
 
 #include <map>
 #include <vector>
 #include <algorithm>
 
-#ifdef TTTT
-
 TEST(Queue, Basic) {
-    ywqTest();
+    int32_t i;
+
+    for (i = 0; i < 1; ++i) {
+        ywq_test();
+    }
+}
+
+TEST(RCURef, Basic) {
+    rcu_ref_test();
 }
 
 TEST(Serialization, Basic) {
@@ -153,34 +160,26 @@ TEST(ThreadPool, Basic) {
 TEST(Atomic, BasicPerformance) {
     atomic_stat_test();
 }
-TEST(Accumulator, BasicPerformance) {
+TEST(Accumulator, method_0_array) {
     accumulator_test();
 }
-
-TEST(SkipList, LevelTest) {
-    skiplist_level_test();
+TEST(Accumulator, method_1_atomic) {
+    atomic_stat_test();
+}
+TEST(Accumulator, method_2_dirty) {
+    dirty_stat_test();
 }
 
-TEST(SkipList, InsertRemove) {
-    skiplist_insert_remove_test();
-}
-
-TEST(StdMap, InsertPerformance) {
-    skiplist_map_insert_perf_test();
-}
-
-TEST(SkipList, InsertPerformance) {
-    skiplist_insert_perf_test();
-}
-
+/*
 TEST(SkipList, ConcurrentInsert) {
     skiplist_conc_insert_test();
 }
 TEST(SkipList, ConcurrentRemove) {
     skiplist_conc_remove_test();
 }
-#endif
-static const int32_t DATA_SIZE = 1024*1024*4;
+*/
+
+static const int32_t DATA_SIZE = 1024*16;
 static const int32_t TRY_COUNT = 1024*1024;
 int32_t data[DATA_SIZE];
 
@@ -225,7 +224,7 @@ int32_t NoBranchSearch(int32_t key) {
         if (key >= *mid) {
             idx = mid;
         }
-    } while (size > 0);
+    } while (size >= 1);
 
     return *mid;
 }
@@ -392,10 +391,6 @@ TEST(RBTree, Remove) {
 
 void *fbt = fb_create();
 
-TEST(FBTree, Basic) {
-    fb_basic_test();
-}
-
 TEST(FBTree, Generate) {
     int32_t rnd = 2;
     int32_t i;
@@ -446,6 +441,10 @@ TEST(FBTree, Remove) {
     fb_report(fbt);
 }
 
+TEST(FBTree, Basic) {
+    fb_basic_test();
+}
+
 
 std::map<int32_t, int32_t> test_map;
 
@@ -475,8 +474,67 @@ TEST(STD_MAP, Search) {
         }
         rnd = get_next_rnd(rnd);
         val = rnd % INT32_MAX;
-        ASSERT_EQ(val, test_map[val]);
+        if (val) {
+            ASSERT_EQ(val, test_map[val]);
+        }
     }
+}
+
+TEST(STD_MAP, Remove) {
+    test_map.clear();
+}
+
+ywSkipList     test_skip_list;
+
+TEST(SkipList, Generate) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t val;
+
+    rnd = 2;
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = get_next_rnd(rnd);
+        val = rnd % INT32_MAX;
+        if (val) {
+            test_skip_list.insert(val);
+        }
+    }
+}
+
+TEST(SkipList, Search) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t val;
+
+    for (i = 0; i < TRY_COUNT; ++i) {
+        if (i % DATA_SIZE == 0) {
+            rnd = 2;
+        }
+        rnd = get_next_rnd(rnd);
+        val = rnd % INT32_MAX;
+        if (val) {
+            ASSERT_EQ(val, (int32_t)test_skip_list.search(val)->key);
+        }
+    }
+}
+TEST(SkipList, Remove) {
+}
+
+
+TEST(SkipList, LevelTest) {
+    skiplist_level_test();
+}
+
+TEST(SkipList, InsertRemove) {
+    skiplist_insert_remove_test();
+}
+
+TEST(StdMap, InsertPerformance) {
+    skiplist_map_insert_perf_test();
+}
+
+TEST(SkipList, InsertPerformance) {
+    skiplist_insert_perf_test();
 }
 
 TEST(MemPool, Basic) {

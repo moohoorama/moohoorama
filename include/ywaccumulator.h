@@ -8,7 +8,7 @@
 #include <ywspinlock.h>
 #include <ywsll.h>
 
-template<typename T, bool use_atomic = false>
+template<typename T, int32_t method = 0>
 class ywAccumulator{
     static const int32_t  NULL_SLOT_IDX = -1;
 
@@ -28,10 +28,18 @@ class ywAccumulator{
     }
 
     void mutate(T delta) {
-        if (use_atomic == true) {
-            __sync_add_and_fetch(data[0], delta);
-        } else {
-            *data[ywThreadPool::get_thread_id()] += delta;
+        if (delta) {
+            switch (method) {
+                case 0:
+                    *data[ywThreadPool::get_thread_id()] += delta;
+                    break;
+                case 1:
+                    __sync_add_and_fetch(data[0], delta);
+                    break;
+                case 2:
+                    *(volatile T*)data[0] += delta;
+                    break;
+            }
         }
     }
 
@@ -123,8 +131,12 @@ class ywAccumulator{
         return true;
     }
 
-    static bool lock();
-    static void release();
+    static bool lock() {
+        return g_acc_lock.WLock();
+    }
+    static void release() {
+        g_acc_lock.release();
+    }
 
     static T           *get_chunk(int32_t _idx) {
         int32_t chunk_idx = _idx / SLOT_COUNT;
@@ -137,6 +149,7 @@ class ywAccumulator{
     int32_t             slot_idx;
     T                  *data[MAX_THREAD_COUNT];
 
+    static ywSpinLock   g_acc_lock;
     static T           *root[CHUNK_COUNT];
     static int32_t      global_idx;
     static int32_t      free_count;
@@ -145,5 +158,6 @@ class ywAccumulator{
 
 extern void accumulator_test();
 extern void atomic_stat_test();
+extern void dirty_stat_test();
 
 #endif  // INCLUDE_YWACCUMULATOR_H_

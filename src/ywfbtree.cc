@@ -28,6 +28,7 @@ inline void   fb_reset_node(fbn_t *fnb, int32_t begin_idx = 0);
 inline void   fb_insert_into_node(fbn_t *fbn, fbs_t *fbs,
                                   fbKey key, fbn_t * child);
 inline void   fb_remove_in_node(fbn_t *fbn, int32_t idx);
+inline void   fb_add_stat(fbt_t *fbt, fbs_t *fbs);
 
 /**************** SMO(Structure Modify Operation) *****************/
 bool fb_split_node(fbt_t *fbt, fbn_t *fbn, fbs_t *fbs);
@@ -48,15 +49,26 @@ struct fbNodeStruct {
     fbKey   key[FB_SLOT_MAX];
     fbn_t  *child[FB_SLOT_MAX];
 };
+fbn_t  fb_nil_node_instance;
+fbn_t *fb_nil_node=&fb_nil_node_instance;
 
 struct fbTreeStruct {
+    fbTreeStruct();
+
     fbn_t   *root;
     int32_t  level;
-    int32_t  ikey_count;
-    int32_t  key_count;
-    int32_t  compare_count;
-    int32_t  node_count;
+    ywAccumulator<int64_t> ikey_count;
+    ywAccumulator<int64_t> key_count;
+    ywAccumulator<int64_t> node_count;
 };
+fbt_t  fb_nil_tree_instance;
+fbt_t *fb_nil_tree=&fb_nil_tree_instance;
+
+fbTreeStruct::fbTreeStruct() {
+    if (this == &fb_nil_tree_instance) {
+        root = fb_nil_node;
+    }
+}
 
 struct fbCursorStruct {
     fbn_t   *node;
@@ -65,20 +77,15 @@ struct fbCursorStruct {
 
 struct fbStackStruct {
     fbStackStruct():
-        ikey_count(0), key_count(0), compare_count(0), node_count(0) {
+        ikey_count(0), key_count(0), node_count(0) {
     }
     fbc_t   cursor[FB_DEPTH_MAX];
     int32_t depth;
     int32_t ikey_count;
     int32_t key_count;
-    int32_t compare_count;
     int32_t node_count;
 };
 
-fbn_t  fb_nil_node_instance;
-fbn_t *fb_nil_node=&fb_nil_node_instance;
-fbt_t  fb_nil_tree_instance = {fb_nil_node, 0, 0, 0, 0, 0};
-fbt_t *fb_nil_tree=&fb_nil_tree_instance;
 
 ywMemPool<fbn_t>             fb_node_pool;
 ywMemPool<fbt_t>             fbt_tree_pool;
@@ -90,12 +97,13 @@ void *fb_create() {
         return fb_nil_tree;
     }
 
+    new (fbt) fbt_t();
+
     fbt->root       = fb_nil_node;
     fbt->level      = 0;
-    fbt->ikey_count = 0;
-    fbt->key_count  = 0;
-    fbt->compare_count = 0;
-    fbt->node_count = 0;
+    fbt->ikey_count.reset();
+    fbt->key_count.reset();
+    fbt->node_count.reset();
 
     return reinterpret_cast<void*>(fbt);
 }
@@ -133,9 +141,8 @@ bool  fb_insert(void *_fbt, fbKey key, void *_data) {
             return false;
         }
     }
-    ++fbt->key_count;
-    fbt->node_count += fbs.node_count;
-    fbt->ikey_count += fbs.ikey_count;
+    fbs.key_count = +1;
+    fb_add_stat(fbt, &fbs);
 
     return true;
 }
@@ -179,9 +186,8 @@ bool  fb_remove(void *_fbt, fbKey key) {
         }
     }
 
-    --fbt->key_count;
-    fbt->node_count += fbs.node_count;
-    fbt->ikey_count += fbs.ikey_count;
+    fbs.key_count = -1;
+    fb_add_stat(fbt, &fbs);
     return true;
 }
 
@@ -189,7 +195,8 @@ void *fb_find(void *_fbt, fbKey key) {
     fbt_t   *fbt = fb_get_handle(_fbt);
     fbn_t   *fbn = fbt->root;
     int32_t  idx;
-    for (int32_t i = 0; i < fbt->level; ++i) {
+    int32_t  i = fbt->level;
+    while (i--) {
         idx = fb_search_in_node(fbn, key);
         fbn = fbn->child[idx];
     }
@@ -212,14 +219,23 @@ void fb_validation(void *_fbt) {
 
 void fb_report(void *_fbt) {
     fbt_t   *fbt = fb_get_handle(_fbt);
+    float    usage;
+    int32_t  node_count = fbt->node_count.get();
 
-    printf("Tree:0x%8x\n",
+    if (node_count) {
+        usage = (fbt->ikey_count.get() + fbt->key_count.get())*100.0/
+            (node_count*FB_SLOT_MAX);
+    } else {
+        usage = 0.0;
+    }
+
+    printf("Tree:0x%08x\n",
            reinterpret_cast<intptr_t>(fbt));
     printf("level         : %d\n", fbt->level);
-    printf("ikey_count    : %d\n", fbt->ikey_count);
-    printf("key_count     : %d\n", fbt->key_count);
-    printf("compare_count : %d\n", fbt->compare_count);
-    printf("node_count    : %d\n", fbt->node_count);
+    printf("ikey_count    : %lld\n", fbt->ikey_count.get());
+    printf("key_count     : %lld\n", fbt->key_count.get());
+    printf("node_count    : %lld\n", fbt->node_count.get());
+    printf("space_usage   : %6.2f%%\n", usage);
 }
 
 /********************* Internal Functions *************/
@@ -236,7 +252,7 @@ inline void     fb_free_node(fbn_t *fbn) {
 
 inline void   fb_reset_slot(fbn_t *fbn, int32_t idx) {
     fbn->key[idx]  = FB_NIL_KEY;
-    fbn->child[idx] = fb_nil_node;
+//    fbn->child[idx] = fb_nil_node;
 }
 inline void   fb_reset_node(fbn_t *fbn, int32_t begin_idx) {
     for (int32_t i = begin_idx; i < FB_SLOT_MAX; ++i) {
@@ -244,6 +260,11 @@ inline void   fb_reset_node(fbn_t *fbn, int32_t begin_idx) {
     }
 }
 
+inline void   fb_add_stat(fbt_t *fbt, fbs_t *fbs) {
+    fbt->node_count.mutate(fbs->node_count);
+    fbt->ikey_count.mutate(fbs->ikey_count);
+    fbt->key_count.mutate(fbs->key_count);
+}
 inline void fb_insert_into_node(fbn_t *fbn, fbs_t *fbs,
                                 fbKey key, fbn_t *child) {
     int32_t idx = fbs->cursor[ fbs->depth ].idx+1;
@@ -290,7 +311,6 @@ bool fb_split_node(fbt_t *fbt, fbn_t *fbn, fbs_t *fbs) {
         return false;
     }
     fbs->node_count++;
-    fb_reset_node(fbn_right);
 
     if (fbs->cursor[ fbs->depth ].idx == FB_LAST_SLOT-1) {
         /* 9:1 split */
@@ -311,6 +331,7 @@ bool fb_split_node(fbt_t *fbt, fbn_t *fbn, fbs_t *fbs) {
     memcpy(fbn_right->child,
            fbn->child + reset_idx,
            sizeof(fbn->child[0]) * remain_cnt);
+    fb_reset_node(fbn_right, remain_cnt);
 
     if (fbs->depth == 0) { /* It's a root node.*/
         if (!(fbn_parent = fb_create_node())) {
@@ -318,7 +339,7 @@ bool fb_split_node(fbt_t *fbt, fbn_t *fbn, fbs_t *fbs) {
             return false;
         }
         fbs->node_count++;
-        fb_reset_node(fbn_parent);
+        fb_reset_node(fbn_parent, 2);
 
         fbn_parent->key[0]   = FB_LEFT_MOST_KEY;
         fbn_parent->child[0] = fbn;
@@ -390,18 +411,16 @@ void fb_dump_node(int height, fbn_t *fbn) {
 inline int32_t fb_search_in_node(fbn_t *fbn, fbKey key) {
     int32_t size = FB_SLOT_MAX;
     int32_t idx = 0;
+    int32_t mid;
 
     do {
         size >>= 1;
-        if (key >= fbn->key[idx + size]) {
-            idx += size;
+        mid = idx + size;
+        if (key >= fbn->key[mid]) {
+            idx = mid;
         }
-    } while (size > 1);
+    } while (size >= 1);
 
-    idx -= (key < fbn->key[idx]);
-    if (idx < 0) {
-        idx = 0;
-    }
     return idx;
 }
 

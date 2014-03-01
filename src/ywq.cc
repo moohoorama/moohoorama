@@ -8,65 +8,23 @@
 #include <ywthread.h>
 #include <ywq.h>
 
+#define YWQ_FOREACH(i, h)  for ((i) = (h)->next; (i) != (h); (i) = (i)->next)
+
 void printList();
-void   ywqInit(struct ywq * _head) {
-    _head->prev = _head;
-    _head->next = _head;
-    _head->data = NULL;
-    _head->meta = 9999;
-    _head->size = 0;
-}
-void   ywqPush(struct ywq * _head, struct ywq * _target) {
-    struct ywq * oldPrev;
-    do {
-        oldPrev = _head->prev;
-        __sync_synchronize();
-        _target->prev = oldPrev;
-        _target->next = _head;
-    } while (!__sync_bool_compare_and_swap(&_head->prev, oldPrev, _target));
 
-    __sync_synchronize();
-    __sync_add_and_fetch(&_head->size, 1);
+const int32_t ITER_COUNT = 8;
+const int32_t TRY_COUNT  = 1024*64;
 
-    oldPrev->next = _target;
-}
-struct ywq  * ywqPop(struct ywq * _head) {
-    struct ywq * target = NULL;
-    struct ywq * linker = NULL;
-
-    if (_head->prev == _head) {
-        __sync_synchronize();
-        return NULL; /* Really Emtpy */
-    }
-
-    do {
-        target = _head->next;
-        linker = target->next;
-        __sync_synchronize();
-        while (target->prev != _head) {
-            linker = target;
-            target = target->prev;
-        }
-        __sync_synchronize();
-    } while (!__sync_bool_compare_and_swap(&linker->prev, target, _head));
-
-    _head->next = linker;
-
-    return target;
-}
-
-#define ITER_COUNT 8
-#define TRY_COUNT  1024
-static struct ywq head;
-static struct ywq slot[16][TRY_COUNT];
+static ywQueue<int32_t> head;
+static ywQueue<int32_t> slot[16][TRY_COUNT];
 
 void printList() {
-    struct ywq * iter;
+    ywQueue<int32_t> * iter;
 
     YWQ_FOREACH(iter, &head) {
         printf("[%8x %8x %8d %8x]\n",
                 (unsigned int)iter->prev,
-                (unsigned int)iter, iter->meta,
+                (unsigned int)iter, iter->data,
                 (unsigned int)iter->next);
     }
     printf("\n");
@@ -77,12 +35,12 @@ void pushRoutine(void * arg) {
     int          i;
 
     for (i = 0; i < TRY_COUNT; i ++) {
-        slot[num][i].meta = i + 100000;
-        ywqPush(&head, &slot[num][i]);
+        slot[num][i].data = i + 100000;
+        head.push(&slot[num][i]);
     }
 }
 void popRoutine(void * arg) {
-    struct ywq * iter;
+    ywQueue<int32_t> * iter;
     int          i;
     int          prev      = 0;
     int          prevRatio = 0;
@@ -90,10 +48,10 @@ void popRoutine(void * arg) {
 
     prev = 100000;
     for (i = 0; i < tryCount; i ++) {
-        while (!(iter = ywqPop(&head))) {
+        while (!(iter = head.pop())) {
         }
-        if (static_cast<int>(iter->meta) != prev) {
-            assert(static_cast<int>(iter->meta) == prev);
+        if (static_cast<int>(iter->data) != prev) {
+            assert(static_cast<int>(iter->data) == prev);
         }
         if (i*10/TRY_COUNT != prevRatio) {
             printf("%d%%\n", prevRatio);
@@ -104,23 +62,19 @@ void popRoutine(void * arg) {
 }
 
 #define THREAD_COUNT 16
-void   ywqTest() {
+void   ywq_test() {
     int          i;
     int          j;
     int          k;
-    struct ywq * iter;
+    ywQueue<int32_t> * iter;
 
-
-    ywqInit(&head);
-    slot[0][0].meta = 10000;
-    ywqPush(&head, &slot[0][0]);
-    iter = ywqPop(&head);
-    ywqPush(&head, &slot[0][0]);
-    iter = ywqPop(&head);
+    slot[0][0].data = 10000;
+    head.push(&slot[0][0]);
+    iter = head.pop();
+    head.push(&slot[0][0]);
+    iter = head.pop();
 
     for (i = 0; i < ITER_COUNT; i ++) {
-        ywqInit(&head);
-
         for (j = 0; j < THREAD_COUNT; j ++) {
             ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
                     pushRoutine, reinterpret_cast<void*>(j)));
@@ -128,16 +82,20 @@ void   ywqTest() {
         ywThreadPool::get_instance()->wait_to_idle();
 
         k = 0;
-        YWQ_FOREACH_PREV(iter, &head)
+        YWQ_FOREACH(iter, &head)
             k++;
         assert(k == TRY_COUNT*THREAD_COUNT);
     }
 
-    ywqInit(&head);
+    new (&head) ywQueue<int32_t>;
     for (i = 0; i < ITER_COUNT; i ++) {
         ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
                 popRoutine, reinterpret_cast<void*>(1)));
+        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+                popRoutine, reinterpret_cast<void*>(1)));
         usleep(10000);
+        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+                pushRoutine, reinterpret_cast<void*>(0)));
         ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
                 pushRoutine, reinterpret_cast<void*>(0)));
         ywThreadPool::get_instance()->wait_to_idle();
