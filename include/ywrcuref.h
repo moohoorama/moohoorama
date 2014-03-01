@@ -93,7 +93,6 @@ class ywRcuRef {
         return getInstance()->slot[get_slot_idx(ptr)];
     }
 
-    /*
     static void *get_freeable_item() {
         ywrcu_free_queue *node = _get_freeable_item();
         void             *ret  = NULL;
@@ -104,7 +103,7 @@ class ywRcuRef {
         }
         return NULL;
     }
-    */
+
     static ywrcu_free_queue *_get_freeable_item() {
         ywrcu_free_queue *node = free_q.pop();
         ywTID             tid = ywThreadPool::get_thread_id();

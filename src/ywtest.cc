@@ -179,7 +179,7 @@ TEST(SkipList, ConcurrentRemove) {
 }
 */
 
-static const int32_t DATA_SIZE = 1024*16;
+static const int32_t DATA_SIZE = 1024*1024;
 static const int32_t TRY_COUNT = 1024*1024;
 int32_t data[DATA_SIZE];
 

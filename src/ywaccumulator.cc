@@ -99,6 +99,4 @@ void dirty_stat_test() {
         EXPECT_TRUE(tpool->add_task(dirty_stat_task, &acc));
     }
     tpool->wait_to_idle();
-
-    printf("%d <-> %lld\n", TEST_COUNT * processor_count, acc.get());
 }
