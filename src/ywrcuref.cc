@@ -71,20 +71,6 @@ void rcu_ref_task(void *arg) {
             assert(false);
         }
         ywRcuRef::unfix(&ptr);
-
-        /*
-           while ((freeable = ywRcuRef::get_freeable_item())) {
-           rem_count.mutate(1);
-           int_ptr = reinterpret_cast<volatile int32_t*>(freeable);
-           if (*int_ptr != magic) {
-           printf("idx : %d\n", ywRcuRef::get_slot_idx(&ptr));
-           printf("slot: %lld\n", ywRcuRef::get_slot(&ptr));
-           printf("fix : %lld\n", ywRcuRef::get_fix_slot(&ptr));
-           assert(false);
-           }
-         *int_ptr = ywThreadPool::get_thread_id();
-         }
-         */
     }
 }
 
@@ -95,21 +81,8 @@ void rcu_ref_test() {
     int            init = magic;
     int            test = magic;
 
-    printf("idx : %d\n", ywRcuRef::get_slot_idx(&ptr));
-    printf("slot: %lld\n", ywRcuRef::get_slot(&ptr));
-
-    ywRcuRef::lock(&ptr);
-    printf("idx : %d\n", ywRcuRef::get_slot_idx(&ptr));
-    printf("slot: %lld\n", ywRcuRef::get_slot(&ptr));
-    ywRcuRef::release(&ptr);
-
-    printf("idx : %d\n", ywRcuRef::get_slot_idx(&ptr));
-    printf("slot: %lld\n", ywRcuRef::get_slot(&ptr));
-
     ptr = &init;
     ywRcuRef::set(&ptr, &test);
-    printf("idx : %d\n", ywRcuRef::get_slot_idx(&ptr));
-    printf("slot: %lld\n", ywRcuRef::get_slot(&ptr));
 
 //    processor_count = 1;
     for (i = 0; i < processor_count; ++i) {
@@ -117,8 +90,8 @@ void rcu_ref_test() {
                     reinterpret_cast<void*>(i)));
     }
     tpool->wait_to_idle();
-    printf("rem_count  %lld\n", rem_count.get());
-    printf("free_count %d\n", ywRcuRef::get_free_count());
+    assert(rem_count.get() == (TEST_COUNT-SLOT_COUNT)*processor_count);
+    assert(ywRcuRef::get_free_count() == SLOT_COUNT*processor_count + 1);
 }
 
 

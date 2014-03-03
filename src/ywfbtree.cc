@@ -10,8 +10,8 @@
 static const int32_t FB_SLOT_MAX       = 128;
 static const int32_t FB_LAST_SLOT      = FB_SLOT_MAX-1;
 static const int32_t FB_5_5_SPLIT      = FB_SLOT_MAX/2;
-static const int32_t FB_1_9_SPLIT      = FB_SLOT_MAX/2; /*1*/
-static const int32_t FB_9_1_SPLIT      = FB_SLOT_MAX/2; /*FB_LAST_SLOT*/
+static const int32_t FB_1_9_SPLIT      = 1;
+static const int32_t FB_9_1_SPLIT      = FB_LAST_SLOT;
 static const fbKey   FB_NIL_KEY        = UINT32_MAX;
 static const fbKey   FB_LEFT_MOST_KEY  = 0;
 static const int32_t FB_DEPTH_MAX      = 10;
