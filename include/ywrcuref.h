@@ -50,7 +50,6 @@ class ywRcuRef {
 
     static void *fix(rcu_ptr ptr) {
         getInstance()->_fix(ptr);
-        __sync_synchronize();
         return *const_cast<volatile rcu_ptr>(ptr);
     }
     static void unfix(rcu_ptr ptr) {

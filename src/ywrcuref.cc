@@ -11,7 +11,7 @@ volatile ywRcuRef            ywRcuRef::global_refs;
 
 ywAccumulator<int64_t>       rem_count;
 
-static const int32_t TEST_COUNT = 1024*1024;
+static const int32_t TEST_COUNT = 1024*128;
 static const int32_t SLOT_COUNT = 1024;
 static const int32_t magic = 0x1234;
 static int32_t       slots[MAX_THREAD_COUNT][SLOT_COUNT];

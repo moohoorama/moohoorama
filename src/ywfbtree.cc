@@ -4,7 +4,7 @@
 #include <ywthread.h>
 #include <ywaccumulator.h>
 #include <gtest/gtest.h>
-#include <ywspinlock.h>
+#include <ywrcuref.h>
 #include <ywmempool.h>
 
 static const int32_t FB_SLOT_MAX       = 128;
@@ -33,6 +33,13 @@ inline void   fb_insert_into_node(fbn_t *fbn, fbs_t *fbs,
 inline void   fb_remove_in_node(fbn_t *fbn, int32_t idx);
 inline void   fb_add_stat(fbt_t *fbt, fbs_t *fbs);
 
+/*********** Concurrency functions ***********/
+
+inline bool   fb_w_lock(fbn_t **node);
+inline void   fb_w_unlock(fbn_t **node);
+inline bool   fb_r_lock(fbn_t **node);
+inline void   fb_r_unlock(fbn_t **node);
+
 /**************** SMO(Structure Modify Operation) *****************/
 bool fb_split_node(fbt_t *fbt, fbn_t *fbn, fbs_t *fbs);
 
@@ -60,7 +67,6 @@ struct fbTreeStruct {
 
     fbn_t                 *root;
     int32_t                level;
-    ywSpinLock             lock;
 
     ywAccumulator<int64_t> ikey_count;
     ywAccumulator<int64_t> key_count;
@@ -119,7 +125,7 @@ bool  fb_insert(void *_fbt, fbKey key, void *_data) {
     fbn_t   *fbn;
     fbs_t    fbs;
 
-    if (!fbt->lock.WLock()) {
+    if (!fb_w_lock(&fbt->root)) {
         return false;
     }
 
@@ -127,7 +133,7 @@ bool  fb_insert(void *_fbt, fbKey key, void *_data) {
         fbn = fb_traverse(fbt, key, &fbs);
     } else {
         if (!(fbn = fb_create_node())) {
-            fbt->lock.release();
+            fb_w_unlock(&fbt->root);
             return false;
         }
         fb_reset_node(fbn);
@@ -142,21 +148,21 @@ bool  fb_insert(void *_fbt, fbKey key, void *_data) {
 
     if ((fbs.cursor[ fbs.depth ].idx != -1) &&
         (fbn->key[ fbs.cursor[ fbs.depth ].idx ] == key)) { /* dupkey */
-        fbt->lock.release();
+        fb_w_unlock(&fbt->root);
         return false;
     }
     fb_insert_into_node(fbn, &fbs, key, data);
 
     if (fb_is_full_node(fbn)) {
         if (!fb_split_node(fbt, fbn, &fbs)) {
-            fbt->lock.release();
+            fb_w_unlock(&fbt->root);
             return false;
         }
     }
     fbs.key_count = +1;
     fb_add_stat(fbt, &fbs);
 
-    fbt->lock.release();
+    fb_w_unlock(&fbt->root);
 
     return true;
 }
@@ -167,12 +173,12 @@ bool  fb_remove(void *_fbt, fbKey key) {
     fbs_t  fbs;
     fbc_t *cursor;
 
-    if (!fbt->lock.WLock()) {
+    if (!fb_w_lock(&fbt->root)) {
         return false;
     }
 
     if (fbt->root == fb_nil_node) {
-        fbt->lock.release();
+        fb_w_unlock(&fbt->root);
         return false;
     }
 
@@ -183,7 +189,7 @@ bool  fb_remove(void *_fbt, fbKey key) {
     assert(fbn == cursor->node);
 
     if (cursor->node->key[ cursor->idx] != key) {
-        fbt->lock.release();
+        fb_w_unlock(&fbt->root);
         return false;
     }
 
@@ -208,7 +214,7 @@ bool  fb_remove(void *_fbt, fbKey key) {
 
     fbs.key_count = -1;
     fb_add_stat(fbt, &fbs);
-    fbt->lock.release();
+    fb_w_unlock(&fbt->root);
     return true;
 }
 
@@ -218,7 +224,7 @@ void *fb_find(void *_fbt, fbKey key) {
     int32_t  idx;
     int32_t  i = fbt->level;
 
-    while (!fbt->lock.RLock()) {
+    while (!fb_r_lock(&fbt->root)) {
     }
 
     while (i--) {
@@ -226,7 +232,7 @@ void *fb_find(void *_fbt, fbKey key) {
         fbn = fbn->child[idx];
     }
 
-    fbt->lock.release();
+    fb_r_unlock(&fbt->root);
 
     return fbn;
 }
@@ -292,6 +298,23 @@ inline void   fb_add_stat(fbt_t *fbt, fbs_t *fbs) {
     fbt->ikey_count.mutate(fbs->ikey_count);
     fbt->key_count.mutate(fbs->key_count);
 }
+
+
+inline bool   fb_w_lock(fbn_t **node) {
+    return ywRcuRef::lock(reinterpret_cast<rcu_ptr>(node));
+}
+inline void   fb_w_unlock(fbn_t **node) {
+    return ywRcuRef::release(reinterpret_cast<rcu_ptr>(node));
+}
+inline bool   fb_r_lock(fbn_t **node) {
+    return ywRcuRef::fix(reinterpret_cast<rcu_ptr>(node));
+}
+inline void   fb_r_unlock(fbn_t **node) {
+    return ywRcuRef::unfix(reinterpret_cast<rcu_ptr>(node));
+}
+
+
+
 inline void fb_insert_into_node(fbn_t *fbn, fbs_t *fbs,
                                 fbKey key, fbn_t *child) {
     int32_t idx = fbs->cursor[ fbs->depth ].idx+1;
