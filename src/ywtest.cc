@@ -457,10 +457,11 @@ TEST(FBTree, Concurrent_search) {
     fb_conc_test(DATA_SIZE, TRY_COUNT, 1);
 }
 
-TEST(FBTree, Concurrent_fusion) {
+TEST(FBTree, Concurrent_remove) {
     fb_conc_test(DATA_SIZE, TRY_COUNT, 2);
 }
-TEST(FBTree, Concurrent_remove) {
+
+TEST(FBTree, Concurrent_fusion) {
     fb_conc_test(DATA_SIZE, TRY_COUNT, 3);
 }
 

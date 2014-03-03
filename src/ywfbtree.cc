@@ -217,10 +217,16 @@ void *fb_find(void *_fbt, fbKey key) {
     fbn_t   *fbn = fbt->root;
     int32_t  idx;
     int32_t  i = fbt->level;
+
+    while (!fbt->lock.RLock()) {
+    }
+
     while (i--) {
         idx = fb_search_in_node(fbn, key);
         fbn = fbn->child[idx];
     }
+
+    fbt->lock.release();
 
     return fbn;
 }
@@ -493,6 +499,9 @@ void fb_basic_test() {
     ASSERT_TRUE(fbt);
 }
 
+const int32_t  FB_TEST_RANGE = 10;
+const int32_t  FB_TEST_COUNT = 1024*64;
+
 typedef struct _testArg {
     void * fbt;
     int    idx;
@@ -502,53 +511,89 @@ typedef struct _testArg {
 } testArg;
 
 void concRoutine(void * arg) {
-    testArg  *test_arg = reinterpret_cast<testArg*>(arg);
+    testArg  *targ = reinterpret_cast<testArg*>(arg);
     int32_t   val = 0;
-    int32_t   init_val =  test_arg->idx * test_arg->data_size + 1;
+    int32_t   init_val =  targ->idx * targ->data_size + 1;
     int       i;
+    int       j;
 
-    switch (test_arg->op) {
+    switch (targ->op) {
         case 0: /*generation*/
-            for (i = 0; i < test_arg->data_size; i ++) {
-                while (!fb_insert(test_arg->fbt, val+init_val, NULL)) {
+            for (i = 0; i < targ->data_size; i ++) {
+                while (!fb_insert(targ->fbt, val+init_val, NULL)) {
                 }
-                val = (val + 1) % test_arg->data_size;
+                val = (val + 1) % targ->data_size;
             }
             break;
         case 1: /*search*/
-            for (i = 0; i < test_arg->try_count; i ++) {
-                fb_find(test_arg->fbt, val+init_val);
-                val = (val + 1) % test_arg->data_size;
+            for (i = 0; i < targ->try_count; i ++) {
+                fb_find(targ->fbt, val+init_val);
+                val = (val + 1) % targ->data_size;
             }
-        case 2: /*fusion*/
             break;
-        case 3: /*remove*/
-            for (i = 0; i < test_arg->data_size; i ++) {
-                while (!fb_remove(test_arg->fbt, val+init_val)) {
+        case 2: /*remove*/
+            for (i = 0; i < targ->data_size; i ++) {
+                while (!fb_remove(targ->fbt, val+init_val)) {
                 }
-                val = (val + 1) % test_arg->data_size;
+                val = (val + 1) % targ->data_size;
             }
+            break;
+        case 3: /*fusion*/
+            if (targ->idx == 0) {
+                for (i = 0; i < targ->try_count; ++i) {
+                    for (j = 0; j < FB_TEST_RANGE; ++j) {
+                        fb_insert(targ->fbt,  100001 + j*2, NULL);
+                    }
+                    for (j = 0; j < FB_TEST_RANGE; ++j) {
+                        fb_remove(targ->fbt,  100001 + j*2);
+                    }
+                }
+            } else {
+                for (i = 0; i < targ->try_count; ++i) {
+                    for (j = 0; j < FB_TEST_RANGE; ++j) {
+                        int32_t data = reinterpret_cast<int32_t>(
+                            fb_find(targ->fbt,  100000 + j*2));
+                        assert(data == 100000 + j*2);
+                    }
+                }
+            }
+            break;
     }
 }
 
 void    *test_fbt =fb_create();
 void  fb_conc_test(int32_t data, int32_t try_count, int32_t op) {
-    int      j;
+    int      i;
     int      thread_count = ywThreadPool::get_processor_count();
-    testArg  test_arg[MAX_THREAD_COUNT];
+    testArg  targ[MAX_THREAD_COUNT];
+
+    if (op == 3) {
+        for (i = 0; i < FB_TEST_RANGE; ++i) {
+            ASSERT_TRUE(fb_insert(test_fbt,
+                                  100000+i*2,
+                                  reinterpret_cast<void*>(100000+i*2)));
+        }
+    }
 
     ywThreadPool::get_instance()->wait_to_idle();
-    for (j = 0; j < thread_count; j ++) {
-        test_arg[j].fbt       = test_fbt;
-        test_arg[j].idx       = j;
-        test_arg[j].data_size = data / thread_count;
-        test_arg[j].try_count = try_count / thread_count;
-        test_arg[j].op        = op;
+    for (i = 0; i < thread_count; i ++) {
+        targ[i].fbt       = test_fbt;
+        targ[i].idx       = i;
+        targ[i].data_size = data / thread_count;
+        targ[i].try_count = try_count / thread_count;
+        targ[i].op        = op;
 
         ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                concRoutine, reinterpret_cast<void*>(&test_arg[j])));
+                concRoutine, reinterpret_cast<void*>(&targ[i])));
     }
     ywThreadPool::get_instance()->wait_to_idle();
+
+    if (op == 3) {
+        for (i = 0; i < FB_TEST_RANGE; ++i) {
+            ASSERT_TRUE(fb_remove(test_fbt,
+                                  100000+i*2));
+        }
+    }
 
     fb_report(test_fbt);
 }
