@@ -17,6 +17,7 @@ static const fbKey   FB_LEFT_MOST_KEY  = 0;
 static const int32_t FB_DEPTH_MAX      = 10;
 
 typedef struct       fbNodeStruct   fbn_t;
+typedef struct       fbRootStruct   fbr_t;
 typedef struct       fbTreeStruct   fbt_t;
 typedef struct       fbStackStruct  fbs_t;
 typedef struct       fbCursorStruct fbc_t;
@@ -61,6 +62,14 @@ struct fbNodeStruct {
 };
 fbn_t  fb_nil_node_instance;
 fbn_t *fb_nil_node=&fb_nil_node_instance;
+
+/*
+struct fbRootStruct {
+    fbn_t          *root;
+    int32_t         level;
+    fbTraverseFunc  traverse;
+};
+*/
 
 struct fbTreeStruct {
     fbTreeStruct();
@@ -301,16 +310,20 @@ inline void   fb_add_stat(fbt_t *fbt, fbs_t *fbs) {
 
 
 inline bool   fb_w_lock(fbn_t **node) {
-    return ywRcuRef::lock(reinterpret_cast<rcu_ptr>(node));
+    return true;
+//    return ywRcuRef::lock(reinterpret_cast<rcu_ptr>(node));
 }
 inline void   fb_w_unlock(fbn_t **node) {
-    return ywRcuRef::release(reinterpret_cast<rcu_ptr>(node));
+    return;
+//    ywRcuRef::release(reinterpret_cast<rcu_ptr>(node));
 }
 inline bool   fb_r_lock(fbn_t **node) {
-    return ywRcuRef::fix(reinterpret_cast<rcu_ptr>(node));
+    return true;
+//    return ywRcuRef::fix(reinterpret_cast<rcu_ptr>(node));
 }
 inline void   fb_r_unlock(fbn_t **node) {
-    return ywRcuRef::unfix(reinterpret_cast<rcu_ptr>(node));
+    return;
+//    ywRcuRef::unfix(reinterpret_cast<rcu_ptr>(node));
 }
 
 

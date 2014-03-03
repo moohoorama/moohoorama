@@ -9,13 +9,12 @@
 template<typename DATA>
 class ywQueue {
  public:
-    ywQueue():prev(this), next(this), count(0) {
+    ywQueue():prev(this), next(this) {
     }
 
     void init() {
         prev = this;
         next = this;
-        count = 0;
     }
 
     void push(ywQueue *node) {
@@ -51,38 +50,9 @@ class ywQueue {
         return old_next;
     }
 
-    /*
-    void push(ywQueue *node) {
-        while (!lock.WLock()) {
-        }
-        node->next = this;
-        node->prev = prev;
-        prev->next = node;
-        prev = node;
-        count++;
-        lock.release();
-    }
-    ywQueue  * pop() {
-        ywQueue * ret = NULL;
-        while (!lock.WLock()) {
-        }
-        if (next != this) {
-            ret = next;
-            ret->next->prev = this;
-            next = ret->next;
-        }
-        count--;
-        lock.release();
-
-        return ret;
-    }
-    */
-
-    ywSpinLock   lock;
     ywQueue    * prev;
     ywQueue    * next;
     DATA         data;
-    int32_t      count;
 };
 
 void     ywq_test();

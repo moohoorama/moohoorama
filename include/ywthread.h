@@ -160,10 +160,10 @@ class ywThreadPool{
     pthread_t     pt[MAX_THREAD_COUNT];
     volatile bool running[MAX_THREAD_COUNT];
 
-    int32_t     queue_begin;
-    int32_t     queue_end;
-    ywTaskFunc  funcs[MAX_QUEUE_SIZE];
-    void       *args[MAX_QUEUE_SIZE];
+    volatile int32_t     queue_begin;
+    volatile int32_t     queue_end;
+    ywTaskFunc           funcs[MAX_QUEUE_SIZE];
+    void                *args[MAX_QUEUE_SIZE];
 
     static ywThreadPool gInstance;
 };
