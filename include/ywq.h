@@ -12,45 +12,46 @@ class ywQueue {
     ywQueue():prev(this), next(this), count(0) {
     }
 
-    /*
+    void init() {
+        prev = this;
+        next = this;
+        count = 0;
+    }
+
     void push(ywQueue *node) {
         ywQueue * old_prev;
 
         do {
-            old_prev = prev;
             __sync_synchronize();
+            old_prev = prev;
 
             node->prev = old_prev;
             node->next = this;
         } while (!__sync_bool_compare_and_swap(&prev, old_prev, node));
-        __sync_synchronize();
 
         old_prev->next = node;
     }
 
     ywQueue  * pop() {
-        ywQueue * target = NULL;
-        ywQueue * linker = NULL;
+        ywQueue * old_next;
+        ywQueue * new_next;
 
         do {
             __sync_synchronize();
-            if (prev == this) {
-                return NULL;  // Really Emtpy
+            old_next = next;
+            if (old_next == this) {
+                return NULL;
             }
-
-            target = next;
-            linker = target->next;
-            if (target->prev != this) {
+            new_next = old_next->next;
+            if (new_next->prev != old_next) {
                 continue;
             }
-        } while (!__sync_bool_compare_and_swap(&linker->prev, target, this));
+        } while (!__sync_bool_compare_and_swap(&next, old_next, new_next));
 
-        next = linker;
-
-        return target;
+        return old_next;
     }
-    */
 
+    /*
     void push(ywQueue *node) {
         while (!lock.WLock()) {
         }
@@ -75,6 +76,7 @@ class ywQueue {
 
         return ret;
     }
+    */
 
     ywSpinLock   lock;
     ywQueue    * prev;

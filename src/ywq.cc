@@ -12,11 +12,12 @@
 
 void printList();
 
+const int32_t THREAD_COUNT = 4;
 const int32_t ITER_COUNT = 8;
-const int32_t TRY_COUNT  = 1024*64;
+const int32_t TRY_COUNT  = 1024;
 
 static ywQueue<int32_t> head;
-static ywQueue<int32_t> slot[16][TRY_COUNT];
+static ywQueue<int32_t> slot[THREAD_COUNT][TRY_COUNT];
 
 void printList() {
     ywQueue<int32_t> * iter;
@@ -61,13 +62,13 @@ void popRoutine(void * arg) {
     }
 }
 
-#define THREAD_COUNT 16
 void   ywq_test() {
     int          i;
     int          j;
     int          k;
     ywQueue<int32_t> * iter;
 
+    head.init();
     slot[0][0].data = 10000;
     head.push(&slot[0][0]);
     iter = head.pop();
@@ -75,6 +76,7 @@ void   ywq_test() {
     iter = head.pop();
 
     for (i = 0; i < ITER_COUNT; i ++) {
+        head.init();
         for (j = 0; j < THREAD_COUNT; j ++) {
             ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
                     pushRoutine, reinterpret_cast<void*>(j)));

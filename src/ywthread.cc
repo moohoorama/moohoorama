@@ -31,7 +31,7 @@ void ywThreadPool::init() {
         CPU_SET_S(i, (size_t)thread_count, cmask);
         assert(0 == pthread_setaffinity_np(pt[i], thread_count, cmask));
     }
-    block_add_task = false;
+    block = false;
 }
 
 
@@ -41,15 +41,15 @@ void *ywThreadPool::work(void * /*arg_ptr*/) {
     void         *arg;
     ywTID         tid = tpool->get_thread_id();
 
-    tpool->running[tid] = true;
+    tpool->running[tid] = false;
 
     while (!tpool->done) {
         if (tpool->get_task(&func, &arg)) {
-            func(arg);
-        } else {
-            tpool->running[tid] = false;
-            usleep(SLEEP_INTERVAL);
             tpool->running[tid] = true;
+            func(arg);
+            tpool->running[tid] = false;
+        } else {
+            usleep(SLEEP_INTERVAL);
         }
     }
 
@@ -88,12 +88,21 @@ void threadpool_test() {
     /* TEST wait_to_idle */
     act = false;
     tpool->wait_to_idle();
-    EXPECT_EQ(0, tpool->get_running_thread_count());
+    i = tpool->get_running_thread_count();
+    assert(0 == i);
 
     /* TEST block_add_task */
-    tpool->set_block_add_task(true);
+    tpool->block_add_task(true);
     EXPECT_FALSE(tpool->add_task(sleep_task, &act));
-    tpool->set_block_add_task(false);
+    tpool->block_add_task(false);
     EXPECT_TRUE(tpool->add_task(sleep_task, &act));
+    tpool->wait_to_idle();
+
+    /* TEST Concurrenc */
+    tpool->wait_to_idle();
+    for (i = 0; i <1024*16; ++i) {
+        while (!tpool->add_task(sleep_task, &act)) {
+        }
+    }
     tpool->wait_to_idle();
 }

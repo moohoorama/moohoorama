@@ -24,11 +24,19 @@
 #include <vector>
 #include <algorithm>
 
+TEST(ThreadPool, Basic) {
+    int32_t i;
+    for (i = 0; i < 4; ++i) {
+        threadpool_test();
+        printf("%d...done\n", i);
+    }
+}
+
 TEST(Queue, Basic) {
     int32_t i;
-
-    for (i = 0; i < 1; ++i) {
+    for (i = 0; i < 4; ++i) {
         ywq_test();
+        printf("%d...done\n", i);
     }
 }
 
@@ -151,10 +159,6 @@ TEST(SyncList, Concurrency) {
                 sl_test_routine, reinterpret_cast<void*>(i)));
     }
     ywThreadPool::get_instance()->wait_to_idle();
-}
-
-TEST(ThreadPool, Basic) {
-    threadpool_test();
 }
 
 TEST(Atomic, BasicPerformance) {

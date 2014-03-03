@@ -2,6 +2,7 @@
 
 #include <ywrcuref.h>
 #include <gtest/gtest.h>
+#include <ywsll.h>
 
 ywrcu_free_queue             ywRcuRef::free_q;
 ywMemPool<ywrcu_free_queue>  ywRcuRef::rc_free_pool;
@@ -15,28 +16,50 @@ static const int32_t SLOT_COUNT = 1024;
 static const int32_t magic = 0x1234;
 static int32_t       slots[MAX_THREAD_COUNT][SLOT_COUNT];
 
-void *ptr;
+void        *ptr;
+ywsllNode    free_list;
+ywSpinLock   free_lock;
 
+void aging() {
+    volatile int32_t   *int_ptr;
+    void               *freeable;
+
+    while (!(freeable = ywRcuRef::get_freeable_item())) {
+        usleep(100);
+    }
+
+    int_ptr = reinterpret_cast<volatile int32_t*>(freeable);
+    while (!free_lock.WLock()) {
+    }
+    ywsll_attach(&free_list, reinterpret_cast<ywsllNode*>(
+            const_cast<int32_t*>(int_ptr)));
+    free_lock.release();
+    rem_count.mutate(1);
+}
 void rcu_ref_task(void *arg) {
     int32_t             tid = reinterpret_cast<int32_t>(arg);
     volatile int32_t   *int_ptr;
     void               *freeable;
     int32_t             i;
 
-    i = ywRcuRef::get_slot_idx(&ptr);
-
     for (i = 0; i < TEST_COUNT; ++i) {
         if (i < SLOT_COUNT) {
             slots[tid][i % SLOT_COUNT] = magic;
             ywRcuRef::set(&ptr, &slots[tid][i]);
         } else {
-            while (!(freeable = ywRcuRef::get_freeable_item())) {
-                printf("wait...\n");
-                usleep(100);
-            }
-            int_ptr = reinterpret_cast<volatile int32_t*>(freeable);
-            *int_ptr = 0;
+            do {
+                while (!free_lock.WLock()) {
+                }
+                int_ptr = reinterpret_cast<volatile int32_t*>
+                    (ywsll_pop(&free_list));
+                free_lock.release();
+                if (!int_ptr) {
+                    aging();
+                }
+            } while (!int_ptr);
             *int_ptr = magic;
+            freeable = reinterpret_cast<void*>(
+                const_cast<int32_t*>(int_ptr));
             ywRcuRef::set(&ptr, freeable);
         }
 
@@ -50,18 +73,18 @@ void rcu_ref_task(void *arg) {
         ywRcuRef::unfix(&ptr);
 
         /*
-        while ((freeable = ywRcuRef::get_freeable_item())) {
-            rem_count.mutate(1);
-            int_ptr = reinterpret_cast<volatile int32_t*>(freeable);
-            if (*int_ptr != magic) {
-                printf("idx : %d\n", ywRcuRef::get_slot_idx(&ptr));
-                printf("slot: %lld\n", ywRcuRef::get_slot(&ptr));
-                printf("fix : %lld\n", ywRcuRef::get_fix_slot(&ptr));
-                assert(false);
-            }
-            *int_ptr = ywThreadPool::get_thread_id();
-        }
-        */
+           while ((freeable = ywRcuRef::get_freeable_item())) {
+           rem_count.mutate(1);
+           int_ptr = reinterpret_cast<volatile int32_t*>(freeable);
+           if (*int_ptr != magic) {
+           printf("idx : %d\n", ywRcuRef::get_slot_idx(&ptr));
+           printf("slot: %lld\n", ywRcuRef::get_slot(&ptr));
+           printf("fix : %lld\n", ywRcuRef::get_fix_slot(&ptr));
+           assert(false);
+           }
+         *int_ptr = ywThreadPool::get_thread_id();
+         }
+         */
     }
 }
 

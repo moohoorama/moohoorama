@@ -18,7 +18,7 @@ class ywThreadPool{
     ywThreadPool():
         g_tid(0),
         thread_count(0),
-        block_add_task(true),
+        block(true),
         done(false),
         queue_begin(0),
         queue_end(0) {
@@ -28,7 +28,7 @@ class ywThreadPool{
     explicit ywThreadPool(int32_t _thread_count):
         g_tid(0),
         thread_count(_thread_count),
-        block_add_task(true),
+        block(true),
         done(false),
         queue_begin(0),
         queue_end(0) {
@@ -66,7 +66,7 @@ class ywThreadPool{
     }
 
     inline bool add_task(ywTaskFunc func, void *arg) {
-        if (block_add_task) {
+        if (block) {
             return false;
         }
 
@@ -84,9 +84,9 @@ class ywThreadPool{
         while (!__sync_bool_compare_and_swap(
                 &funcs[prev], (ywTaskFunc)null_func, func)) {
         }
-
-        assert(__sync_bool_compare_and_swap(
-                &args[prev], &NULL_ARG_PTR, arg));
+        while (!__sync_bool_compare_and_swap(
+                &(args[prev]), &NULL_ARG_PTR, arg)) {
+        }
 
         return true;
     }
@@ -95,6 +95,7 @@ class ywThreadPool{
         int32_t i;
         int32_t ret = 0;
 
+        __sync_synchronize();
         for (i = 0; i < thread_count; ++i) {
             ret += (running[i] == true);
         }
@@ -102,12 +103,12 @@ class ywThreadPool{
         return ret;
     }
 
-    inline void set_block_add_task(bool _new) {
-        block_add_task = _new;
+    inline void block_add_task(bool _new) {
+        block = _new;
     }
 
     inline void wait_to_idle() {
-        set_block_add_task(true);
+        block_add_task(true);
         while (queue_end != queue_begin) {
             usleep(SLEEP_INTERVAL);
         }
@@ -117,7 +118,7 @@ class ywThreadPool{
         }
         assert(queue_end == queue_begin);
 
-        set_block_add_task(false);
+        block_add_task(false);
     }
 
  private:
@@ -127,31 +128,32 @@ class ywThreadPool{
 
         do {
             prev = queue_begin;
-            *func = funcs[prev];
-            if (*func == null_func) {
+            *arg = args[prev];
+            if (*arg == &NULL_ARG_PTR) {
                 return false;
             }
-            *arg  = args[prev];
+            *func = funcs[prev];
             next = (prev + 1) % MAX_QUEUE_SIZE;
-        } while ( !__sync_bool_compare_and_swap(
-                &funcs[prev], *func, (ywTaskFunc)null_func));
+        } while (!__sync_bool_compare_and_swap(
+                 &args[prev], *arg, &NULL_ARG_PTR));
 
-        assert(__sync_bool_compare_and_swap(
-                &args[prev], *arg, &NULL_ARG_PTR));
-        assert(__sync_bool_compare_and_swap(
-                &queue_begin, prev, next));
+        while (!__sync_bool_compare_and_swap(
+                &funcs[prev], *func, (ywTaskFunc)null_func)) {
+        }
+
+        while (!__sync_bool_compare_and_swap(
+                &queue_begin, prev, next)) {
+        }
 
         return true;
     }
 
-    ywTID       g_tid;
-    int32_t     thread_count;
-
-    bool        block_add_task;
-    bool        done;
-
-    pthread_t   pt[MAX_THREAD_COUNT];
-    bool        running[MAX_THREAD_COUNT];
+    ywTID         g_tid;
+    int32_t       thread_count;
+    bool          block;
+    bool          done;
+    pthread_t     pt[MAX_THREAD_COUNT];
+    volatile bool running[MAX_THREAD_COUNT];
 
     int32_t     queue_begin;
     int32_t     queue_end;
