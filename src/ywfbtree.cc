@@ -4,11 +4,14 @@
 #include <ywthread.h>
 #include <ywaccumulator.h>
 #include <gtest/gtest.h>
+#include <ywspinlock.h>
 #include <ywmempool.h>
 
 static const int32_t FB_SLOT_MAX       = 128;
 static const int32_t FB_LAST_SLOT      = FB_SLOT_MAX-1;
-static const int32_t FB_SPLITPOINT     = FB_SLOT_MAX/2;
+static const int32_t FB_5_5_SPLIT      = FB_SLOT_MAX/2;
+static const int32_t FB_1_9_SPLIT      = FB_SLOT_MAX/2; /*1*/
+static const int32_t FB_9_1_SPLIT      = FB_SLOT_MAX/2; /*FB_LAST_SLOT*/
 static const fbKey   FB_NIL_KEY        = UINT32_MAX;
 static const fbKey   FB_LEFT_MOST_KEY  = 0;
 static const int32_t FB_DEPTH_MAX      = 10;
@@ -55,8 +58,10 @@ fbn_t *fb_nil_node=&fb_nil_node_instance;
 struct fbTreeStruct {
     fbTreeStruct();
 
-    fbn_t   *root;
-    int32_t  level;
+    fbn_t                 *root;
+    int32_t                level;
+    ywSpinLock             lock;
+
     ywAccumulator<int64_t> ikey_count;
     ywAccumulator<int64_t> key_count;
     ywAccumulator<int64_t> node_count;
@@ -114,10 +119,15 @@ bool  fb_insert(void *_fbt, fbKey key, void *_data) {
     fbn_t   *fbn;
     fbs_t    fbs;
 
+    if (!fbt->lock.WLock()) {
+        return false;
+    }
+
     if (fbt->level) {
         fbn = fb_traverse(fbt, key, &fbs);
     } else {
         if (!(fbn = fb_create_node())) {
+            fbt->lock.release();
             return false;
         }
         fb_reset_node(fbn);
@@ -132,17 +142,21 @@ bool  fb_insert(void *_fbt, fbKey key, void *_data) {
 
     if ((fbs.cursor[ fbs.depth ].idx != -1) &&
         (fbn->key[ fbs.cursor[ fbs.depth ].idx ] == key)) { /* dupkey */
+        fbt->lock.release();
         return false;
     }
     fb_insert_into_node(fbn, &fbs, key, data);
 
     if (fb_is_full_node(fbn)) {
         if (!fb_split_node(fbt, fbn, &fbs)) {
+            fbt->lock.release();
             return false;
         }
     }
     fbs.key_count = +1;
     fb_add_stat(fbt, &fbs);
+
+    fbt->lock.release();
 
     return true;
 }
@@ -153,7 +167,12 @@ bool  fb_remove(void *_fbt, fbKey key) {
     fbs_t  fbs;
     fbc_t *cursor;
 
+    if (!fbt->lock.WLock()) {
+        return false;
+    }
+
     if (fbt->root == fb_nil_node) {
+        fbt->lock.release();
         return false;
     }
 
@@ -164,6 +183,7 @@ bool  fb_remove(void *_fbt, fbKey key) {
     assert(fbn == cursor->node);
 
     if (cursor->node->key[ cursor->idx] != key) {
+        fbt->lock.release();
         return false;
     }
 
@@ -188,6 +208,7 @@ bool  fb_remove(void *_fbt, fbKey key) {
 
     fbs.key_count = -1;
     fb_add_stat(fbt, &fbs);
+    fbt->lock.release();
     return true;
 }
 
@@ -313,15 +334,12 @@ bool fb_split_node(fbt_t *fbt, fbn_t *fbn, fbs_t *fbs) {
     fbs->node_count++;
 
     if (fbs->cursor[ fbs->depth ].idx == FB_LAST_SLOT-1) {
-        /* 9:1 split */
-        reset_idx = FB_LAST_SLOT;
+        reset_idx = FB_9_1_SPLIT;
     } else {
         if (fbs->cursor[ fbs->depth ].idx == 0) {
-            /* 1:9 split */
-            reset_idx = 1;
+            reset_idx = FB_1_9_SPLIT;
         } else {
-            /* 5:5 split*/
-            reset_idx = FB_SPLITPOINT;
+            reset_idx = FB_5_5_SPLIT;
         }
     }
     remain_cnt = FB_SLOT_MAX - reset_idx;
@@ -462,11 +480,6 @@ void fb_basic_test() {
     for (i = 0; i < TEST_SIZE; ++i) {
         fb_insert(fbt, i*2, reinterpret_cast<void*>(i*2));
     }
-    /*
-    for (i = 0; i < TEST_SIZE*2; ++i) {
-        ASSERT_EQ(i & ~1, reinterpret_cast<uint32_t>(fb_find(fbt, i)));
-    }
-    */
     for (i = 0; i < TEST_SIZE; ++i) {
         if ((ret=fb_find(fbt, i*2))) {
             if (!fb_remove(fbt, i*2)) {
@@ -476,15 +489,67 @@ void fb_basic_test() {
             }
         }
     }
-    /*
-    for (int32_t j = 0; j < 1024*8; ++j) {
-        for (i = 0; i < 1024; ++i) {
-            ASSERT_EQ(fb_find(fbt, i+100), reinterpret_cast<void*>(i+100));
-        }
-    }
-    */
 
     ASSERT_TRUE(fbt);
 }
 
+typedef struct _testArg {
+    void * fbt;
+    int    idx;
+    int    data_size;
+    int    try_count;
+    int    op;
+} testArg;
+
+void concRoutine(void * arg) {
+    testArg  *test_arg = reinterpret_cast<testArg*>(arg);
+    int32_t   val = 0;
+    int32_t   init_val =  test_arg->idx * test_arg->data_size + 1;
+    int       i;
+
+    switch (test_arg->op) {
+        case 0: /*generation*/
+            for (i = 0; i < test_arg->data_size; i ++) {
+                while (!fb_insert(test_arg->fbt, val+init_val, NULL)) {
+                }
+                val = (val + 1) % test_arg->data_size;
+            }
+            break;
+        case 1: /*search*/
+            for (i = 0; i < test_arg->try_count; i ++) {
+                fb_find(test_arg->fbt, val+init_val);
+                val = (val + 1) % test_arg->data_size;
+            }
+        case 2: /*fusion*/
+            break;
+        case 3: /*remove*/
+            for (i = 0; i < test_arg->data_size; i ++) {
+                while (!fb_remove(test_arg->fbt, val+init_val)) {
+                }
+                val = (val + 1) % test_arg->data_size;
+            }
+    }
+}
+
+void    *test_fbt =fb_create();
+void  fb_conc_test(int32_t data, int32_t try_count, int32_t op) {
+    int      j;
+    int      thread_count = ywThreadPool::get_processor_count();
+    testArg  test_arg[MAX_THREAD_COUNT];
+
+    ywThreadPool::get_instance()->wait_to_idle();
+    for (j = 0; j < thread_count; j ++) {
+        test_arg[j].fbt       = test_fbt;
+        test_arg[j].idx       = j;
+        test_arg[j].data_size = data / thread_count;
+        test_arg[j].try_count = try_count / thread_count;
+        test_arg[j].op        = op;
+
+        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+                concRoutine, reinterpret_cast<void*>(&test_arg[j])));
+    }
+    ywThreadPool::get_instance()->wait_to_idle();
+
+    fb_report(test_fbt);
+}
 

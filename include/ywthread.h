@@ -109,17 +109,22 @@ class ywThreadPool{
 
     inline void wait_to_idle() {
         block_add_task(true);
-        while (queue_end != queue_begin) {
-            usleep(SLEEP_INTERVAL);
-        }
-
-        while (get_running_thread_count()) {
+        while (!is_idle()) {
             usleep(SLEEP_INTERVAL);
         }
         assert(queue_end == queue_begin);
 
         block_add_task(false);
     }
+    inline bool is_idle() {
+        if (queue_end == queue_begin) {
+            if (get_running_thread_count() == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 
  private:
     inline bool get_task(ywTaskFunc *func, void **arg) {

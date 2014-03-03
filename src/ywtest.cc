@@ -184,7 +184,7 @@ TEST(SkipList, ConcurrentRemove) {
 */
 
 static const int32_t DATA_SIZE = 1024*1024;
-static const int32_t TRY_COUNT = 1024*1024;
+static const int32_t TRY_COUNT = 1024*1024*8;
 int32_t data[DATA_SIZE];
 
 typedef bool (*compareFunc)(int32_t a, int32_t b);
@@ -447,6 +447,21 @@ TEST(FBTree, Remove) {
 
 TEST(FBTree, Basic) {
     fb_basic_test();
+}
+
+TEST(FBTree, Concurrent_insert) {
+    fb_conc_test(DATA_SIZE, TRY_COUNT, 0);
+}
+
+TEST(FBTree, Concurrent_search) {
+    fb_conc_test(DATA_SIZE, TRY_COUNT, 1);
+}
+
+TEST(FBTree, Concurrent_fusion) {
+    fb_conc_test(DATA_SIZE, TRY_COUNT, 2);
+}
+TEST(FBTree, Concurrent_remove) {
+    fb_conc_test(DATA_SIZE, TRY_COUNT, 3);
 }
 
 
