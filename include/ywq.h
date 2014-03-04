@@ -57,11 +57,19 @@ class ywQueueHead {
         return reinterpret_cast<int32_t>(ptr);
     }
     void    print_ptr(ywQueue<DATA> *ptr) {
-        printf(
-            "- 0x%08x 0x%08x 0x%08x -",
-            ptr2int(ptr->prev),
-            ptr2int(ptr),
-            ptr2int(ptr->next));
+        printf("-");
+        if (ptr->prev->next != ptr) {
+            printf("%08x", ptr2int(ptr->prev));
+        } else {
+            printf("%8s", " ");
+        }
+        printf(" %08x ", ptr2int(ptr));
+        if (ptr->next->prev != ptr) {
+            printf("%08x", ptr2int(ptr->next));
+        } else {
+            printf("%8s", " ");
+        }
+        printf("-");
     }
     void draw() {
         ywQueue<DATA> * iter;

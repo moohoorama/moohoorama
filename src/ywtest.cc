@@ -34,7 +34,7 @@ TEST(ThreadPool, Basic) {
 
 TEST(Queue, Basic) {
     int32_t i;
-    for (i = 0; i < 64; ++i) {
+    for (i = 0; i < 1; ++i) {
         ywq_test();
         printf("%d...done\n", i);
     }

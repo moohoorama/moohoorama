@@ -50,35 +50,6 @@ void ywq_test_basic() {
     (void) head.pop();
 }
 
-#define YWQ_PUSH0(x) push[x] = head.push_before(&slot[x])
-#define YWQ_PUSH_E(x) do {                          \
-        if (push[x] && !head.is_retry(push[x])) {   \
-            head.push_after(push[x], &slot[x]);     \
-        }                                           \
-    } while (0)
-#define YWQ_POP0(x)  popr[x] = head.pop_before(&pop1[x], &pop2[x])
-#define YWQ_POP__E(x) do {                          \
-        if (popr[x] && !head.is_retry(popr[x])) {   \
-            head.pop_after(pop1[x], pop2[x]);       \
-        }                                           \
-    } while (0)
-
-#define YWQ_PUSH_P(x)  assert(!head.is_retry(YWQ_PUSH0(x)))
-#define YWQ_PUSH_F(x)  assert(head.is_retry(YWQ_PUSH0(x)))
-#define YWQ_POP__P(x)   assert(!head.is_retry(YWQ_POP0(x)))
-#define YWQ_POP__F(x)   assert(head.is_retry(YWQ_POP0(x)))
-
-#define YWQ_END()   do {                         \
-        printf("[%d] cnt:%d [%d, %d, %d, %d]\n", \
-               k++,                              \
-               head.get_count(),                 \
-               !!popr[0],                        \
-               !!popr[1],                        \
-               !!popr[2],                        \
-               !!popr[3]);                       \
-        init();                                  \
-    } while (0);
-
 class ywqTestClass {
     ywQueueHead<int32_t> head;
     ywQueue<int32_t>     slot[4];
@@ -97,32 +68,85 @@ class ywqTestClass {
             pop1[i] = 0;
             pop2[i] = 0;
             popr[i] = 0;
+            slot[i].data = 0;
         }
+    }
+    void end() {
+        if (0)
+        printf("[%d] cnt:%d [%d, %d, %d, %d]\n", \
+               k++,                              \
+               head.get_count(),                 \
+               !!popr[0],                        \
+               !!popr[1],                        \
+               !!popr[2],                        \
+               !!popr[3]);                       \
     }
     void test();
     void test_all();
+
+    ywQueue<int32_t> *push_begin(int x) {
+        if (!slot[x].data) {
+            push[x] = head.push_before(&slot[x]);
+            if (push[x] && !head.is_retry(push[x])) {
+                slot[x].data = 1;
+            }
+            return push[x];
+        }
+        return push[x];
+    }
+
+    void push_begin(int x, bool ret) {
+        assert((!head.is_retry(push_begin(x))) == ret);
+    }
+
+    void push_end(int x) {
+        if (push[x] && !head.is_retry(push[x])) {
+            head.push_after(push[x], &slot[x]);
+            push[x] = NULL;
+        }
+    }
+
+    ywQueue<int32_t> *pop_begin(int x) {
+        popr[x] = head.pop_before(&pop1[x], &pop2[x]);
+        return  popr[x];
+    }
+    void pop_begin(int x, bool ret) {
+        pop_begin(x);
+        if (ret) {
+            assert(!head.is_retry(popr[x]) && popr);
+        } else {
+            assert(head.is_retry(popr[x]));
+        }
+    }
+    void pop_end(int x) {
+        if (popr[x] && !head.is_retry(popr[x])) {
+            head.pop_after(pop1[x], pop2[x]);
+            popr[x] = NULL;
+        }
+    }
 
  private:
     void try_op(int idx);
 };
 
 void ywqTestClass::try_op(int idx) {
+//    const char op_name[][8]={"pushb", "pushe", "popb", "pope"};
     int op     = idx / 4;
     int thread = idx % 4;
 
-    printf("%d : %d\n", op, thread);
+    //  printf("%8s : %d\n", op_name[op], thread);
     switch (op) {
         case 0:
-            YWQ_PUSH0(thread);
+            push_begin(thread);
             break;
         case 1:
-            YWQ_PUSH_E(thread);
+            push_end(thread);
             break;
         case 2:
-            YWQ_POP0(thread);
+            pop_begin(thread);
             break;
         case 3:
-            YWQ_POP__E(thread);
+            pop_end(thread);
             break;
     }
 }
@@ -133,7 +157,7 @@ void ywqTestClass::test_all() {
     int val;
     int thread_count = 3;
     int op_set = 4 * thread_count;
-    int op_count = 4;
+    int op_count = 6;
     int max;
 
     max = 1;
@@ -149,99 +173,99 @@ void ywqTestClass::test_all() {
             try_op(val % op_set);
             val /=op_set;
         }
-        YWQ_END();
+        end();
     }
 }
 
 void ywqTestClass::test() {
     init();
-    YWQ_POP__P(0);
-    YWQ_END();
+    pop_begin(0, true);
+    end();
 
     init();
-    YWQ_PUSH_E(0);
-    YWQ_PUSH_E(0);
-    YWQ_END();
+    push_end(0);
+    push_end(0);
+    end();
 
     init();
-    YWQ_PUSH_P(0);
-    YWQ_PUSH_E(0);
-    YWQ_POP__P(0);
-    YWQ_POP__E(0);
-    YWQ_END();
+    push_begin(0, true);
+    push_end(0);
+    pop_begin(0, true);
+    pop_end(0);
+    end();
 
     init();
-    YWQ_PUSH_P(0);
-    YWQ_POP__P(0);
-    YWQ_PUSH_E(0);
-    YWQ_POP__E(0);
-    YWQ_END();
+    push_begin(0, true);
+    pop_begin(0, true);
+    push_end(0);
+    pop_end(0);
+    end();
 
     init();
-    YWQ_PUSH_P(0);
-    YWQ_POP__P(0);
-    YWQ_PUSH_E(0);
-    YWQ_POP__P(0);
-    YWQ_POP__E(0);
-    YWQ_END();
+    push_begin(0, true);
+    pop_begin(0, true);
+    push_end(0);
+    pop_begin(0, true);
+    pop_end(0);
+    end();
 
     init();
-    YWQ_PUSH_P(0);
-    YWQ_POP__P(0);
-    YWQ_POP__E(0);
-    YWQ_PUSH_E(0);
-    YWQ_END();
+    push_begin(0, true);
+    pop_begin(0, true);
+    pop_end(0);
+    push_end(0);
+    end();
 
     init();
-    YWQ_PUSH_P(0);
-                    YWQ_PUSH_P(1);
-    YWQ_PUSH_E(0);
-                    YWQ_PUSH_E(1);
-    YWQ_END();
+    push_begin(0, true);
+                    push_begin(1, true);
+    push_end(0);
+                    push_end(1);
+    end();
 
     init();
-    YWQ_PUSH_P(0);
-                    YWQ_PUSH_P(1);
-                    YWQ_PUSH_E(1);
-    YWQ_PUSH_E(0);
-    YWQ_END();
+    push_begin(0, true);
+                    push_begin(1, true);
+                    push_end(1);
+    push_end(0);
+    end();
 
     init();
-    YWQ_PUSH_P(0);
-    YWQ_PUSH_E(0);
-    YWQ_POP__P(0);
-                    YWQ_PUSH_F(1);
-                    YWQ_PUSH_F(1);
-    YWQ_POP__E(0);
-                    YWQ_PUSH_P(1);
-                    YWQ_PUSH_E(1);
-    YWQ_END();
+    push_begin(0, true);
+    push_end(0);
+    pop_begin(0, true);
+                    push_begin(1, false);
+                    push_begin(1, false);
+    pop_end(0);
+                    push_begin(1, true);
+                    push_end(1);
+    end();
 
     init();
-    YWQ_PUSH_P(0);
-    YWQ_PUSH_E(0);
-    YWQ_POP__P(0);
-                    YWQ_POP__F(1);
-    YWQ_POP__E(0);
-    YWQ_END();
+    push_begin(0, true);
+    push_end(0);
+    pop_begin(0, true);
+                    pop_begin(1, false);
+    pop_end(0);
+    end();
 
     init();
-    YWQ_PUSH_P(0);
-                    YWQ_PUSH_P(1);
-                    YWQ_PUSH_E(1);
-                                    YWQ_POP__P(2);
-    YWQ_PUSH_E(0);
-                                    YWQ_POP__E(2);
-    YWQ_END();
+    push_begin(0, true);
+                    push_begin(1, true);
+                    push_end(1);
+                                    pop_begin(2);
+    push_end(0);
+                                    pop_end(2);
+    end();
 
     init();
-    YWQ_PUSH_P(0);
-                    YWQ_PUSH_P(1);
-    YWQ_PUSH_E(0);
-                                    YWQ_POP__F(2);
-                    YWQ_PUSH_E(1);
-                                    YWQ_POP__E(2);
-    YWQ_END();
+    push_begin(0, true);
+                    push_begin(1, true);
+    push_end(0);
+                                    pop_begin(2, false);
+                    push_end(1);
+                                    pop_end(2);
+    end();
 }
 
 
