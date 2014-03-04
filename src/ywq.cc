@@ -33,7 +33,6 @@ void popRoutine(void * arg) {
     for (i = 0; i < TRY_COUNT; i ++) {
         while (!(iter = head.pop())) {
         }
-        assert(iter != head.getDummy());
         assert(iter != head.getEnd());
         prev++;
     }
