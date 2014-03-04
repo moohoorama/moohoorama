@@ -266,6 +266,15 @@ void ywqTestClass::test() {
                     push_end(1);
                                     pop_end(2);
     end();
+
+    init();
+    push_begin(0, true);
+    push_end(0);
+                    push_begin(0, true);
+                    push_end(1);
+    pop_begin(0, true);
+                    pop_begin(1, false);
+    end();
 }
 
 

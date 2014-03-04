@@ -34,6 +34,7 @@ class ywRcuRef {
         int32_t i = 0;
         for (i = 0; i < REF_COUNT; ++i) {
             slot[i] = NIL_SLOT;
+            oldest_free[i] = NULL;
         }
 
         gslot = INIT_SLOT;
@@ -94,12 +95,19 @@ class ywRcuRef {
     }
 
     ywrcu_free_queue *_get_reusable_item() {
-        ywrcu_free_queue *node = free_q.pop();
+        ywTID tid = ywThreadPool::get_thread_id();
+        ywrcu_free_queue *node = oldest_free[tid];
+        if (!node) {
+            node = free_q.pop();
+        }
         if (node) {
             if (is_reusable(&(node->data))) {
+                oldest_free[tid] = NULL;
                 return node;
             }
-            free_q.push(node);
+            *reinterpret_cast<int32_t*>(node->data.target) =
+                -node->data.remove_time;
+            oldest_free[tid] = node;
         }
         return NULL;
     }
@@ -160,9 +168,10 @@ class ywRcuRef {
         return &slot[tid];
     }
 
-    volatile ref_slot         slot[REF_COUNT];
-    volatile ref_slot         gslot;
-    ywQueueHead<ywrcu_free_t> free_q;
+    volatile ref_slot          slot[REF_COUNT];
+    volatile ref_slot          gslot;
+    ywrcu_free_t              *oldest_free[REF_COUNT];
+    ywQueueHead<ywrcu_free_t>  free_q;
 
     static ywMemPool<ywrcu_free_queue>  rc_free_pool;
 };

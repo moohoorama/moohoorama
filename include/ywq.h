@@ -40,8 +40,8 @@ class ywQueueHead {
     }
     ywQueue<DATA>  * pop() {
         ywQueue<DATA> * ret;
-        ywQueue<DATA> * prev;
-        ywQueue<DATA> * prev_prev;
+        ywQueue<DATA> * prev = NULL;
+        ywQueue<DATA> * prev_prev = NULL;
 
         do {
             ret = pop_before(&prev, &prev_prev);
@@ -78,7 +78,7 @@ class ywQueueHead {
         iter = &head;
         printf("Count : %d\n", count);
         printf("NEXT : ");
-        for (i = 0; i < 4; ++i) {
+        for (i = 0; i < 6; ++i) {
             print_ptr(iter);
             iter = iter->next;
             if (iter == &head) {
@@ -89,7 +89,7 @@ class ywQueueHead {
 
         iter = &head;
         printf("PREV : ");
-        for (i = 0; i < 4; ++i) {
+        for (i = 0; i < 6; ++i) {
             print_ptr(iter);
             iter = iter->prev;
             if (iter == &head) {

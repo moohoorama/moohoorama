@@ -24,6 +24,7 @@
 #include <vector>
 #include <algorithm>
 
+/*
 TEST(ThreadPool, Basic) {
     int32_t i;
     for (i = 0; i < 4; ++i) {
@@ -39,7 +40,7 @@ TEST(Queue, Basic) {
         printf("%d...done\n", i);
     }
 }
-
+*/
 TEST(RCURef, Basic) {
     rcu_ref_test();
 }

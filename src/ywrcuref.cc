@@ -9,7 +9,7 @@ ywMemPool<ywrcu_free_queue>  ywRcuRef::rc_free_pool;
 
 class ywRcuTestClass {
     static const int32_t YWR_TEST_COUNT = 1024*128;
-    static const int32_t YWR_SLOT_COUNT = 64;
+    static const int32_t YWR_SLOT_COUNT = 128;
     static const int32_t YWR_MAGIC = 0x123456;
 
  public:
@@ -71,7 +71,7 @@ void ywRcuTestClass::run() {
         rcu->regist_free_obj(oval);
         *nval = YWR_MAGIC;
         *ptr = nval;
-        *oval = rcu->get_global_ref();
+//      *oval = rcu->get_global_ref();
         rcu->release();
     }
 }
@@ -145,6 +145,7 @@ void rcu_ref_test() {
 
     /*CuncurrencyTest*/
     test_ptr = &init;
+    processor_count = 2;
     for (i = 0; i < processor_count; ++i) {
         tc[i].operation = 2;
         tc[i].ptr       = &test_ptr;
