@@ -49,7 +49,6 @@ void ywRcuTestClass::run() {
     for (i = 0; i < YWR_TEST_COUNT; ++i) {
         rcu->fix();
         val = *const_cast<volatile int32_t *>(*ptr);
-        usleep(10);
         if (val != YWR_MAGIC) {
             printf("Error: %d\n", val);
             assert(false);
