@@ -39,6 +39,7 @@ class ywRcuRef {
         gslot = INIT_SLOT;
     }
     ~ywRcuRef() {
+        free_all();
     }
 
     void fix() {
@@ -56,7 +57,6 @@ class ywRcuRef {
             if ((prev & LOCK_BIT) == 0) {
                 if (__sync_bool_compare_and_swap(
                             &gslot, prev, prev | LOCK_BIT)) {
-                    fix();
                     return true;
                 }
             }
@@ -65,7 +65,6 @@ class ywRcuRef {
     }
 
     void release() {
-        unfix();
         assert(gslot & LOCK_BIT);
         assert(__sync_bool_compare_and_swap(&gslot, gslot, gslot + 1));
     }
@@ -74,7 +73,6 @@ class ywRcuRef {
         ywrcu_free_queue *node;
 
         assert(gslot & LOCK_BIT);
-        assert(*get_slot() == gslot);
 
         node = rc_free_pool.alloc();
         node->data.remove_time = gslot;
@@ -87,6 +85,7 @@ class ywRcuRef {
         ywrcu_free_queue *node = _get_reusable_item();
         void             *ret  = NULL;
         if (node) {
+            assert(is_reusable2(&node->data) == true);
             ret = node->data.target;
             rc_free_pool.free_mem(node);
             return ret;
@@ -105,16 +104,28 @@ class ywRcuRef {
         return NULL;
     }
 
+    void free_all() {
+        ywrcu_free_queue *node;
+        while (NULL != (node = free_q.pop())) {
+            rc_free_pool.free_mem(node);
+        }
+    }
+
     ref_slot  get_global_ref() {
         return gslot;
     }
 
  private:
     bool is_reusable(ywrcu_free_t *free) {
-        int32_t i;
+        int32_t  i;
+        ref_slot ref;
+        if (gslot <= free->remove_time) {
+            return false;
+        }
         for (i = 0; i < REF_COUNT; ++i) {
-            if (slot[i]) {
-                if (slot[i] <= free->remove_time) {
+            ref = slot[i];
+            if (ref) {
+                if (ref <= free->remove_time) {
                     return false;
                 }
             }
@@ -123,15 +134,35 @@ class ywRcuRef {
         return true;
     }
 
+    bool is_reusable2(ywrcu_free_t *free) {
+        int32_t i;
+        ref_slot ref;
+        if (gslot <= free->remove_time) {
+            return false;
+        }
+        for (i = 0; i < REF_COUNT; ++i) {
+            ref = slot[i];
+            if (ref) {
+                if (ref <= free->remove_time) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+
+
     volatile ref_slot *get_slot() {
         ywTID tid = ywThreadPool::get_thread_id();
 
         return &slot[tid];
     }
 
-    volatile ref_slot    slot[REF_COUNT];
-    volatile ref_slot    gslot;
-    ywrcu_free_queue     free_q;
+    volatile ref_slot         slot[REF_COUNT];
+    volatile ref_slot         gslot;
+    ywQueueHead<ywrcu_free_t> free_q;
 
     static ywMemPool<ywrcu_free_queue>  rc_free_pool;
 };
