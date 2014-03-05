@@ -88,35 +88,36 @@ void basic_test() {
     /*BasicTest*/
     test_ptr  = &init;
 
+    /* don't care dup unfix*/
+    rcu.unfix();
+    rcu.unfix();
+    rcu.unfix();
+    rcu.unfix();
     rcu.fix();
-    rcu.lock();
+    rcu.unfix();
+
+    rcu.fix();                              /*fix1*/
+    rcu.lock();                             /*lock1*/
     rcu.regist_free_obj(test_ptr);
     rcu.release();
 
-    EXPECT_FALSE(rcu.get_reusable_item());
+    EXPECT_FALSE(rcu.get_reusable_item());  /*fail by fix1 */
 
-    rcu.lock();
+    rcu.lock();                             /*lock2*/
     rcu.release();
 
-    EXPECT_FALSE(rcu.get_reusable_item());
+    EXPECT_FALSE(rcu.get_reusable_item());  /*fail by fix1*/
+
+    rcu.fix();                              /*fix2*/
+    EXPECT_FALSE(rcu.get_reusable_item());  /*fail by fix1,2*/
     rcu.unfix();
 
-    EXPECT_TRUE(rcu.get_reusable_item());
+    EXPECT_FALSE(rcu.get_reusable_item());  /*fail by fix1,2*/
 
-    rcu.lock();
-    rcu.fix();
-    rcu.regist_free_obj(test_ptr);
-    rcu.release();
-
-    EXPECT_FALSE(rcu.get_reusable_item());
-
-    rcu.lock();
-    rcu.release();
-
-    EXPECT_FALSE(rcu.get_reusable_item());
+    rcu.lock();                             /* lock3 */
     rcu.unfix();
-
-    EXPECT_TRUE(rcu.get_reusable_item());
+    EXPECT_TRUE(rcu.get_reusable_item());   /*success don't care lock3*/
+    rcu.release();
 }
 
 void rcu_ref_test() {

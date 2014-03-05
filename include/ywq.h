@@ -85,7 +85,8 @@ class ywQueueHead {
     }
 
     void push_after(ywQueue<DATA> *old_next, ywQueue<DATA> *node) {
-        assert(__sync_bool_compare_and_swap(&old_next->prev, &head, node));
+        while (!__sync_bool_compare_and_swap(&old_next->prev, &head, node)) {
+        }
     }
 
     ywQueue<DATA>  * pop_before(ywQueue<DATA> **_prev,

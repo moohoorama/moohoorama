@@ -9,8 +9,8 @@
 #include <ywq.h>
 
 const int32_t THREAD_COUNT = 4;
-const int32_t ITER_COUNT = 8;
-const int32_t TRY_COUNT  = 1024*64;
+const int32_t ITER_COUNT = 16;
+const int32_t TRY_COUNT  = 1024*16;
 
 static ywQueueHead<int32_t> head;
 static ywQueue<int32_t> slot[THREAD_COUNT][TRY_COUNT];
@@ -174,7 +174,12 @@ void ywqTestClass::test_all() {
             val /=op_set;
         }
         end();
+        if (!(i & 255)) {
+            printf("\r%3d%%", i*100/max);
+            fflush(stdout);
+        }
     }
+    printf("\r%3d%%\n", i*100/max);
 }
 
 void ywqTestClass::test() {
@@ -287,7 +292,7 @@ void   ywq_test() {
     tc.test();
     tc.test_all();
 
-    printf("Push 1    Pop 1\n");
+    printf("Push~    Pop~\n");
     for (i = 0; i < ITER_COUNT; i ++) {
         head.init();
         for (j = 0; j < THREAD_COUNT; j ++) {
@@ -305,7 +310,10 @@ void   ywq_test() {
         ywThreadPool::get_instance()->wait_to_idle();
 
         assert(head.calc_count() == 0);
+        printf("\r%3d%%", i*100/ITER_COUNT);
+        fflush(stdout);
     }
+    printf("\r%3d%%\n", i*100/ITER_COUNT);
 
     printf("Push 1  &  Pop 1\n");
     for (i = 0; i < ITER_COUNT; i ++) {
@@ -319,7 +327,10 @@ void   ywq_test() {
         ywThreadPool::get_instance()->wait_to_idle();
 
         assert(head.calc_count() == 0);
+        printf("\r%3d%%", i*100/ITER_COUNT);
+        fflush(stdout);
     }
+    printf("\r%3d%%\n", i*100/ITER_COUNT);
 
     printf("Push 2  &  Pop 1\n");
     for (i = 0; i < ITER_COUNT; i ++) {
@@ -338,7 +349,10 @@ void   ywq_test() {
                 popRoutine, reinterpret_cast<void*>(1)));
         ywThreadPool::get_instance()->wait_to_idle();
         assert(head.calc_count() == 0);
+        printf("\r%3d%%", i*100/ITER_COUNT);
+        fflush(stdout);
     }
+    printf("\r%3d%%\n", i*100/ITER_COUNT);
 
     printf("Push 1  &  Pop 2\n");
     for (i = 0; i < ITER_COUNT; i ++) {
@@ -357,7 +371,10 @@ void   ywq_test() {
         ywThreadPool::get_instance()->wait_to_idle();
 
         assert(head.calc_count() == 0);
+        printf("\r%3d%%", i*100/ITER_COUNT);
+        fflush(stdout);
     }
+    printf("\r%3d%%\n", i*100/ITER_COUNT);
 
     printf("Push 2  &  Pop 2\n");
     for (i = 0; i < ITER_COUNT; i ++) {
@@ -375,5 +392,8 @@ void   ywq_test() {
         ywThreadPool::get_instance()->wait_to_idle();
 
         assert(head.calc_count() == 0);
+        printf("\r%3d%%", i*100/ITER_COUNT);
+        fflush(stdout);
     }
+    printf("\r%3d%%\n", i*100/ITER_COUNT);
 }

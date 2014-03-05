@@ -26,17 +26,17 @@
 
 TEST(ThreadPool, Basic) {
     int32_t i;
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i < 8; ++i) {
         threadpool_test();
-        printf("%d...done\n", i);
+        printf("\r%d%%", i*100/8);
     }
+    printf("\r%d%%\n", i*100/8);
 }
 
 TEST(Queue, Basic) {
     int32_t i;
     for (i = 0; i < 1; ++i) {
         ywq_test();
-        printf("%d...done\n", i);
     }
 }
 
