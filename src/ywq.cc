@@ -72,14 +72,14 @@ class ywqTestClass {
         }
     }
     void end() {
-        if (0)
-        printf("[%d] cnt:%d [%d, %d, %d, %d]\n", \
-               k++,                              \
-               head.get_count(),                 \
-               !!popr[0],                        \
-               !!popr[1],                        \
-               !!popr[2],                        \
-               !!popr[3]);                       \
+#ifdef REPORT
+        printf("[%d] [%d, %d, %d, %d]\n",
+               k++,
+               !!popr[0],
+               !!popr[1],
+               !!popr[2],
+               !!popr[3]);
+#endif
     }
     void test();
     void test_all();

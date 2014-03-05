@@ -27,7 +27,6 @@ class ywQueueHead {
     void init() {
         head.next = &head;
         head.prev = &head;
-        count     = 0;
     }
 
     void push(ywQueue<DATA> *node) {
@@ -53,59 +52,10 @@ class ywQueueHead {
         return ret;
     }
 
-    int32_t ptr2int(ywQueue<DATA> *ptr) {
-        return reinterpret_cast<int32_t>(ptr);
-    }
-    void    print_ptr(ywQueue<DATA> *ptr) {
-        printf("-");
-//        if (ptr->prev->next != ptr) {
-            printf("%08x", ptr2int(ptr->prev));
-//        } else {
-//            printf("%8s", " ");
-//        }
-        printf(" %08x ", ptr2int(ptr));
-//        if (ptr->next->prev != ptr) {
-            printf("%08x", ptr2int(ptr->next));
-//        } else {
-//            printf("%8s", " ");
-//        }
-        printf("-");
-    }
-    void draw() {
-        ywQueue<DATA> * iter;
-        int             i;
-
-        iter = &head;
-        printf("Count : %d\n", count);
-        printf("NEXT : ");
-        for (i = 0; i < 6; ++i) {
-            print_ptr(iter);
-            iter = iter->next;
-            if (iter == &head) {
-                break;
-            }
-        }
-        printf("\n");
-
-        iter = &head;
-        printf("PREV : ");
-        for (i = 0; i < 6; ++i) {
-            print_ptr(iter);
-            iter = iter->prev;
-            if (iter == &head) {
-                break;
-            }
-        }
-        printf("\n");
-        assert(false);
-    }
-
     ywQueue<DATA> *getEnd() {
         return &head;
     }
-    size_t get_count() {
-        return count;
-    }
+
     size_t calc_count() {
         size_t k = 0;
         ywQueue<int32_t> * iter;
@@ -135,16 +85,7 @@ class ywQueueHead {
     }
 
     void push_after(ywQueue<DATA> *old_next, ywQueue<DATA> *node) {
-        if (!__sync_bool_compare_and_swap(&old_next->prev, &head, node)) {
-            printf("old_next : ");
-            print_ptr(old_next);
-            printf("\n");
-            printf("node     : ");
-            print_ptr(node);
-            printf("\n");
-            draw();
-        }
-        __sync_add_and_fetch(&count, 1);
+        assert(__sync_bool_compare_and_swap(&old_next->prev, &head, node));
     }
 
     ywQueue<DATA>  * pop_before(ywQueue<DATA> **_prev,
@@ -183,41 +124,9 @@ class ywQueueHead {
     void pop_after(ywQueue<DATA> * prev, ywQueue<DATA> * prev_prev) {
         while (!__sync_bool_compare_and_swap(&head.prev, prev, prev_prev)) {
         }
-        /*
-        ywQueue<DATA> *i, *j;
-        i = load(&head.prev);
-        j = load(&prev);
-        if (i != j) {
-            printf("head.prev: ");
-            print_ptr(i);
-            print_ptr(head.prev);
-            printf("\n");
-            printf(" prev    : ");
-            print_ptr(j);
-            print_ptr(prev);
-            printf("\n");
-            printf("prev_prev: ");
-            print_ptr(prev_prev);
-            printf("\n");
-            printf("\n");
-        }
-        if (!__sync_bool_compare_and_swap(&head.prev, prev, prev_prev)) {
-            printf("prev     : ");
-            print_ptr(prev);
-            printf("\n");
-            printf("prev_prev: ");
-            print_ptr(prev_prev);
-            printf("\n");
-            if (!__sync_bool_compare_and_swap(&head.prev, prev, prev_prev)) {
-                draw();
-            }
-        }
-        */
-        __sync_sub_and_fetch(&count, 1);
     }
 
     ywQueue<DATA> head;
-    int           count;
 
     friend class ywqTestClass;
 };
