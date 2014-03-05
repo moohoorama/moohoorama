@@ -12,7 +12,7 @@
 /*********** Declare Functions ***********/
 inline fbt_t *fb_get_handle(void *_fbt);
 
-inline fbn_t *fb_create_node();
+inline fbn_t *fb_create_node(fbs_t *fbs);
 inline void   fb_free_node(fbn_t *fbn);
 
 fb_result _fb_insert(fbt_t *_fbt, fbKey key, fbn_t *data);
@@ -86,7 +86,6 @@ fb_result  _fb_insert(fbt_t *fbt, fbKey key, fbn_t *data) {
     fbn_t          *fbn;
     fbn_t          *new_fbn;
     fbs_t           fbs;
-    ywMemPoolGuard  nodePoolGuard(&fb_node_pool);
     ywRcuGuard      rcuGuard(&fbt->rcu);
 
     if (!fbt->root_ptr->level) {
@@ -94,7 +93,7 @@ fb_result  _fb_insert(fbt_t *fbt, fbKey key, fbn_t *data) {
             return FB_RESULT_RETRY;
         }
 
-        if (!(fbn = fb_create_node())) {
+        if (!(fbn = fb_create_node(&fbs))) {
             fb_w_unlock(fbt, &fbt->root);
             return false;
         }
@@ -109,6 +108,7 @@ fb_result  _fb_insert(fbt_t *fbt, fbKey key, fbn_t *data) {
         fb_flipping_root(fbt);
 
         ++fbs.node_count;
+    } else {
     }
     if (fbt->level) {
         fbn = fb_traverse(fbt, key, &fbs);
@@ -255,8 +255,8 @@ inline fbt_t *fb_get_handle(void *_fbt) {
     return reinterpret_cast<fbt_t*>(_fbt);
 }
 
-inline fbn_t *fb_create_node() {
-    return fb_node_pool.alloc();
+inline fbn_t *fb_create_node(fbs_t *fbs) {
+    return fbs->nodePoolGuard.alloc();
 }
 inline void     fb_free_node(fbn_t *fbn) {
     fb_node_pool.free_mem(fbn);

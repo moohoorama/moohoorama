@@ -77,14 +77,17 @@ struct fbPositionStruct {
 struct fbStackStruct {
     fbStackStruct():
         cursor(NULL), depth(0),
-        ikey_count(0), key_count(0), node_count(0) {
+        ikey_count(0), key_count(0), node_count(0),
+        nodePoolGuard(&fb_node_pool) {
     }
-    fbp_t    position[FB_DEPTH_MAX];
-    fbp_t   *cursor;
-    int32_t  depth;
-    int32_t  ikey_count;
-    int32_t  key_count;
-    int32_t  node_count;
+    fbp_t           position[FB_DEPTH_MAX];
+    fbp_t          *cursor;
+    int32_t         depth;
+    int32_t         ikey_count;
+    int32_t         key_count;
+    int32_t         node_count;
+
+    ywMemPoolGuard  nodePoolGuard;
 };
 
 static ywMemPool<fbn_t>             fb_node_pool;
