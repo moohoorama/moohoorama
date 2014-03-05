@@ -21,5 +21,3 @@ void  fb_basic_test();
 void  fb_conc_test(int32_t data, int32_t try_count, int32_t op);
 
 #endif  // INCLUDE_YWFBTREE_H_
-
-
