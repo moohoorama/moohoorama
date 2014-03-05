@@ -86,7 +86,6 @@ class ywRcuRef {
         ywrcu_free_queue *node = _get_reusable_item();
         void             *ret  = NULL;
         if (node) {
-            assert(is_reusable2(&node->data) == true);
             ret = node->data.target;
             rc_free_pool.free_mem(node);
             return ret;
@@ -95,7 +94,7 @@ class ywRcuRef {
     }
 
     ywrcu_free_queue *_get_reusable_item() {
-        ywTID tid = ywThreadPool::get_thread_id();
+        ywTID             tid = ywThreadPool::get_thread_id();
         ywrcu_free_queue *node = oldest_free[tid];
         if (!node) {
             node = free_q.pop();
@@ -103,10 +102,10 @@ class ywRcuRef {
         if (node) {
             if (is_reusable(&(node->data))) {
                 oldest_free[tid] = NULL;
+                *reinterpret_cast<int32_t*>(node->data.target) =
+                    -node->data.remove_time;
                 return node;
             }
-            *reinterpret_cast<int32_t*>(node->data.target) =
-                -node->data.remove_time;
             oldest_free[tid] = node;
         }
         return NULL;
@@ -142,26 +141,6 @@ class ywRcuRef {
         return true;
     }
 
-    bool is_reusable2(ywrcu_free_t *free) {
-        int32_t i;
-        ref_slot ref;
-        if (gslot <= free->remove_time) {
-            return false;
-        }
-        for (i = 0; i < REF_COUNT; ++i) {
-            ref = slot[i];
-            if (ref) {
-                if (ref <= free->remove_time) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-
-
     volatile ref_slot *get_slot() {
         ywTID tid = ywThreadPool::get_thread_id();
 
@@ -170,7 +149,7 @@ class ywRcuRef {
 
     volatile ref_slot          slot[REF_COUNT];
     volatile ref_slot          gslot;
-    ywrcu_free_t              *oldest_free[REF_COUNT];
+    ywrcu_free_queue          *oldest_free[REF_COUNT];
     ywQueueHead<ywrcu_free_t>  free_q;
 
     static ywMemPool<ywrcu_free_queue>  rc_free_pool;

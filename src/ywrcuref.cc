@@ -8,11 +8,11 @@ ywMemPool<ywrcu_free_queue>  ywRcuRef::rc_free_pool;
 
 
 class ywRcuTestClass {
+ public:
     static const int32_t YWR_TEST_COUNT = 1024*128;
-    static const int32_t YWR_SLOT_COUNT = 128;
+    static const int32_t YWR_SLOT_COUNT = 1;
     static const int32_t YWR_MAGIC = 0x123456;
 
- public:
     ywRcuTestClass():reuse_cnt(0), wait_cnt(0) {
     }
     int32_t  **ptr;
@@ -21,6 +21,10 @@ class ywRcuTestClass {
     int32_t    reuse_cnt;
     int32_t    wait_cnt;
     int32_t    slot[YWR_SLOT_COUNT];
+
+    static int estimated_reuse_cnt() {
+        return YWR_TEST_COUNT - YWR_SLOT_COUNT;
+    }
 
     void run();
 };
@@ -77,58 +81,42 @@ void ywRcuTestClass::run() {
 }
 
 void basic_test() {
-    ywThreadPool   *tpool = ywThreadPool::get_instance();
     ywRcuRef        rcu;
-    ywRcuTestClass  tc;
     int32_t        *test_ptr;
     int32_t         init = 0x123456;
 
     /*BasicTest*/
     test_ptr  = &init;
-    tc.ptr    = &test_ptr;
-    tc.rcu    = &rcu;
 
     rcu.fix();
     rcu.lock();
     rcu.regist_free_obj(test_ptr);
     rcu.release();
 
-    tc.operation = 0; /* should fail reusing */
-    EXPECT_TRUE(tpool->add_task(rcu_ref_task, &tc));
-    tpool->wait_to_idle();
+    EXPECT_FALSE(rcu.get_reusable_item());
 
     rcu.lock();
     rcu.release();
 
-    tc.operation = 0; /* should fail reusing */
-    EXPECT_TRUE(tpool->add_task(rcu_ref_task, &tc));
-    tpool->wait_to_idle();
+    EXPECT_FALSE(rcu.get_reusable_item());
     rcu.unfix();
 
-    tc.operation = 1; /* success */
-    EXPECT_TRUE(tpool->add_task(rcu_ref_task, &tc));
-    tpool->wait_to_idle();
+    EXPECT_TRUE(rcu.get_reusable_item());
 
     rcu.lock();
     rcu.fix();
     rcu.regist_free_obj(test_ptr);
     rcu.release();
 
-    tc.operation = 0; /* should fail reusing */
-    EXPECT_TRUE(tpool->add_task(rcu_ref_task, &tc));
-    tpool->wait_to_idle();
+    EXPECT_FALSE(rcu.get_reusable_item());
 
     rcu.lock();
     rcu.release();
 
-    tc.operation = 0; /* should fail reusing */
-    EXPECT_TRUE(tpool->add_task(rcu_ref_task, &tc));
-    tpool->wait_to_idle();
+    EXPECT_FALSE(rcu.get_reusable_item());
     rcu.unfix();
 
-    tc.operation = 1; /* success */
-    EXPECT_TRUE(tpool->add_task(rcu_ref_task, &tc));
-    tpool->wait_to_idle();
+    EXPECT_TRUE(rcu.get_reusable_item());
 }
 
 void rcu_ref_test() {
@@ -145,7 +133,7 @@ void rcu_ref_test() {
 
     /*CuncurrencyTest*/
     test_ptr = &init;
-    processor_count = 2;
+    processor_count = 4;
     for (i = 0; i < processor_count; ++i) {
         tc[i].operation = 2;
         tc[i].ptr       = &test_ptr;
@@ -158,13 +146,14 @@ void rcu_ref_test() {
     for (i = 0; i < processor_count; ++i) {
         val += tc[i].reuse_cnt;
     }
-    printf("reuse_cnt : %d\n", val);
+    EXPECT_EQ(ywRcuTestClass::estimated_reuse_cnt()*processor_count, val);
 
     val = 0;
     for (i = 0; i < processor_count; ++i) {
         val += tc[i].wait_cnt;
     }
-    printf("wait_cnt  : %d\n", val);
+    printf("wait_cnt : %d\n", val);
+    EXPECT_GT(val, 0);
 }
 
 

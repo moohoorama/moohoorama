@@ -58,17 +58,17 @@ class ywQueueHead {
     }
     void    print_ptr(ywQueue<DATA> *ptr) {
         printf("-");
-        if (ptr->prev->next != ptr) {
+//        if (ptr->prev->next != ptr) {
             printf("%08x", ptr2int(ptr->prev));
-        } else {
-            printf("%8s", " ");
-        }
+//        } else {
+//            printf("%8s", " ");
+//        }
         printf(" %08x ", ptr2int(ptr));
-        if (ptr->next->prev != ptr) {
+//        if (ptr->next->prev != ptr) {
             printf("%08x", ptr2int(ptr->next));
-        } else {
-            printf("%8s", " ");
-        }
+//        } else {
+//            printf("%8s", " ");
+//        }
         printf("-");
     }
     void draw() {
@@ -116,6 +116,7 @@ class ywQueueHead {
         return k;
     }
 
+ private:
     ywQueue<DATA> * push_before(ywQueue<DATA> *node) {
         ywQueue<DATA> * old_next;
 
@@ -174,7 +175,32 @@ class ywQueueHead {
         return node == &retry_node;
     }
 
+    template<typename TYPE>
+    inline static TYPE load(TYPE *target) {
+            return *const_cast<volatile TYPE *>(target);
+    }
+
     void pop_after(ywQueue<DATA> * prev, ywQueue<DATA> * prev_prev) {
+        while (!__sync_bool_compare_and_swap(&head.prev, prev, prev_prev)) {
+        }
+        /*
+        ywQueue<DATA> *i, *j;
+        i = load(&head.prev);
+        j = load(&prev);
+        if (i != j) {
+            printf("head.prev: ");
+            print_ptr(i);
+            print_ptr(head.prev);
+            printf("\n");
+            printf(" prev    : ");
+            print_ptr(j);
+            print_ptr(prev);
+            printf("\n");
+            printf("prev_prev: ");
+            print_ptr(prev_prev);
+            printf("\n");
+            printf("\n");
+        }
         if (!__sync_bool_compare_and_swap(&head.prev, prev, prev_prev)) {
             printf("prev     : ");
             print_ptr(prev);
@@ -182,14 +208,18 @@ class ywQueueHead {
             printf("prev_prev: ");
             print_ptr(prev_prev);
             printf("\n");
-            draw();
+            if (!__sync_bool_compare_and_swap(&head.prev, prev, prev_prev)) {
+                draw();
+            }
         }
+        */
         __sync_sub_and_fetch(&count, 1);
     }
 
- private:
     ywQueue<DATA> head;
     int           count;
+
+    friend class ywqTestClass;
 };
 
 void     ywq_test();
