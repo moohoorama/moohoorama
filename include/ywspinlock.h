@@ -94,4 +94,24 @@ class ywSpinLock {
     volatile ywTID    wlock_tid;
 };
 
+class ywLockGuard {
+ public:
+    explicit ywLockGuard(ywSpinLock *_target, bool WLock):target(_target) {
+        if (WLock) {
+            while (target->WLock()) {
+            }
+        } else {
+            while (target->RLock()) {
+            }
+        }
+    }
+    ~ywLockGuard() {
+        target->release();
+    }
+
+ private:
+    ywSpinLock *target;
+};
+
+
 #endif  // INCLUDE_YWSPINLOCK_H_

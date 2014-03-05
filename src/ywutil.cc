@@ -15,6 +15,9 @@ void sig_handler(int signo) {
     printf("I Received SIGINT(%d)\n", SIGINT);
 
     dump_stack();
+    while (true) {
+        sleep(10);
+    }
 }
 
 void ywuGlobalInit() {

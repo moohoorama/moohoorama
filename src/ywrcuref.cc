@@ -82,11 +82,8 @@ void ywRcuTestClass::run() {
 
 void basic_test() {
     ywRcuRef        rcu;
-    int32_t        *test_ptr;
     int32_t         init = 0x123456;
-
-    /*BasicTest*/
-    test_ptr  = &init;
+    int32_t        *test_ptr = &init;
 
     /* don't care dup unfix*/
     rcu.unfix();
@@ -120,6 +117,19 @@ void basic_test() {
     rcu.release();
 }
 
+void auto_fix_test() {
+    ywRcuRef        rcu;
+    int32_t         init = 0x123456;
+    int32_t        *test_ptr = &init;
+    ywRcuGuard      guard(&rcu);
+
+    rcu.lock();                             /*lock1*/
+    rcu.regist_free_obj(test_ptr);
+    rcu.release();
+
+    EXPECT_FALSE(rcu.get_reusable_item());
+}
+
 void rcu_ref_test() {
     ywThreadPool   *tpool = ywThreadPool::get_instance();
     ywRcuRef        rcu;
@@ -131,6 +141,7 @@ void rcu_ref_test() {
     int32_t         val;
 
     basic_test();
+    auto_fix_test();
 
     /*CuncurrencyTest*/
     test_ptr = &init;

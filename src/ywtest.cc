@@ -91,7 +91,7 @@ TEST(Spinlock, Basic) {
     spin_lock.release();
 }
 TEST(Spinlock, Count) {
-    const int  THREAD_COUNT = 32;
+    const int  THREAD_COUNT = 4;
     int        count = 0;
     int        i;
 
@@ -105,7 +105,7 @@ TEST(Spinlock, Count) {
 }
 
 TEST(Atomic, Count) {
-    const int  THREAD_COUNT = 32;
+    const int  THREAD_COUNT = 4;
     int        count = 0;
     int        i;
 
@@ -116,6 +116,17 @@ TEST(Atomic, Count) {
     ywThreadPool::get_instance()->wait_to_idle();
 
     ASSERT_EQ(THREAD_COUNT * 65536, count);
+}
+
+TEST(MemPool, Basic) {
+    mempool_basic_test();
+}
+TEST(MemPool, Guard) {
+    mempool_guard_test();
+}
+
+TEST(DoublyLinkedList, Basic) {
+    ywdl_test();
 }
 
 TEST(SyncList, Basic) {
@@ -555,16 +566,6 @@ TEST(StdMap, InsertPerformance) {
 
 TEST(SkipList, InsertPerformance) {
     skiplist_insert_perf_test();
-}
-
-TEST(MemPool, Basic) {
-    ywMemPool<int64_t> test;
-
-    test.free_mem(test.alloc());
-}
-
-TEST(DoublyLinkedList, Basic) {
-    ywdl_test();
 }
 
 int main(int argc, char ** argv) {

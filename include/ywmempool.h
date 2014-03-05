@@ -88,6 +88,14 @@ class ywMemPool {
         printf("FROM_SHA %12dB %8dK %dM\n", stat[3], stat[3]/KB, stat[3]/MB);
     }
 
+    size_t get_size() {
+        return size[CHUNK_STAT][SHARED_IDX];
+    }
+
+    int32_t get_chunk_count() {
+        return chunk_idx;
+    }
+
  private:
     void init() {
         static_assert(UNIT <= chunk_size, "Too small chunk");
@@ -103,7 +111,7 @@ class ywMemPool {
         shared_area_lock.WLock();
         for (i = 0; i < chunk_idx; ++i) {
             free(chunk_array[i]);
-            size[CHUNK_STAT][i] -= chunk_size;
+            size[CHUNK_STAT][SHARED_IDX] -= chunk_size;
         }
         shared_area_lock.release();
     }
@@ -147,8 +155,8 @@ class ywMemPool {
             return false;
         }
         chunk_array[ chunk_idx++ ] = chunk;
+        size[CHUNK_STAT][SHARED_IDX] += chunk_size;
         shared_area_lock.release();
-        size[CHUNK_STAT][tid] += chunk_size;
 
 
         for (i = 0; i + UNIT <= chunk_size; i += UNIT) {
@@ -165,5 +173,39 @@ class ywMemPool {
     ywdl_t     free_list[MAX_IDX];
     ywSpinLock shared_area_lock;
 };
+
+template <typename T, int32_t MAX_COUNT = 16>
+class ywMemPoolGuard {
+ public:
+    explicit ywMemPoolGuard(ywMemPool<T> *_pool):pool(_pool), count(0) {
+    }
+    ~ywMemPoolGuard() {
+        rollback();
+    }
+    T *alloc() {
+        if (count >= MAX_COUNT) {
+            return NULL;
+        }
+        return mems[count++] = pool->alloc();
+    }
+    void commit() {
+        count = 0;
+    }
+    void rollback() {
+        if (count > 0) {
+            while (count--) {
+                pool->free_mem(mems[count]);
+            }
+        }
+    }
+
+ private:
+    ywMemPool<T> *pool;
+    int32_t       count;
+    T            *mems[MAX_COUNT];
+};
+
+void mempool_basic_test();
+void mempool_guard_test();
 
 #endif  // INCLUDE_YWMEMPOOL_H_

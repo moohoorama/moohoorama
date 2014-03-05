@@ -29,8 +29,6 @@ typedef struct {
     ywrcu_free_queue   *oldest_free;
 } ywrcu_slot;
 
-
-
 class ywRcuRef {
     static const int32_t  SLOT_COUNT  = MAX_THREAD_COUNT;
     static const ywr_time NIL_TIME   = 0;
@@ -166,6 +164,19 @@ class ywRcuRef {
     ywQueueHead<ywrcu_free_t>  free_q;
 
     static ywMemPool<ywrcu_free_queue> rc_free_pool;
+};
+
+class ywRcuGuard {
+ public:
+    explicit ywRcuGuard(ywRcuRef *_target):target(_target) {
+        target->fix();
+    }
+    ~ywRcuGuard() {
+        target->unfix();
+    }
+
+ private:
+    ywRcuRef *target;
 };
 
 extern void rcu_ref_test();

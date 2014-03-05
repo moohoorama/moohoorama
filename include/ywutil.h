@@ -20,5 +20,4 @@ inline uint32_t simple_hash(size_t len, char * body) {
     return h;
 }
 
-
 #endif  // INCLUDE_YWUTIL_H_
