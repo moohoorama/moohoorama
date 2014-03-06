@@ -74,7 +74,8 @@ class ywMemPool {
     void report() {
         int32_t i;
         int32_t j;
-        size_t  stat[STAT_COUNT] = {0};
+        int64_t  stat[STAT_COUNT] = {0};
+        const    char names[][10]={"CHUNK", "FREE", "TO_SHA", "FROM_SHA"};
 
         for (i = 0; i < MAX_IDX; ++i) {
             for (j = 0; j < STAT_COUNT; ++j) {
@@ -82,10 +83,10 @@ class ywMemPool {
             }
         }
         printf("%s\n", typeid(this).name());
-        printf("CHUNK    %12dB %8dK %dM\n", stat[0], stat[0]/KB, stat[0]/MB);
-        printf("FREE     %12dB %8dK %dM\n", stat[1], stat[1]/KB, stat[1]/MB);
-        printf("TO_SHA   %12dB %8dK %dM\n", stat[2], stat[2]/KB, stat[2]/MB);
-        printf("FROM_SHA %12dB %8dK %dM\n", stat[3], stat[3]/KB, stat[3]/MB);
+        for (i = 0; i < STAT_COUNT; ++i) {
+            printf("%10s %12"PRIdPTR"B %8"PRIdPTR"K %"PRIdPTR"M\n",
+                   names[i], stat[i], stat[i]/KB, stat[i]/MB);
+        }
     }
 
     size_t get_size() {

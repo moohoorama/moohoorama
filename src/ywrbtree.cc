@@ -473,7 +473,7 @@ void rb_test_routine(void * arg) {
     } else {
         for (i = 0; i < RB_TEST_COUNT; ++i) {
             for (j = 0; j < RB_TEST_RANGE; ++j) {
-                int32_t data = reinterpret_cast<int32_t>(
+                intptr_t data = reinterpret_cast<intptr_t>(
                     rb_find(targ->rbt,  100000 + j*2));
                 assert(data == 100000 + j*2);
             }

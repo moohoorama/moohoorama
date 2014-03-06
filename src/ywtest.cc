@@ -24,6 +24,10 @@
 #include <vector>
 #include <algorithm>
 
+TEST(FBTree, Basic) {
+    fb_basic_test();
+}
+
 TEST(ThreadPool, Basic) {
     int32_t i;
     for (i = 0; i < 8; ++i) {
@@ -147,8 +151,8 @@ ywSyncList   list;
 ywNode       node[THREAD_COUNT][8192];
 
 void sl_test_routine(void * arg) {
-    int  num = reinterpret_cast<int>(arg);
-    int  i;
+    intptr_t  num = reinterpret_cast<intptr_t>(arg);
+    int       i;
 
     for (i = 0; i < 8192; ++i) {
         node[num][i].data = reinterpret_cast<void*>(num*100000+i);
@@ -454,10 +458,6 @@ TEST(FBTree, Remove) {
         }
     }
     fb_report(fbt);
-}
-
-TEST(FBTree, Basic) {
-    fb_basic_test();
 }
 
 TEST(FBTree, Concurrent_insert) {

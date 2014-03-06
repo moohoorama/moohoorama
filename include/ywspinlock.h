@@ -96,21 +96,36 @@ class ywSpinLock {
 
 class ywLockGuard {
  public:
-    explicit ywLockGuard(ywSpinLock *_target, bool WLock):target(_target) {
-        if (WLock) {
-            while (target->WLock()) {
-            }
-        } else {
-            while (target->RLock()) {
-            }
+    explicit ywLockGuard():target(NULL), locked(false) {
+    }
+    explicit ywLockGuard(ywSpinLock *_target):target(_target), locked(false) {
+    }
+    void set(ywSpinLock *_target) {
+        assert(!target);
+        target = _target;
+    }
+    bool WLock() {
+        assert(target);
+        assert(!locked);
+        return locked = target->WLock();
+    }
+    bool RLock() {
+        assert(target);
+        assert(!locked);
+        return locked = target->RLock();
+    }
+    void release() {
+        if (locked) {
+            target->release();
         }
     }
     ~ywLockGuard() {
-        target->release();
+        release();
     }
 
  private:
     ywSpinLock *target;
+    bool        locked;
 };
 
 

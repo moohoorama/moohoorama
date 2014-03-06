@@ -16,18 +16,18 @@ static ywQueueHead<int32_t> head;
 static ywQueue<int32_t> slot[THREAD_COUNT][TRY_COUNT];
 
 void pushRoutine(void * arg) {
-    int          num = reinterpret_cast<int>(arg);
-    int          i;
+    intptr_t          num = reinterpret_cast<intptr_t>(arg);
+    int               i;
 
     for (i = 0; i < TRY_COUNT; i ++) {
         slot[num][i].data = i + 100000;
         head.push(&slot[num][i]);
     }
 }
-void popRoutine(void * arg) {
+void popRoutine(void * /*arg*/) {
     ywQueue<int32_t> * iter;
-    int          i;
-    int          prev      = 0;
+    int                i;
+    int                prev      = 0;
 
     prev = 100000;
     for (i = 0; i < TRY_COUNT; i ++) {

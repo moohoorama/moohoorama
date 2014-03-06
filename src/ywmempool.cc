@@ -3,12 +3,15 @@
 #include <ywmempool.h>
 #include <gtest/gtest.h>
 
+typedef struct {
+    int64_t cal[4];
+} test_t;
 
 void mempool_basic_test() {
-    ywMemPool<int64_t>  pool;
-    int64_t            *test_slot[16];
-    int                 i;
-    int                 j;
+    ywMemPool<test_t>  pool;
+    test_t            *test_slot[16];
+    int                i;
+    int                j;
 
     for (j = 0; j < 64; ++j) {
         for (i = 0; i < 16; ++i) {
@@ -23,8 +26,8 @@ void mempool_basic_test() {
     EXPECT_EQ(1, pool.get_chunk_count());
 }
 
-void mempool_guard_commit(ywMemPool<int64_t> *pool, int64_t *test_slot[16]) {
-    ywMemPoolGuard<int64_t> guard(pool);
+void mempool_guard_commit(ywMemPool<test_t> *pool, test_t *test_slot[16]) {
+    ywMemPoolGuard<test_t> guard(pool);
     int                     i;
 
     for (i = 0; i < 16; ++i) {
@@ -34,8 +37,8 @@ void mempool_guard_commit(ywMemPool<int64_t> *pool, int64_t *test_slot[16]) {
     guard.commit();
 }
 
-void mempool_guard_rollback(ywMemPool<int64_t> *pool, int64_t *test_slot[16]) {
-    ywMemPoolGuard<int64_t> guard(pool);
+void mempool_guard_rollback(ywMemPool<test_t> *pool, test_t *test_slot[16]) {
+    ywMemPoolGuard<test_t> guard(pool);
     int                     i;
 
     for (i = 0; i < 16; ++i) {
@@ -46,10 +49,10 @@ void mempool_guard_rollback(ywMemPool<int64_t> *pool, int64_t *test_slot[16]) {
 
 
 void mempool_guard_test() {
-    ywMemPool<int64_t>  pool;
-    int64_t            *test_slot[16];
-    int                 i;
-    int                 j;
+    ywMemPool<test_t>  pool;
+    test_t            *test_slot[16];
+    int                i;
+    int                j;
 
     for (j = 0; j < 64; ++j) {
         mempool_guard_commit(&pool, test_slot);
