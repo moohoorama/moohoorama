@@ -25,9 +25,9 @@ class ywSpinLock {
             return false;
         if (__sync_bool_compare_and_swap(&status, prev, WLOCK)) {
             assert(wlock_tid == -1);
-            wlock_tid = ywThreadPool::get_instance()->get_max_thread_id();
+            wlock_tid = ywThreadPool::get_instance()->get_thread_id();
             assert(wlock_tid ==
-                    ywThreadPool::get_instance()->get_max_thread_id());
+                    ywThreadPool::get_instance()->get_thread_id());
             return true;
         }
         return false;
@@ -36,7 +36,7 @@ class ywSpinLock {
         if (status < 0) {
             assert(status == WLOCK);
             assert(wlock_tid ==
-                    ywThreadPool::get_instance()->get_max_thread_id());
+                    ywThreadPool::get_instance()->get_thread_id());
             wlock_tid = -1;
             assert(__sync_bool_compare_and_swap(&status, WLOCK, NONE));
         } else {

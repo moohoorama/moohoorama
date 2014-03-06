@@ -24,6 +24,50 @@
 #include <vector>
 #include <algorithm>
 
+static const int32_t DATA_SIZE = 1024*1024;
+static const int32_t TRY_COUNT = 1024*1024*8;
+int32_t data[DATA_SIZE];
+
+typedef bool (*compareFunc)(int32_t a, int32_t b);
+bool compare_int(int32_t a, int32_t b) {
+    return a < b;
+}
+
+int32_t get_next_rnd(int32_t prev) {
+//    return simple_hash(sizeof(prev), reinterpret_cast<char*>(&prev))
+//        % INT32_MAX;
+//    return prev + 1;
+    if (prev == 1) {
+        return INT32_MAX - 16;
+    }
+    return prev - 1;
+//    return rand_r(reinterpret_cast<uint32_t*>(&prev));
+//    return (prev+1) % 64;
+}
+
+
+void *fbt = fb_create();
+
+TEST(FBTree, Generate) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t val;
+    int32_t count = 0;
+
+    rnd = 2;
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = get_next_rnd(rnd);
+        val = rnd % INT32_MAX;
+        if (val) {
+            if (fb_insert(fbt, val, NULL)) {
+                count++;
+            }
+        }
+    }
+    fb_report(fbt);
+}
+
+
 TEST(FBTree, Basic) {
     fb_basic_test();
 }
@@ -197,27 +241,6 @@ TEST(SkipList, ConcurrentRemove) {
     skiplist_conc_remove_test();
 }
 */
-
-static const int32_t DATA_SIZE = 1024*1024;
-static const int32_t TRY_COUNT = 1024*1024*8;
-int32_t data[DATA_SIZE];
-
-typedef bool (*compareFunc)(int32_t a, int32_t b);
-bool compare_int(int32_t a, int32_t b) {
-    return a < b;
-}
-
-int32_t get_next_rnd(int32_t prev) {
-//    return simple_hash(sizeof(prev), reinterpret_cast<char*>(&prev))
-//        % INT32_MAX;
-//    return prev + 1;
-    if (prev == 1) {
-        return INT32_MAX - 16;
-    }
-    return prev - 1;
-//    return rand_r(reinterpret_cast<uint32_t*>(&prev));
-//    return (prev+1) % 64;
-}
 
 TEST(BinarySearch, GenerateData) {
     int32_t i;
@@ -406,27 +429,6 @@ TEST(RBTree, Remove) {
     }
 //    rb_validation(rbt);
     rb_print(rbt);
-}
-
-void *fbt = fb_create();
-
-TEST(FBTree, Generate) {
-    int32_t rnd = 2;
-    int32_t i;
-    int32_t val;
-    int32_t count = 0;
-
-    rnd = 2;
-    for (i = 0; i < DATA_SIZE; ++i) {
-        rnd = get_next_rnd(rnd);
-        val = rnd % INT32_MAX;
-        if (val) {
-            if (fb_insert(fbt, val, NULL)) {
-                count++;
-            }
-        }
-    }
-    fb_report(fbt);
 }
 
 TEST(FBTree, Search) {

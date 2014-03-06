@@ -74,8 +74,8 @@ class ywMemPool {
     void report() {
         int32_t i;
         int32_t j;
-        int64_t  stat[STAT_COUNT] = {0};
-        const    char names[][10]={"CHUNK", "FREE", "TO_SHA", "FROM_SHA"};
+        size_t  stat[STAT_COUNT] = {0};
+        const   char names[][10]={"CHUNK", "FREE", "TO_SHA", "FROM_SHA"};
 
         for (i = 0; i < MAX_IDX; ++i) {
             for (j = 0; j < STAT_COUNT; ++j) {
@@ -187,7 +187,10 @@ class ywMemPoolGuard {
         if (count >= MAX_COUNT) {
             return NULL;
         }
-        return mems[count++] = pool->alloc();
+        if (!(mems[count] = pool->alloc())) {
+            return NULL;
+        }
+        return mems[count++];
     }
     void commit() {
         count = 0;
