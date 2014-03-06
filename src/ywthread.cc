@@ -40,6 +40,7 @@ void *ywThreadPool::work(void * /*arg_ptr*/) {
     ywTaskFunc    func;
     void         *arg;
     ywTID         tid = tpool->get_thread_id();
+    int32_t       sleep_level = 1;
 
     tpool->running[tid] = false;
 
@@ -47,9 +48,13 @@ void *ywThreadPool::work(void * /*arg_ptr*/) {
         if (tpool->get_task(&func, &arg)) {
             tpool->running[tid] = true;
             func(arg);
+            sleep_level = 1;
             tpool->running[tid] = false;
         } else {
-            usleep(SLEEP_INTERVAL);
+            usleep(SLEEP_INTERVAL * sleep_level);
+            if (sleep_level < 64) {
+                sleep_level*=2;
+            }
         }
     }
 

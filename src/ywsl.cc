@@ -53,7 +53,7 @@ bool ywSyncList::remove(ywNode *node) {
 void ywSyncList::print() {
     printf("%d:\n", static_cast<int>(count));
     for (ywNode *iter = begin(); iter != end(); iter = iter->next) {
-        printf("%"PRIxPTR" -> %"PRIxPTR"\n",
+        printf("%" PRIxPTR " -> %" PRIxPTR "\n",
                 reinterpret_cast<intptr_t>(iter),
                 reinterpret_cast<intptr_t>(iter->data));
     }

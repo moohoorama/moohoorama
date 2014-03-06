@@ -11,7 +11,7 @@ typedef void (*ywTaskFunc)(void *arg);
 class ywThreadPool{
  public:
     static const int32_t     MAX_QUEUE_SIZE   = 64;
-    static const int32_t     SLEEP_INTERVAL   = 10;
+    static const int32_t     SLEEP_INTERVAL   = 1000;
     static int32_t           NULL_ARG_PTR;
 
  private:

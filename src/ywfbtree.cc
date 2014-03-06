@@ -73,8 +73,8 @@ fbTreeStruct::fbTreeStruct() {
 }
 fbStackStruct::fbStackStruct(fbt_t *_fbt):
     fbt(_fbt), cursor(NULL), depth(0), org_root(fbt->root_ptr),
-    key_count(0), node_count(0),
-    node_lock_idx(0),
+    key_count(0), node_count(0), reuse_node_count(0),
+    node_lock_idx(0), free_node_idx(0),
     nodePoolGuard(&fb_node_pool) {
 }
 
@@ -93,6 +93,7 @@ void *fb_create() {
 
     fbt->key_count.reset();
     fbt->node_count.reset();
+    fbt->free_node_count.reset();
 
     return reinterpret_cast<void*>(fbt);
 }
@@ -279,13 +280,14 @@ void fb_report(void *_fbt) {
         usage = 0.0;
     }
 
-    printf("Tree:0x%08"PRIxPTR"\n",
+    printf("Tree:0x%08" PRIxPTR "\n",
            reinterpret_cast<intptr_t>(fbt));
-    printf("level         : %d\n", fbt->root_ptr->level);
-    printf("ikey_count    : %"PRId64"\n", ikey_count);
-    printf("key_count     : %"PRId64"\n", fbt->key_count.get());
-    printf("node_count    : %"PRId64"\n", node_count);
-    printf("space_usage   : %6.2f%%\n", usage);
+    printf("level            : %" PRId32 "\n", fbt->root_ptr->level);
+    printf("ikey_count       : %" PRId64 "\n", ikey_count);
+    printf("key_count        : %" PRId64 "\n", fbt->key_count.get());
+    printf("free_node_count  : %" PRId64 "\n", fbt->free_node_count.get());
+    printf("node_count       : %" PRId64 "\n", node_count);
+    printf("space_usage      : %6.2f%%\n", usage);
 }
 
 /********************* Internal Functions *************/
@@ -294,7 +296,13 @@ inline fbt_t *fb_get_handle(void *_fbt) {
 }
 
 inline fbn_t *fb_create_node(fbs_t *fbs) {
-    fbn_t * ret = fbs->nodePoolGuard.alloc();
+    fbn_t * ret = reinterpret_cast<fbn_t*>(fbs->fbt->rcu.get_reusable_item());
+    if (ret) {
+        ++fbs->reuse_node_count;
+        fbs->nodePoolGuard.regist(ret);
+    } else {
+        ret = fbs->nodePoolGuard.alloc();
+    }
     if (ret) {
         ++fbs->node_count;
         new (ret) fbNodeStruct();
@@ -322,6 +330,7 @@ inline bool  fb_set_newversion(fbs_t *fbs, fbn_t *old_n, fbn_t *new_n) {
         if (!(fbs->WLock(&parent->lock))) return false;
         assert(parent->child[ fbs->cursor->idx ] == old_n);
         parent->child[ fbs->cursor->idx ] = new_n;
+        if (!(fbs->push_free_node(old_n))) return false;
     } else {
         fb_change_root(fbs->fbt, fbs->fbt->root_ptr->level, new_n);
     }
@@ -538,7 +547,7 @@ void fb_dump_node(int height, fbn_t *fbn) {
         if (fbn->key[i] == FB_NIL_KEY) {
             break;
         }
-        printf("%12"PRId32" %12"PRIxPTR"\n",
+        printf("%12" PRId32 " %12" PRIxPTR "\n",
                fbn->key[i],
                reinterpret_cast<intptr_t>(fbn->child[i]));
     }
@@ -613,7 +622,7 @@ void fb_basic_test() {
     for (i = 0; i < TEST_SIZE; ++i) {
         if ((ret=fb_find(fbt, i*2))) {
             if (!fb_remove(fbt, i*2)) {
-                printf("%"PRIdPTR"\n", reinterpret_cast<intptr_t>(ret));
+                printf("%" PRIdPTR "\n", reinterpret_cast<intptr_t>(ret));
                 ASSERT_FALSE(fb_remove(fbt, i*2));
                 assert(false);
             }

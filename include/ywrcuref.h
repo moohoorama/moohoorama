@@ -111,6 +111,14 @@ class ywRcuRef {
         return NULL;
     }
 
+    void free_all() {
+        ywrcu_free_queue *node;
+        while ((node = free_q.pop())) {
+            rc_free_pool.free_mem(node);
+        }
+    }
+
+ private:
     ywrcu_free_queue *_get_reusable_item() {
         ywrcu_slot       *slot = get_slot();
         ywrcu_free_queue *node = slot->oldest_free;
@@ -127,14 +135,7 @@ class ywRcuRef {
         return NULL;
     }
 
-    void free_all() {
-        ywrcu_free_queue *node;
-        while ((node = free_q.pop())) {
-            rc_free_pool.free_mem(node);
-        }
-    }
 
- private:
     bool is_reusable(ywrcu_free_t *free) {
         int32_t  i;
         ywr_time fix_time;

@@ -16,3 +16,34 @@ find      920  3888    870      820
 rem             707    684      657
 fusion        34078  17278
 
+
+home
+[       OK ] Accumulator.method_0_array (7 ms)
+[       OK ] Accumulator.method_1_atomic (467 ms)
+[       OK ] Accumulator.method_2_dirty (26 ms)
+
+[       OK ] BinarySearch.GenerateData (60 ms)
+[       OK ] BinarySearch.NoBranch (2850 ms)
+[       OK ] BinarySearch.std (1811 ms)
+[       OK ] BinarySearch.Branch (3438 ms)
+[       OK ] BinarySearch.Branch_func_pointer (3683 ms)
+[----------] 5 tests from BinarySearch (11845 ms total)
+
+[       OK ] RBTree.Generate (1051 ms)
+[       OK ] RBTree.Search (3533 ms)
+N[       OK ] RBTree.Remove (458 ms)
+
+Tree:0x0a394328
+level         : 3
+ikey_count    : 8323
+key_count     : 1048576
+node_count    : 8324
+space_usage   :  99.20%
+[       OK ] FBTree.Generate (680 ms)
+[       OK ] FBTree.Search (2498 ms)
+[       OK ] FBTree.Remove (396 ms)
+
+[       OK ] FBTree.Concurrent_insert (256 ms)
+[       OK ] FBTree.Concurrent_search (355 ms)
+[       OK ] FBTree.Concurrent_remove (398 ms)
+

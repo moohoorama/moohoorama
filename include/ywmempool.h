@@ -84,7 +84,7 @@ class ywMemPool {
         }
         printf("%s\n", typeid(this).name());
         for (i = 0; i < STAT_COUNT; ++i) {
-            printf("%10s %12"PRIdPTR"B %8"PRIdPTR"K %"PRIdPTR"M\n",
+            printf("%10s %12" PRIdPTR "B %8" PRIdPTR "K %" PRIdPTR "M\n",
                    names[i], stat[i], stat[i]/KB, stat[i]/MB);
         }
     }
@@ -180,21 +180,38 @@ class ywMemPoolGuard {
  public:
     explicit ywMemPoolGuard(ywMemPool<T> *_pool):pool(_pool), count(0) {
     }
+
     ~ywMemPoolGuard() {
         rollback();
     }
+
     T *alloc() {
-        if (count >= MAX_COUNT) {
-            return NULL;
+        T * ret = pool->alloc();
+        if (ret) {
+            if (regist(ret)) {
+                return ret;
+            }
+            pool->free_mem(ret);
         }
-        if (!(mems[count] = pool->alloc())) {
-            return NULL;
-        }
-        return mems[count++];
+        return NULL;
     }
+
+    bool regist(T * target) {
+        if (count >= MAX_COUNT) {
+            return false;
+        }
+        mems[count++] = target;
+        return true;
+    }
+
+    int32_t get_count() {
+        return count;
+    }
+
     void commit() {
         count = 0;
     }
+
     void rollback() {
         if (count > 0) {
             while (count--) {
