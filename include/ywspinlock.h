@@ -100,6 +100,12 @@ class ywLockGuard {
     }
     explicit ywLockGuard(ywSpinLock *_target):target(_target), locked(false) {
     }
+    bool isEqual(ywSpinLock *_target) {
+        return target == _target;
+    }
+    bool hasWLock() {
+        return target->hasWLock();
+    }
     void set(ywSpinLock *_target) {
         assert(!target);
         target = _target;

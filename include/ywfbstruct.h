@@ -66,9 +66,30 @@ struct fbPositionStruct {
 
 struct fbStackStruct {
     explicit fbStackStruct(fbt_t *_fbt);
+    ~fbStackStruct() {
+        if (fbt) {
+            rollback();
+        }
+    }
+
+    bool check_dup_lock(ywSpinLock *lock, bool wlock) {
+        for (int32_t i = 0; i < node_lock_idx; ++i) {
+            if (node_lock[ i ].isEqual(lock)) {
+                if (wlock) {
+                    return node_lock[ i ].hasWLock();
+                }
+                return true;
+            }
+        }
+        return false;
+    }
 
     bool WLock(ywSpinLock *lock) {
         if (node_lock_idx >= FB_NODELOCK_MAX) return false;
+
+        if (check_dup_lock(lock, true/*WLock*/)) {
+            return true;
+        }
 
         node_lock[ node_lock_idx ].set(lock);
         if (node_lock[ node_lock_idx ].WLock()) {
@@ -79,6 +100,10 @@ struct fbStackStruct {
     }
     bool RLock(ywSpinLock *lock) {
         if (node_lock_idx >= FB_NODELOCK_MAX) return false;
+
+        if (check_dup_lock(lock, false/*WLock*/)) {
+            return true;
+        }
 
         node_lock[ node_lock_idx ].set(lock);
         if (node_lock[ node_lock_idx ].RLock()) {
@@ -93,17 +118,32 @@ struct fbStackStruct {
         fbt->key_count.mutate(key_count);
         fbt = NULL;
     }
+    void rollback() {
+        fbt->root_ptr = org_root;
+        fbt = NULL;
+    }
     void stack_up() {
         --depth;
         --cursor;
+    }
+    void stack_down() {
+        ++depth;
+        ++cursor;
+    }
+    void add_new_root_stack(fbn_t *node, int32_t idx) {
+        memmove(position+1, position,
+                sizeof(position[0])*(fbt->root_ptr->level-1));
+        position[0].node = node;
+        position[0].idx  = idx;
     }
     fbt_t                 *fbt;
     fbp_t                  position[FB_DEPTH_MAX];
     fbp_t                 *cursor;
     int32_t                depth;
+    fbr_t                 *org_root;
+
     int32_t                key_count;
     int32_t                node_count;
-
     int32_t                node_lock_idx;
     ywLockGuard            node_lock[FB_NODELOCK_MAX];
     ywMemPoolGuard<fbn_t>  nodePoolGuard;

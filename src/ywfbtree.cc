@@ -30,7 +30,7 @@ inline fbn_t *fb_cloning_and_insert(fbn_t *fbn, fbs_t *fbs,
 inline void   fb_remove_in_node(fbn_t *fbn, int32_t idx);
 
 /**************** SMO(Structure Modify Operation) *****************/
-inline bool   fb_make_new_root(fbs_t *fbs,
+inline fbn_t *fb_make_new_root(fbs_t *fbs,
                                fbKey key1, fbn_t * child1,
                                fbKey key2, fbn_t * child2);
 inline void   fb_change_root(fbt_t *fbt, int32_t level, fbn_t *new_root);
@@ -46,7 +46,8 @@ inline bool     fb_is_full_node(fbn_t *fbn);
 inline bool     fb_is_empty_node(fbn_t *fbn);
 
 inline void     fb_dump_node(int height, fbn_t *fbn);
-inline void     fb_validation_node(int height, fbn_t *fbn);
+inline void     fb_validation_node(
+    int height, fbn_t *fbn, fbKey begin_key, fbKey end_key);
 
 static ywMemPool<fbn_t>             fb_node_pool;
 static ywMemPool<fbt_t>             fbt_tree_pool;
@@ -72,7 +73,7 @@ fbTreeStruct::fbTreeStruct() {
     }
 }
 fbStackStruct::fbStackStruct(fbt_t *_fbt):
-    fbt(_fbt), cursor(NULL), depth(0),
+    fbt(_fbt), cursor(NULL), depth(0), org_root(fbt->root_ptr),
     key_count(0), node_count(0),
     node_lock_idx(0),
     nodePoolGuard(&fb_node_pool) {
@@ -262,7 +263,7 @@ void fb_validation(void *_fbt) {
     fbr_t      *fbr = fbt->root_ptr;
     ywRcuGuard  rcuGuard(&fbt->rcu);
 
-    fb_validation_node(fbr->level, fbr->root);
+    fb_validation_node(fbr->level, fbr->root, 0, FB_NIL_KEY);
 }
 
 void fb_report(void *_fbt) {
@@ -373,12 +374,12 @@ inline void fb_remove_in_node(fbn_t *fbn, int32_t idx) {
 }
 
 /*********************** SMO ***********************/
-inline bool   fb_make_new_root(fbs_t *fbs,
+inline fbn_t *fb_make_new_root(fbs_t *fbs,
                                fbKey key1, fbn_t * child1,
                                fbKey key2, fbn_t * child2) {
     fbn_t *fbn = fb_create_node(fbs);
 
-    if (!fbn)  return false;
+    if (!fbn)  return NULL;
 
     fb_reset_node(fbn, 2);
     fbn->key[0]   = key1;
@@ -388,7 +389,7 @@ inline bool   fb_make_new_root(fbs_t *fbs,
 
     fb_change_root(fbs->fbt, fbs->fbt->root_ptr->level + 1, fbn);
 
-    return true;
+    return fbn;
 }
 inline void fb_change_root(fbt_t *fbt, int32_t level, fbn_t * new_root) {
     fbr_t *fbr = fb_get_new_root_buffer(fbt);
@@ -456,11 +457,18 @@ bool fb_split_node(fbs_t *fbs) {
     }
     assert(fbs->cursor->node->key[fbs->cursor->idx] != FB_NIL_KEY);
 
-
     if (fbs->depth == 0) { /* It's a root node.*/
-        if (!(fb_make_new_root(fbs, FB_LEFT_MOST_KEY, fbn_left,
-                               fbn_right->key[0], fbn_right) )) {
+        if (!(fbn_parent = fb_make_new_root(fbs, FB_LEFT_MOST_KEY, fbn_left,
+                                            fbn_right->key[0], fbn_right) )) {
             return false;
+        }
+
+        /* Since a process make a new root node, 
+         * A process must add new root position to the stack.*/
+        if (move_to_right) {
+            fbs->add_new_root_stack(fbn_parent, 1);
+        } else {
+            fbs->add_new_root_stack(fbn_parent, 0);
         }
     } else {
         fbs->stack_up();
@@ -470,23 +478,34 @@ bool fb_split_node(fbs_t *fbs) {
             fbn_parent = fbs->cursor->node; /* get New Praent*/
         }
 
+        assert(fbn_parent->child[fbs->cursor->idx] == fbn);
+
         fbn_new_parent = fb_cloning_and_insert(fbn_parent, fbs,
                                                fbn_right->key[0], fbn_right);
         if (!fbn_new_parent) return false;
         fbs->cursor->node = fbn_new_parent;
 
         if (!fb_set_newversion(fbs, fbn, fbn_left)) return false;
+        if (move_to_right) {
+            fbs->cursor->idx++;
+        }
 
         fbs->stack_up();
         if (!fb_set_newversion(fbs, fbn_parent, fbn_new_parent)) {
             return false;
         }
+        fbs->stack_down();
     }
+
+    fbs->stack_down();
     return true;
 }
 
-void fb_validation_node(int height, fbn_t *fbn) {
+void fb_validation_node(int height, fbn_t *fbn,
+                        fbKey begin_key, fbKey end_key) {
     fbKey prev_key = 0;
+    fbKey _begin_key;
+    fbKey _end_key;
 
     for (int32_t i = 0; i < FB_SLOT_MAX; ++i) {
         assert(prev_key <= fbn->key[i]);
@@ -495,8 +514,17 @@ void fb_validation_node(int height, fbn_t *fbn) {
             break;
         }
 
+        assert((begin_key <= fbn->key[i]) && (fbn->key[i] <= end_key));
+
         if (height > 1) {
-            fb_validation_node(height-1, fbn->child[i]);
+            _begin_key = fbn->key[i];
+            if (i == FB_LAST_SLOT) {
+                _end_key = FB_NIL_KEY;
+            } else {
+                _end_key = fbn->key[i+1];
+            }
+            fb_validation_node(height-1, fbn->child[i],
+                               _begin_key, _end_key);
         }
     }
 }
@@ -570,12 +598,14 @@ void fb_basic_test() {
     void * ret;
     int    i;
 
-    for (i = 0; i < FB_SLOT_MAX*2; ++i) {
+    for (i = 0; i < FB_SLOT_MAX*2*1024; ++i) {
         fb_insert(fbt, i*2, reinterpret_cast<void*>(i*2));
-        fb_dump(fbt);
+        fb_validation(fbt);
+//        fb_dump(fbt);
     }
     for (i = 0; i < FB_SLOT_MAX*2; ++i) {
         ASSERT_TRUE(fb_remove(fbt, i*2));
+        fb_validation(fbt);
     }
 
     for (i = 0; i < TEST_SIZE; ++i) {
