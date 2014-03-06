@@ -59,7 +59,6 @@ static fbt_t  fb_nil_tree_instance;
 static fbt_t *fb_nil_tree=&fb_nil_tree_instance;
 
 fbNodeStruct::fbNodeStruct() {
-    fb_reset_node(this);
 }
 
 fbRootStruct::fbRootStruct()

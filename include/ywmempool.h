@@ -18,7 +18,7 @@ class ywMemPool {
     static const size_t  PRIVATE_ALLOC_THRESHOLD = UNIT * 128;
     static const size_t  PRIVATE_FREE_THRESHOLD = UNIT * 256;
 
-    static const int32_t CHUNK_MAX_COUNT = 1*GB / chunk_size;
+    static const size_t  CHUNK_MAX_COUNT =   2*GB / chunk_size;
 
     static const int32_t SHARED_IDX = MAX_THREAD_COUNT;
     static const int32_t MAX_IDX    = MAX_THREAD_COUNT+1;
@@ -107,7 +107,7 @@ class ywMemPool {
     }
 
     void free_all() {
-        int32_t   i;
+        size_t   i;
 
         shared_area_lock.WLock();
         for (i = 0; i < chunk_idx; ++i) {
@@ -170,7 +170,7 @@ class ywMemPool {
 
     size_t     size[STAT_COUNT][MAX_IDX];
     char      *chunk_array[CHUNK_MAX_COUNT];
-    int32_t    chunk_idx;
+    size_t     chunk_idx;
     ywdl_t     free_list[MAX_IDX];
     ywSpinLock shared_area_lock;
 };
