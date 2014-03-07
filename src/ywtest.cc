@@ -45,6 +45,9 @@ int32_t get_next_rnd(int32_t prev) {
 //    return (prev+1) % 64;
 }
 
+TEST(FBTree, Basic) {
+    fb_basic_test();
+}
 
 void *fbt = fb_create();
 
@@ -93,13 +96,10 @@ TEST(FBTree, Remove) {
         val = rnd % INT32_MAX;
         if (val) {
             fb_remove(fbt, val);
+//            fb_validation(fbt);
         }
     }
     fb_report(fbt);
-}
-
-TEST(FBTree, Basic) {
-    fb_basic_test();
 }
 
 TEST(ThreadPool, Basic) {

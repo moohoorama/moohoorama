@@ -30,7 +30,7 @@ typedef struct {
 } ywrcu_slot;
 
 class ywRcuRef {
-    static const int32_t  REUSE_CHECK_INTERVAL = 16;
+    static const int32_t  REUSE_CHECK_INTERVAL = 4;
     static const int32_t  SLOT_COUNT  = MAX_THREAD_COUNT;
     static const ywr_time NIL_TIME   = 0;
     static const ywr_time INIT_TIME  = 2;

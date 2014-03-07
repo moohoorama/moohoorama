@@ -17,7 +17,7 @@ fb_result _fb_insert(fbt_t *_fbt, fbKey key, fbn_t *data, bool smoLock);
 inline fbt_t *fb_get_handle(void *_fbt);
 
 inline fbn_t *fb_create_node(fbs_t *fbs);
-inline void   fb_free_node(fbn_t *fbn);
+inline bool   fb_free_node(fbs_t *fbs, fbn_t *fbn);
 inline void   fb_reset_slot(fbn_t *fbn, int32_t idx);
 inline void   fb_reset_node(fbn_t *fnb, int32_t begin_idx = 0);
 
@@ -183,53 +183,47 @@ fb_result  _fb_insert(fbt_t *fbt, fbKey key, fbn_t *data, bool smoLock) {
 }
 
 bool  fb_remove(void *_fbt, fbKey key) {
-    fbt_t      *fbt = fb_get_handle(_fbt);
-    fbs_t       fbs(fbt);
-    ywRcuGuard  rcuGuard(&fbt->rcu);
+    fbt_t          *fbt = fb_get_handle(_fbt);
+    fbs_t           fbs(fbt);
+    ywRcuGuard      rcuGuard(&fbt->rcu);
+    fbn_t          *fbn;
+    ywLockGuard<1>  smoGuard;
 
-    assert(false);
-
-    /*
-    fbn_t      *fbn;
-    fbp_t      *position;
-
-    if (fbt->root == fb_nil_node) {
-        fb_w_unlock(fbt, &fbt->root);
+    if (fbt->root_ptr->level == 0) {
+        return false;
+    }
+    fbn = fb_traverse(&fbs, key);
+    if ((fbn == fb_nil_node) ||
+        (fbn->key[ fbs.cursor->idx ] != key)) {
         return false;
     }
 
-    fbn = fb_traverse(fbt, key, &fbs);
-    assert(fbn != fb_nil_node);
+    /* lock to target leaf*/
+    if (!(fbs.node_lock.WLock(&fbn->lock))) return FB_RESULT_LOW_RESOURCE;
+    fb_remove_in_node(fbn, fbs.cursor->idx);
 
-    position = &fbs.position[ fbs.depth ];
-    assert(fbn == position->node);
-
-    if (position->node->key[ position->idx] != key) {
-        fb_w_unlock(fbt, &fbt->root);
-        return false;
-    }
-
-    fb_remove_in_node(position->node, position->idx);
-
-    while (fb_is_empty_node(position->node)) {
-        fb_free_node(position->node);
-        if (fbs.depth == 0) {
-            fbt->root  = fb_nil_node;
-            fbt->level = 0;
-            break;
+    if (fb_is_empty_node(fbs.cursor->node)) {
+        if (!smoGuard.WLock(&fbt->smo)) {
+            return FB_RESULT_LOW_RESOURCE;
         }
-        --fbs.depth;
-        position = &fbs.position[ fbs.depth ];
-        fb_remove_in_node(position->node, position->idx);
-        if (position->node->key[0] != FB_NIL_KEY) {
-            position->node->key[0] = FB_LEFT_MOST_KEY;
+
+        while (fb_is_empty_node(fbs.cursor->node)) {
+            if (!fb_free_node(&fbs, fbs.cursor->node)) return false;
+            if (fbs.depth == 0) {
+                fb_change_root(fbt, 0, fb_nil_node);
+                break;
+            }
+            fbs.stack_up();
+            fb_remove_in_node(fbs.cursor->node, fbs.cursor->idx);
+            if (fbs.cursor->node->key[0] != FB_NIL_KEY) {
+                fbs.cursor->node->key[0] = FB_LEFT_MOST_KEY;
+            }
         }
     }
 
     fbs.key_count = -1;
-    fb_add_stat(fbt, &fbs);
-    fb_w_unlock(fbt, &fbt->root);
-    */
+    fbs.commit();
+
     return true;
 }
 
@@ -309,8 +303,10 @@ inline fbn_t *fb_create_node(fbs_t *fbs) {
     }
     return ret;
 }
-inline void     fb_free_node(fbn_t *fbn) {
-    fb_node_pool.free_mem(fbn);
+inline bool     fb_free_node(fbs_t *fbs, fbn_t *fbn) {
+    if (!(fbs->push_free_node(fbn))) return false;
+
+    return true;
 }
 
 inline void   fb_reset_slot(fbn_t *fbn, int32_t idx) {
@@ -522,9 +518,7 @@ void fb_validation_node(int height, fbn_t *fbn,
             break;
         }
 
-        assert((begin_key <= fbn->key[i]) && (fbn->key[i] <= end_key));
-
-        if (height > 1) {
+        if (height > 1) { /*internal node */
             _begin_key = fbn->key[i];
             if (i == FB_LAST_SLOT) {
                 _end_key = FB_NIL_KEY;
@@ -533,6 +527,12 @@ void fb_validation_node(int height, fbn_t *fbn,
             }
             fb_validation_node(height-1, fbn->child[i],
                                _begin_key, _end_key);
+
+            if (i > 0) {
+                assert((begin_key <= fbn->key[i]) && (fbn->key[i] <= end_key));
+            }
+        } else {
+            assert((begin_key <= fbn->key[i]) && (fbn->key[i] <= end_key));
         }
     }
 }
@@ -613,7 +613,7 @@ void fb_basic_test() {
     }
     for (i = 0; i < FB_SLOT_MAX*2; ++i) {
         ASSERT_TRUE(fb_remove(fbt, i*2));
-//        fb_validation(fbt);
+        fb_validation(fbt);
     }
 
     for (i = 0; i < TEST_SIZE; ++i) {
