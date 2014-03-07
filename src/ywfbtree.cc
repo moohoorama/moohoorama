@@ -74,7 +74,7 @@ fbTreeStruct::fbTreeStruct() {
 fbStackStruct::fbStackStruct(fbt_t *_fbt):
     fbt(_fbt), cursor(NULL), depth(0), org_root(fbt->root_ptr),
     key_count(0), node_count(0), reuse_node_count(0),
-    node_lock_idx(0), free_node_idx(0),
+    free_node_idx(0),
     nodePoolGuard(&fb_node_pool) {
 }
 
@@ -125,18 +125,18 @@ fb_result  _fb_insert(fbt_t *fbt, fbKey key, fbn_t *data, bool smoLock) {
     fbn_t          *fbn;
     fbn_t          *new_fbn;
     fbs_t           fbs(fbt);
-    ywLockGuard     smoGuard(&fbt->smo);
+    ywLockGuard<1>  smoGuard;
 
     if ((fbt->root_ptr->level <= 1) && (!smoLock)) {
         return FB_RESULT_SMO;    /* No Root, or Root only*/
     }
 
     if (smoLock) {
-        if (!smoGuard.WLock()) {
+        if (!smoGuard.WLock(&fbt->smo)) {
             return FB_RESULT_LOW_RESOURCE;
         }
     } else {
-        if (!smoGuard.RLock()) {
+        if (!smoGuard.RLock(&fbt->smo)) {
             return FB_RESULT_LOW_RESOURCE;
         }
     }
@@ -157,7 +157,7 @@ fb_result  _fb_insert(fbt_t *fbt, fbKey key, fbn_t *data, bool smoLock) {
         }
 
         /* lock to target leaf*/
-        if (!(fbs.WLock(&fbn->lock))) return FB_RESULT_LOW_RESOURCE;
+        if (!(fbs.node_lock.WLock(&fbn->lock))) return FB_RESULT_LOW_RESOURCE;
 
         if (fb_is_full_node(fbn)) { /* need smo*/
             if (!smoLock) return FB_RESULT_SMO;
@@ -327,7 +327,7 @@ inline bool  fb_set_newversion(fbs_t *fbs, fbn_t *old_n, fbn_t *new_n) {
     fbn_t * parent;
     if (fbs->depth >= 0) {
         parent = fbs->cursor->node;
-        if (!(fbs->WLock(&parent->lock))) return false;
+        if (!(fbs->node_lock.WLock(&parent->lock))) return false;
         assert(parent->child[ fbs->cursor->idx ] == old_n);
         parent->child[ fbs->cursor->idx ] = new_n;
         if (!(fbs->push_free_node(old_n))) return false;
@@ -608,12 +608,12 @@ void fb_basic_test() {
 
     for (i = 0; i < FB_SLOT_MAX*2*1024; ++i) {
         fb_insert(fbt, i*2, reinterpret_cast<void*>(i*2));
-        fb_validation(fbt);
+//        fb_validation(fbt);
 //        fb_dump(fbt);
     }
     for (i = 0; i < FB_SLOT_MAX*2; ++i) {
         ASSERT_TRUE(fb_remove(fbt, i*2));
-        fb_validation(fbt);
+//        fb_validation(fbt);
     }
 
     for (i = 0; i < TEST_SIZE; ++i) {

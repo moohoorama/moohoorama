@@ -6,9 +6,9 @@
 :%s/ ;/;/g
 
 
-       NOLOCK WLock WRLock  RCULock
-ins       282   380    315      316
-find     1306  1945   1493     1515
+       NOLOCK WLock WRLock  RCULock   RCU
+ins       282   380    315      316   763
+find     1306  1945   1493     1515  1367
 rem       238   331    269      273
 conc                               
 ins             654    624      608
@@ -47,3 +47,23 @@ space_usage   :  99.20%
 [       OK ] FBTree.Concurrent_search (355 ms)
 [       OK ] FBTree.Concurrent_remove (398 ms)
 
+* i3 sdmo
+[       OK ] Accumulator.method_0_array (50 ms)
+[       OK ] Accumulator.method_1_atomic (304 ms)
+[       OK ] Accumulator.method_2_dirty (84 ms)
+[       OK ] BinarySearch.GenerateData (348 ms)
+[       OK ] BinarySearch.NoBranch (972 ms)
+[       OK ] BinarySearch.std (3683 ms)
+[       OK ] BinarySearch.Branch (1239 ms)
+[       OK ] BinarySearch.Branch_func_pointer (1935 ms)
+[       OK ] RBTree.Generate (787 ms)
+[       OK ] RBTree.Search (1812 ms)
+N[       OK ] RBTree.Remove (348 ms)
+Tree:0x08d53840
+level            : 3
+ikey_count       : 8642
+key_count        : 1048576
+free_node_count  : 4
+node_count       : 8643
+space_usage      :  95.56%
+[       OK ] FBTree.Generate (1515 ms)

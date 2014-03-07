@@ -6,6 +6,8 @@
 #include <ywcommon.h>
 #include <ywthread.h>
 
+//   #define __CHECK_WLOCK_TID__
+
 class ywSpinLock {
  public:
     static const int16_t NONE  = 0;
@@ -24,20 +26,22 @@ class ywSpinLock {
         if (prev)
             return false;
         if (__sync_bool_compare_and_swap(&status, prev, WLOCK)) {
+#ifdef __CHECK_WLOCK_TID__
             assert(wlock_tid == -1);
             wlock_tid = ywThreadPool::get_instance()->get_thread_id();
-            assert(wlock_tid ==
-                    ywThreadPool::get_instance()->get_thread_id());
+#endif
             return true;
         }
         return false;
     }
     inline void release() {
         if (status < 0) {
+#ifdef __CHECK_WLOCK_TID__
             assert(status == WLOCK);
             assert(wlock_tid ==
                     ywThreadPool::get_instance()->get_thread_id());
             wlock_tid = -1;
+#endif
             assert(__sync_bool_compare_and_swap(&status, WLOCK, NONE));
         } else {
             int32_t prev;
@@ -85,44 +89,89 @@ class ywSpinLock {
         return status == NONE;
     }
 
-    ywSpinLock():status(0), miss_count(0), wlock_tid(-1) {
+    ywSpinLock():status(0), miss_count(0)
+#ifdef __CHECK_WLOCK_TID__
+                 , wlock_tid(-1)
+#endif
+    {
     }
 
  private:
     volatile int16_t status;
     uint16_t miss_count;
+#ifdef __CHECK_WLOCK_TID__
     volatile ywTID    wlock_tid;
+#endif
 };
 
+template<int32_t GUARD_SIZE = 16>
 class ywLockGuard {
  public:
-    explicit ywLockGuard():target(NULL), locked(false) {
+    ywLockGuard():rlock_idx(0), wlock_idx(0) {
     }
-    explicit ywLockGuard(ywSpinLock *_target):target(_target), locked(false) {
+
+    bool WLock(ywSpinLock *lock) {
+        if (wlock_idx >= GUARD_SIZE) return false;
+
+        if (wlock_idx) {
+            int32_t i = wlock_idx;
+            while (i--) {
+                if (wlock[i] == lock) {
+                    return true;
+                }
+            }
+        }
+
+        if (lock->WLock()) {
+            wlock[ wlock_idx++] = lock;
+            return true;
+        }
+        return false;
     }
-    bool isEqual(ywSpinLock *_target) {
-        return target == _target;
+
+    bool RLock(ywSpinLock *lock) {
+        if (rlock_idx >= GUARD_SIZE) return false;
+
+        if (wlock_idx) {
+            int32_t i = wlock_idx;
+            while (i--) {
+                if (wlock[i] == lock) {
+                    return true;
+                }
+            }
+        }
+
+        if (rlock_idx) {
+            int32_t i = rlock_idx;
+            while (i--) {
+                if (rlock[i] == lock) {
+                    return true;
+                }
+            }
+        }
+
+
+        if (lock->RLock()) {
+            rlock[ rlock_idx++] = lock;
+            return true;
+        }
+        return false;
     }
-    bool hasWLock() {
-        return target->hasWLock();
-    }
-    void set(ywSpinLock *_target) {
-        assert(!target);
-        target = _target;
-    }
-    bool WLock() {
-        assert(target);
-        assert(!locked);
-        return locked = target->WLock();
-    }
-    bool RLock() {
-        assert(target);
-        assert(!locked);
-        return locked = target->RLock();
-    }
+
     void release() {
-        if (locked) {
-            target->release();
+        if (rlock_idx) {
+            int32_t i = rlock_idx;
+            while (i--) {
+                rlock[ i ]->release();
+            }
+            rlock_idx = 0;
+        }
+        if (wlock_idx) {
+            int32_t i = wlock_idx;
+            while (i--) {
+                wlock[ i ]->release();
+            }
+            wlock_idx = 0;
         }
     }
     ~ywLockGuard() {
@@ -130,8 +179,11 @@ class ywLockGuard {
     }
 
  private:
-    ywSpinLock *target;
-    bool        locked;
+    ywSpinLock *rlock[GUARD_SIZE];
+    int32_t     rlock_idx;
+
+    ywSpinLock *wlock[GUARD_SIZE];
+    int32_t     wlock_idx;
 };
 
 

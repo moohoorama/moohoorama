@@ -13,7 +13,7 @@ static const fbKey   FB_NIL_KEY        = UINT32_MAX;
 static const fbKey   FB_LEFT_MOST_KEY  = 0;
 static const int32_t FB_DEPTH_MAX      = 10;
 
-static const int32_t FB_STACK_SIZE     = 16;
+static const int32_t FB_STACK_SIZE     = 8;
 
 typedef struct       fbNodeStruct     fbn_t;
 typedef struct       fbRootStruct     fbr_t;
@@ -73,47 +73,6 @@ struct fbStackStruct {
         }
     }
 
-    bool check_dup_lock(ywSpinLock *lock, bool wlock) {
-        for (int32_t i = 0; i < node_lock_idx; ++i) {
-            if (node_lock[ i ].isEqual(lock)) {
-                if (wlock) {
-                    return node_lock[ i ].hasWLock();
-                }
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool WLock(ywSpinLock *lock) {
-        if (node_lock_idx >= FB_STACK_SIZE) return false;
-
-        if (check_dup_lock(lock, true/*WLock*/)) {
-            return true;
-        }
-
-        node_lock[ node_lock_idx ].set(lock);
-        if (node_lock[ node_lock_idx ].WLock()) {
-            node_lock_idx++;
-            return true;
-        }
-        return false;
-    }
-    bool RLock(ywSpinLock *lock) {
-        if (node_lock_idx >= FB_STACK_SIZE) return false;
-
-        if (check_dup_lock(lock, false/*WLock*/)) {
-            return true;
-        }
-
-        node_lock[ node_lock_idx ].set(lock);
-        if (node_lock[ node_lock_idx ].RLock()) {
-            node_lock_idx++;
-            return true;
-        }
-        return false;
-    }
-
     bool push_free_node(fbn_t *fbn) {
         if (free_node_idx >= FB_STACK_SIZE) return false;
 
@@ -167,8 +126,7 @@ struct fbStackStruct {
     int32_t                key_count;
     int32_t                node_count;
     int32_t                reuse_node_count;
-    int32_t                node_lock_idx;
-    ywLockGuard            node_lock[FB_STACK_SIZE];
+    ywLockGuard<>          node_lock;
 
     int32_t                free_node_idx;
     fbn_t                 *free_node[FB_STACK_SIZE];

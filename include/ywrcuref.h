@@ -30,6 +30,7 @@ typedef struct {
 } ywrcu_slot;
 
 class ywRcuRef {
+    static const int32_t  REUSE_CHECK_INTERVAL = 16;
     static const int32_t  SLOT_COUNT  = MAX_THREAD_COUNT;
     static const ywr_time NIL_TIME   = 0;
     static const ywr_time INIT_TIME  = 2;
@@ -44,12 +45,13 @@ class ywRcuRef {
             slot[i].oldest_free = NULL;
         }
         global_time = INIT_TIME;
+        reusable_time = INIT_TIME;
     }
     ~ywRcuRef() {
         free_all();
     }
 
-    void fix() {
+    ywrcu_slot *fix() {
         ywrcu_slot *slot = get_slot();
 
         if (slot->fixtime) {
@@ -57,15 +59,19 @@ class ywRcuRef {
         } else {
             slot->fixtime = global_time;
         }
+        return slot;
     }
-    void unfix() {
-        ywrcu_slot *slot = get_slot();
 
+    void unfix(ywrcu_slot *slot) {
         if (!slot->ref) {
             slot->fixtime = 0;
         } else {
             slot->ref--;
         }
+    }
+
+    void unfix() {
+        unfix(get_slot());
     }
 
     bool lock(uint32_t timeout = DEFAULT_TIMEOUT) {
@@ -97,16 +103,24 @@ class ywRcuRef {
         node = rc_free_pool.alloc();
         node->data.remove_time = global_time;
         node->data.target      = ptr;
-        assert(is_reusable(&node->data) == false);
         free_q.push(node);
     }
 
     void *get_reusable_item() {
-        ywrcu_free_queue *node = _get_reusable_item();
+        ywrcu_slot       *slot = get_slot();
+        ywrcu_free_queue *node = slot->oldest_free;
+        if (!node) {
+            node = free_q.pop();
+        }
         if (node) {
-            void *ret = node->data.target;
-            rc_free_pool.free_mem(node);
-            return ret;
+            if (is_reusable(&(node->data))) {
+                slot->oldest_free = NULL;
+
+                void *ret = node->data.target;
+                rc_free_pool.free_mem(node);
+                return ret;
+            }
+            slot->oldest_free = node;
         }
         return NULL;
     }
@@ -119,39 +133,35 @@ class ywRcuRef {
     }
 
  private:
-    ywrcu_free_queue *_get_reusable_item() {
-        ywrcu_slot       *slot = get_slot();
-        ywrcu_free_queue *node = slot->oldest_free;
-        if (!node) {
-            node = free_q.pop();
-        }
-        if (node) {
-            if (is_reusable(&(node->data))) {
-                slot->oldest_free = NULL;
-                return node;
+    bool is_reusable(ywrcu_free_t *free) {
+        if (reusable_time > free->remove_time) {
+            return true;
+        } else {
+            update_reusable_time();
+            if (reusable_time > free->remove_time) {
+                return true;
             }
-            slot->oldest_free = node;
         }
-        return NULL;
+        return false;
     }
 
-
-    bool is_reusable(ywrcu_free_t *free) {
-        int32_t  i;
+    void update_reusable_time() {
+        static __thread int32_t check_count = 0;
         ywr_time fix_time;
-        if (global_time <= free->remove_time) {
-            return false;
-        }
-        for (i = 0; i < SLOT_COUNT; ++i) {
-            fix_time = slot[i].fixtime;
-            if (fix_time) {
-                if (fix_time <= free->remove_time) {
-                    return false;
+        ywr_time cur_time;
+        int32_t  i;
+
+        if ((check_count++) % REUSE_CHECK_INTERVAL == 0) {
+            cur_time = global_time;
+            for (i = 0; i < SLOT_COUNT; ++i) {
+                fix_time = slot[i].fixtime;
+                if ((fix_time) &&
+                    (fix_time < cur_time)) {
+                    cur_time = fix_time;
                 }
             }
+            reusable_time = cur_time;
         }
-
-        return true;
     }
 
     ywrcu_slot *get_slot() {
@@ -162,6 +172,7 @@ class ywRcuRef {
 
     ywrcu_slot                 slot[SLOT_COUNT];
     volatile ywr_time          global_time;
+    volatile ywr_time          reusable_time;
     ywQueueHead<ywrcu_free_t>  free_q;
 
     static ywMemPool<ywrcu_free_queue> rc_free_pool;
@@ -170,14 +181,15 @@ class ywRcuRef {
 class ywRcuGuard {
  public:
     explicit ywRcuGuard(ywRcuRef *_target):target(_target) {
-        target->fix();
+        slot = target->fix();
     }
     ~ywRcuGuard() {
-        target->unfix();
+        target->unfix(slot);
     }
 
  private:
-    ywRcuRef *target;
+    ywrcu_slot *slot;
+    ywRcuRef   *target;
 };
 
 extern void rcu_ref_test();

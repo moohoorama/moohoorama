@@ -67,6 +67,36 @@ TEST(FBTree, Generate) {
     fb_report(fbt);
 }
 
+TEST(FBTree, Search) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t val;
+
+    for (i = 0; i < TRY_COUNT; ++i) {
+        if (i % DATA_SIZE == 0) {
+            rnd = 2;
+        }
+        rnd = get_next_rnd(rnd);
+        val = rnd % INT32_MAX;
+        fb_find(fbt, val);
+    }
+}
+
+TEST(FBTree, Remove) {
+    int32_t rnd = 2;
+    int32_t i;
+    int32_t val;
+
+    rnd = 2;
+    for (i = 0; i < DATA_SIZE; ++i) {
+        rnd = get_next_rnd(rnd);
+        val = rnd % INT32_MAX;
+        if (val) {
+            fb_remove(fbt, val);
+        }
+    }
+    fb_report(fbt);
+}
 
 TEST(FBTree, Basic) {
     fb_basic_test();
@@ -429,37 +459,6 @@ TEST(RBTree, Remove) {
     }
 //    rb_validation(rbt);
     rb_print(rbt);
-}
-
-TEST(FBTree, Search) {
-    int32_t rnd = 2;
-    int32_t i;
-    int32_t val;
-
-    for (i = 0; i < TRY_COUNT; ++i) {
-        if (i % DATA_SIZE == 0) {
-            rnd = 2;
-        }
-        rnd = get_next_rnd(rnd);
-        val = rnd % INT32_MAX;
-        fb_find(fbt, val);
-    }
-}
-
-TEST(FBTree, Remove) {
-    int32_t rnd = 2;
-    int32_t i;
-    int32_t val;
-
-    rnd = 2;
-    for (i = 0; i < DATA_SIZE; ++i) {
-        rnd = get_next_rnd(rnd);
-        val = rnd % INT32_MAX;
-        if (val) {
-            fb_remove(fbt, val);
-        }
-    }
-    fb_report(fbt);
 }
 
 TEST(FBTree, Concurrent_insert) {
