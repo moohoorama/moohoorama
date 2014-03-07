@@ -83,7 +83,7 @@ struct fbStackStruct {
 
     void commit() {
         fbt->free_node_count.mutate(free_node_idx - reuse_node_count);
-        fbt->node_count.mutate(node_count - free_node_idx);
+        fbt->node_count.mutate(alloc_count - free_node_idx);
         fbt->key_count.mutate(key_count);
         nodePoolGuard.commit();
         if (free_node_idx) {
@@ -116,6 +116,13 @@ struct fbStackStruct {
         ++depth;
         ++cursor;
     }
+    void reposition(fbn_t *_node) {
+        cursor->node = _node;
+    }
+    void reposition(fbn_t *_node, int32_t _idx) {
+        cursor->node = _node;
+        cursor->idx  = _idx;
+    }
 
     fbt_t                 *fbt;
     fbp_t                  position[FB_DEPTH_MAX];
@@ -124,7 +131,7 @@ struct fbStackStruct {
     fbr_t                 *org_root;
 
     int32_t                key_count;
-    int32_t                node_count;
+    int32_t                alloc_count;
     int32_t                reuse_node_count;
     ywLockGuard<>          node_lock;
 
