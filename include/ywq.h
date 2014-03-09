@@ -9,13 +9,78 @@
 template<typename DATA>
 class ywQueue {
  public:
-    ywQueue():prev(this), next(this) {
+    ywQueue():next(this) {
     }
-    ywQueue    * prev;
     ywQueue    * next;
     DATA         data;
 };
 
+template<typename DATA>
+class ywQueueHead {
+ public:
+    ywQueueHead():head(&head_instance) {
+        init();
+    }
+    void init() {
+        head->next = head;
+        tail = head;
+    }
+
+    ywQueue<DATA> *get_end() {
+        return head;
+    }
+
+    void push(ywQueue<DATA> *node) {
+        ywQueue<DATA> *cur_tail;
+
+        do {
+            while (true) {
+                cur_tail = tail;
+                node->next = cur_tail->next;
+                if (node->next == head) {
+                    break;
+                }
+                __sync_bool_compare_and_swap(&tail, cur_tail, node->next);
+            }
+        } while (!__sync_bool_compare_and_swap(&tail->next, head, node));
+    }
+    ywQueue<DATA>  * pop() {
+        ywQueue<DATA> *ret;
+        do {
+            ret = head->next;
+            if (ret == head) {
+                return NULL;
+            }
+            __sync_bool_compare_and_swap(&tail, ret, ret->next);
+        } while (!__sync_bool_compare_and_swap(&head->next, ret, ret->next));
+
+        return ret;
+    }
+
+    size_t calc_count() {
+        size_t k = 0;
+        ywQueue<int32_t> * iter;
+
+        for (iter = head->next; iter != head; iter = iter->next) {
+            k++;
+        }
+        return k;
+    }
+
+
+
+ private:
+    ywQueue<DATA> *head;
+    ywQueue<DATA> *tail;
+    ywQueue<DATA>  head_instance;
+
+    friend class ywqTestClass;
+};
+
+void     ywq_test();
+
+
+/*
 template<typename DATA>
 class ywQueueHead {
     ywQueue<DATA> retry_node;
@@ -133,5 +198,6 @@ class ywQueueHead {
 };
 
 void     ywq_test();
+*/
 
 #endif  // INCLUDE_YWQ_H_

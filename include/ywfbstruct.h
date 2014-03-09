@@ -31,19 +31,27 @@ typedef enum {
 } fb_result;
 
 
+typedef enum {
+    FB_NODE_INIT,
+    FB_NODE_RCU,
+    FB_NODE_FREE,
+} fbn_status;
+
 /************* DataStructure **********/
 struct fbNodeStruct {
     explicit fbNodeStruct();
 
+    ywSpinLock  lock;
+    ywr_time    time;
+    fbn_status  status;
     fbKey       key[FB_SLOT_MAX];
     fbn_t      *child[FB_SLOT_MAX];
-    ywSpinLock  lock;
 };
 
 struct fbRootStruct {
     fbRootStruct();
-    fbn_t          *root;
-    int32_t         level;
+    fbn_t      *root;
+    int32_t     level;
 };
 
 struct fbTreeStruct {
@@ -74,6 +82,7 @@ struct fbStackStruct {
     }
 
     bool push_free_node(fbn_t *fbn) {
+        assert(fbn->status == FB_NODE_INIT);
         if (free_node_idx >= FB_STACK_SIZE) return false;
 
         free_node[free_node_idx++] = fbn;
@@ -82,6 +91,8 @@ struct fbStackStruct {
     }
 
     void commit() {
+        assert(fbt);
+        node_lock.release();
         fbt->free_node_count.mutate(free_node_idx - reuse_node_count);
         fbt->node_count.mutate(alloc_count - free_node_idx);
         fbt->key_count.mutate(key_count);
@@ -89,14 +100,23 @@ struct fbStackStruct {
         if (free_node_idx) {
             fbt->rcu.lock();
             while (free_node_idx--) {
+                assert(free_node[free_node_idx]->status == FB_NODE_INIT);
+                free_node[free_node_idx]->status = FB_NODE_RCU;
                 fbt->rcu.regist_free_obj(free_node[free_node_idx]);
             }
             fbt->rcu.release();
         }
+        free_node_idx = 0;
         fbt = NULL;
     }
     void rollback() {
+        int i;
+        assert(fbt);
+        node_lock.release();
         nodePoolGuard.rollback();
+        for (i = 0 ; i < nodePoolGuard.count; ++i) {
+            nodePoolGuard.mems[i]->status = FB_NODE_FREE;
+        }
         fbt->root_ptr = org_root;
         free_node_idx = 0;
         fbt = NULL;

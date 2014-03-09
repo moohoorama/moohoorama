@@ -12,6 +12,7 @@
 /*********** Declare Functions ***********/
 
 fb_result _fb_insert(fbt_t *_fbt, fbKey key, fbn_t *data, bool smoLock);
+fb_result _fb_remove(fbt_t *_fbt, fbKey key, bool smoLock);
 
 /********************* Internal Functions *************/
 inline fbt_t *fb_get_handle(void *_fbt);
@@ -32,22 +33,28 @@ inline fbn_t *fb_cloning_and_remove(fbs_t *fbs);
 inline fbn_t *fb_make_new_root(fbs_t *fbs,
                                fbKey key1, fbn_t * child1,
                                fbKey key2, fbn_t * child2);
-inline void   fb_change_root(fbt_t *fbt, int32_t level, fbn_t *new_root);
+inline void   fb_change_root(fbt_t *fbt, fbn_t *old_root,
+                             int32_t level, fbn_t *new_root);
 inline fbr_t *fb_get_new_root_buffer(fbt_t *fbt);
 
 bool          fb_split_node(fbs_t *fbs);
 
 inline bool   fb_propogate(fbt_t *fbt, fbs_t *fbs, fbn_t *old_n, fbn_t *new_n);
 
-inline int32_t  fb_search_in_node(fbn_t *fbn, fbKey key);
+inline int32_t  fb_search_in_node(fbKey *keyArray, fbKey key);
 inline fbn_t   *fb_traverse(fbs_t *fbs, fbKey key);
+
+/*************** Check Function ***************/
+inline bool     fb_smo_check(fbs_t *fbs);
 inline bool     fb_is_full_node(fbn_t *fbn);
 inline bool     fb_remain_one_key(fbn_t *fbn);
 
+/*************** Others ***************/
 inline void     fb_dump_node(int height, fbn_t *fbn);
 inline void     fb_validation_node(
     int height, fbn_t *fbn, fbKey begin_key, fbKey end_key);
 
+/*************** global variable **************/
 static ywMemPool<fbn_t>             fb_node_pool;
 static ywMemPool<fbt_t>             fbt_tree_pool;
 
@@ -58,6 +65,7 @@ static fbt_t  fb_nil_tree_instance;
 static fbt_t *fb_nil_tree=&fb_nil_tree_instance;
 
 fbNodeStruct::fbNodeStruct() {
+    time = 0;
 }
 
 fbRootStruct::fbRootStruct()
@@ -124,14 +132,14 @@ fb_result  _fb_insert(fbt_t *fbt, fbKey key, fbn_t *data, bool smoLock) {
     fbn_t          *fbn;
     fbn_t          *new_fbn;
     fbs_t           fbs(fbt);
-    ywLockGuard<1>  smoGuard;
+    ywLockGuard<>   smoGuard;
 
     if ((fbt->root_ptr->level <= 1) && (!smoLock)) {
         return FB_RESULT_SMO;    /* No Root, or Root only*/
     }
 
     if (smoLock) {
-        if (!smoGuard.WLock(&fbt->smo)) {
+        if (!smoGuard.WLock(&fbt->smo, __LINE__)) {
             return FB_RESULT_LOW_RESOURCE;
         }
     } else {
@@ -156,7 +164,14 @@ fb_result  _fb_insert(fbt_t *fbt, fbKey key, fbn_t *data, bool smoLock) {
         }
 
         /* lock to target leaf*/
-        if (!(fbs.node_lock.WLock(&fbn->lock))) return FB_RESULT_LOW_RESOURCE;
+        if (!(fbs.node_lock.WLock(&fbn->lock, fbn->time)))
+            return FB_RESULT_LOW_RESOURCE;
+
+        /* check node to be recent version */
+        if ((!smoLock) && (fb_smo_check(&fbs))) {
+            fbs.commit();
+            return FB_RESULT_SMO;
+        }
 
         if (fb_is_full_node(fbn)) { /* need smo*/
             if (!smoLock) return FB_RESULT_SMO;
@@ -183,46 +198,86 @@ fb_result  _fb_insert(fbt_t *fbt, fbKey key, fbn_t *data, bool smoLock) {
 
 bool  fb_remove(void *_fbt, fbKey key) {
     fbt_t          *fbt = fb_get_handle(_fbt);
-    fbs_t           fbs(fbt);
     ywRcuGuard      rcuGuard(&fbt->rcu);
+    bool        smoLock = false;
+
+    while (true) {
+        switch (_fb_remove(fbt, key, smoLock)) {
+            case FB_RESULT_SUCCESS:
+                return true;
+            case FB_RESULT_FAIL:
+            case FB_RESULT_DUP:
+            case FB_RESULT_LOW_RESOURCE:
+                return false;
+            case FB_RESULT_SMO:
+                assert(smoLock == false);
+                smoLock = true;
+                break;
+            case FB_RESULT_RETRY:
+                break;
+        }
+    }
+}
+fb_result _fb_remove(fbt_t *fbt, fbKey key, bool smoLock) {
+    fbs_t           fbs(fbt);
     fbn_t          *fbn;
     fbn_t          *new_fbn;
     ywLockGuard<>   smoGuard;
 
-    if (fbt->root_ptr->level == 0) {
-        return false;
+    if ((fbt->root_ptr->level <= 1) && (!smoLock)) {
+        return FB_RESULT_SMO;    /* No Root, or Root only*/
     }
+
+    if (smoLock) {
+        if (!smoGuard.WLock(&fbt->smo, __LINE__)) {
+            return FB_RESULT_LOW_RESOURCE;
+        }
+    } else {
+        if (!smoGuard.RLock(&fbt->smo)) {
+            return FB_RESULT_LOW_RESOURCE;
+        }
+    }
+
+    if (fbt->root_ptr->level == 0) {
+        return FB_RESULT_FAIL;
+    }
+
     fbn = fb_traverse(&fbs, key);
     if ((fbn == fb_nil_node) ||
         (fbn->key[ fbs.cursor->idx ] != key)) {
-        return false;
+        return FB_RESULT_FAIL;
     }
 
     /* lock to target leaf*/
-    if (!(fbs.node_lock.WLock(&fbn->lock))) return FB_RESULT_LOW_RESOURCE;
-    if (fb_remain_one_key(fbn)) {
-        if (!smoGuard.WLock(&fbt->smo)) {
-            return FB_RESULT_LOW_RESOURCE;
+    if (!(fbs.node_lock.WLock(&fbn->lock, __LINE__)))
+        return FB_RESULT_LOW_RESOURCE;
+
+    /* check node to be recent version */
+    if ((!smoLock) &&
+        (fb_remain_one_key(fbn) || fb_smo_check(&fbs))) {
+        fbs.commit();
+        return FB_RESULT_SMO;
+    }
+
+    while (fb_remain_one_key(fbn)) {
+        assert(smoLock);
+        if (!fb_free_node(&fbs, fbn)) return FB_RESULT_LOW_RESOURCE;
+
+        if (fbs.depth == 0) {
+            fb_change_root(fbt, fbt->root_ptr->root, 0, fb_nil_node);
+            fbs.key_count = -1;
+            fbs.commit();
+            return FB_RESULT_SUCCESS;
         }
+        fbs.stack_up();
 
-        do {
-            if (!fb_free_node(&fbs, fbn)) return false;
-
-            if (fbs.depth == 0) {
-                fb_change_root(fbt, 0, fb_nil_node);
-                break;
-            }
-            fbs.stack_up();
-
-            fbn = fbs.cursor->node;
-        } while (fb_remain_one_key(fbn));
+        fbn = fbs.cursor->node;
     }
 
     new_fbn = fb_cloning_and_remove(&fbs);
     if (!new_fbn) {
         return FB_RESULT_LOW_RESOURCE;
     }
-
     fbs.stack_up();
     if (!fb_replace_child(&fbs, fbn, new_fbn)) {
         return FB_RESULT_LOW_RESOURCE;
@@ -231,7 +286,7 @@ bool  fb_remove(void *_fbt, fbKey key) {
     fbs.key_count = -1;
     fbs.commit();
 
-    return true;
+    return FB_RESULT_SUCCESS;
 }
 
 void *fb_find(void *_fbt, fbKey key) {
@@ -243,7 +298,7 @@ void *fb_find(void *_fbt, fbKey key) {
     ywRcuGuard  rcuGuard(&fbt->rcu);
 
     while (i--) {
-        idx = fb_search_in_node(fbn, key);
+        idx = fb_search_in_node(fbn->key, key);
         fbn = fbn->child[idx];
     }
 
@@ -301,14 +356,18 @@ inline fbt_t *fb_get_handle(void *_fbt) {
 inline fbn_t *fb_create_node(fbs_t *fbs) {
     fbn_t * ret = reinterpret_cast<fbn_t*>(fbs->fbt->rcu.get_reusable_item());
     if (ret) {
+        assert(ret->status == FB_NODE_RCU);
+        assert(!ret->lock.hasWLock());
+        ret->time = fbs->fbt->rcu.get_global_time();
         ++fbs->reuse_node_count;
         fbs->nodePoolGuard.regist(ret);
     } else {
         ret = fbs->nodePoolGuard.alloc();
+        new (ret) fbNodeStruct();
     }
     if (ret) {
+        ret->status = FB_NODE_INIT;
         ++fbs->alloc_count;
-        new (ret) fbNodeStruct();
     }
     return ret;
 }
@@ -332,12 +391,12 @@ inline bool  fb_replace_child(fbs_t *fbs, fbn_t *old_n, fbn_t *new_n) {
     fbn_t * parent;
     if (fbs->depth >= 0) {
         parent = fbs->cursor->node;
-        if (!(fbs->node_lock.WLock(&parent->lock))) return false;
+        if (!(fbs->node_lock.WLock(&parent->lock, __LINE__))) return false;
         assert(parent->child[ fbs->cursor->idx ] == old_n);
         parent->child[ fbs->cursor->idx ] = new_n;
     } else {
-        assert(fbs->fbt->root_ptr->root == old_n);
-        fb_change_root(fbs->fbt, fbs->fbt->root_ptr->level, new_n);
+        assert(new_n != fb_nil_node);
+        fb_change_root(fbs->fbt, old_n, fbs->fbt->root_ptr->level, new_n);
     }
     if (!fb_free_node(fbs, old_n)) return false;
     return true;
@@ -386,7 +445,7 @@ inline fbn_t *fb_cloning_and_remove(fbs_t *fbs) {
         fb_copy_node(old_fbn, 0, idx, new_fbn, 0);
     }
     if (FB_LAST_SLOT > idx) {
-        fb_copy_node(old_fbn, idx+1, FB_LAST_SLOT-idx-1, new_fbn, idx);
+        fb_copy_node(old_fbn, idx+1, FB_LAST_SLOT-idx, new_fbn, idx);
     }
     fb_reset_slot(new_fbn, FB_LAST_SLOT);
 
@@ -407,13 +466,17 @@ inline fbn_t *fb_make_new_root(fbs_t *fbs,
     fbn->key[1]   = key2;
     fbn->child[1] = child2;
 
-    fb_change_root(fbs->fbt, fbs->fbt->root_ptr->level + 1, fbn);
+    fb_change_root(fbs->fbt,
+            fbs->fbt->root_ptr->root,
+            fbs->fbt->root_ptr->level + 1, fbn);
 
     return fbn;
 }
-inline void fb_change_root(fbt_t *fbt, int32_t level, fbn_t * new_root) {
+inline void fb_change_root(fbt_t *fbt, fbn_t *old_root,
+                           int32_t level, fbn_t * new_root) {
     fbr_t *fbr = fb_get_new_root_buffer(fbt);
 
+    assert(fbt->root_ptr->root == old_root);
     assert(fbr != fbt->root_ptr);
     assert(fbt->smo.hasWLock());
 
@@ -578,7 +641,7 @@ void fb_dump_node(int height, fbn_t *fbn) {
     }
 }
 
-inline int32_t fb_search_in_node(fbn_t *fbn, fbKey key) {
+inline int32_t fb_search_in_node(fbKey *keyArray, fbKey key) {
     int32_t size = FB_SLOT_MAX;
     int32_t idx = 0;
     int32_t mid;
@@ -586,7 +649,7 @@ inline int32_t fb_search_in_node(fbn_t *fbn, fbKey key) {
     do {
         size >>= 1;
         mid = idx + size;
-        if (key >= fbn->key[mid]) {
+        if (key >= keyArray[mid]) {
             idx = mid;
         }
     } while (size >= 1);
@@ -601,11 +664,27 @@ inline fbn_t   *fb_traverse(fbs_t *fbs, fbKey key) {
     fbs->position[0].node = fbr->root;
     for (int32_t i = 0; i < fbr->level; ++i) {
         fbs->cursor = &fbs->position[i];
-        fbs->cursor->idx = fb_search_in_node(fbs->cursor->node, key);
+        fbs->cursor->idx = fb_search_in_node(fbs->cursor->node->key, key);
         (fbs->cursor+1)->node = fbs->cursor->node->child[ fbs->cursor->idx ];
     }
     fbs->depth = fbr->level-1;
     return fbs->cursor->node;
+}
+
+inline bool fb_smo_check(fbs_t *fbs) {
+    fbt_t *fbt = fbs->fbt;
+
+    if (fbt->root_ptr->root != fbs->position[0].node) {
+        return true;
+    }
+    for (int32_t i = 1; i <= fbs->depth; ++i) {
+        if (fbs->position[i].node->child[ fbs->position[i].idx ] ==
+                fbs->position[i+1].node) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 inline bool     fb_is_full_node(fbn_t *fbn) {

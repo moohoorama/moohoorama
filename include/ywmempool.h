@@ -220,7 +220,7 @@ class ywMemPoolGuard {
         }
     }
 
- private:
+//  private:
     ywMemPool<T> *pool;
     int32_t       count;
     T            *mems[MAX_COUNT];

@@ -114,9 +114,9 @@ class ywRcuRef {
         }
         if (node) {
             if (is_reusable(&(node->data))) {
-                slot->oldest_free = NULL;
-
                 void *ret = node->data.target;
+                assert(!(reinterpret_cast<ywSpinLock*>(ret))->hasWLock());
+                slot->oldest_free = NULL;
                 rc_free_pool.free_mem(node);
                 return ret;
             }
@@ -130,6 +130,10 @@ class ywRcuRef {
         while ((node = free_q.pop())) {
             rc_free_pool.free_mem(node);
         }
+    }
+
+    ywr_time get_global_time() {
+        return global_time;
     }
 
  private:

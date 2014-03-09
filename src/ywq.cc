@@ -33,7 +33,7 @@ void popRoutine(void * /*arg*/) {
     for (i = 0; i < TRY_COUNT; i ++) {
         while (!(iter = head.pop())) {
         }
-        assert(iter != head.getEnd());
+        assert(iter != head.get_end());
         prev++;
     }
 }
@@ -84,6 +84,7 @@ class ywqTestClass {
     void test();
     void test_all();
 
+#ifdef __TEST__
     ywQueue<int32_t> *push_begin(int x) {
         if (!slot[x].data) {
             push[x] = head.push_before(&slot[x]);
@@ -124,6 +125,7 @@ class ywqTestClass {
             popr[x] = NULL;
         }
     }
+#endif
 
  private:
     void try_op(int idx);
@@ -131,10 +133,11 @@ class ywqTestClass {
 
 void ywqTestClass::try_op(int idx) {
 //    const char op_name[][8]={"pushb", "pushe", "popb", "pope"};
-    int op     = idx / 4;
-    int thread = idx % 4;
+//    int op     = idx / 4;
+//    int thread = idx % 4;
 
     //  printf("%8s : %d\n", op_name[op], thread);
+#ifdef __TEST__
     switch (op) {
         case 0:
             push_begin(thread);
@@ -149,6 +152,7 @@ void ywqTestClass::try_op(int idx) {
             pop_end(thread);
             break;
     }
+#endif
 }
 
 void ywqTestClass::test_all() {
@@ -183,6 +187,7 @@ void ywqTestClass::test_all() {
 }
 
 void ywqTestClass::test() {
+    /*
     init();
     pop_begin(0, true);
     end();
@@ -280,6 +285,7 @@ void ywqTestClass::test() {
     pop_begin(0, true);
                     pop_begin(1, false);
     end();
+    */
 }
 
 

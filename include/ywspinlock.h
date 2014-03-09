@@ -110,10 +110,10 @@ class ywLockGuard {
     ywLockGuard():rlock_idx(0), wlock_idx(0) {
     }
 
-    bool WLock(ywSpinLock *lock) {
+    bool WLock(ywSpinLock *lock, int32_t line) {
         if (wlock_idx >= GUARD_SIZE) return false;
 
-        if (wlock_idx) {
+        if (wlock_idx > 0) {
             int32_t i = wlock_idx;
             while (i--) {
                 if (wlock[i] == lock) {
@@ -123,6 +123,7 @@ class ywLockGuard {
         }
 
         if (lock->WLock()) {
+            wlock_line[ wlock_idx ] = line;
             wlock[ wlock_idx++] = lock;
             return true;
         }
@@ -132,7 +133,7 @@ class ywLockGuard {
     bool RLock(ywSpinLock *lock) {
         if (rlock_idx >= GUARD_SIZE) return false;
 
-        if (wlock_idx) {
+        if (wlock_idx > 0) {
             int32_t i = wlock_idx;
             while (i--) {
                 if (wlock[i] == lock) {
@@ -141,7 +142,7 @@ class ywLockGuard {
             }
         }
 
-        if (rlock_idx) {
+        if (rlock_idx > 0) {
             int32_t i = rlock_idx;
             while (i--) {
                 if (rlock[i] == lock) {
@@ -159,14 +160,14 @@ class ywLockGuard {
     }
 
     void release() {
-        if (rlock_idx) {
+        if (rlock_idx > 0) {
             int32_t i = rlock_idx;
             while (i--) {
                 rlock[ i ]->release();
             }
             rlock_idx = 0;
         }
-        if (wlock_idx) {
+        if (wlock_idx > 0) {
             int32_t i = wlock_idx;
             while (i--) {
                 wlock[ i ]->release();
@@ -183,6 +184,7 @@ class ywLockGuard {
     int32_t     rlock_idx;
 
     ywSpinLock *wlock[GUARD_SIZE];
+    int32_t     wlock_line[GUARD_SIZE];
     int32_t     wlock_idx;
 };
 
