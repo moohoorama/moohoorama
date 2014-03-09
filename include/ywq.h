@@ -5,6 +5,7 @@
 
 #include <ywcommon.h>
 #include <ywspinlock.h>
+#include <ywutil.h>
 
 template<typename DATA>
 class ywQueue {
@@ -35,24 +36,40 @@ class ywQueueHead {
 
         do {
             while (true) {
+                __sync_synchronize();
                 cur_tail = tail;
                 node->next = cur_tail->next;
                 if (node->next == head) {
                     break;
                 }
-                __sync_bool_compare_and_swap(&tail, cur_tail, node->next);
+                if (cur_tail->next == cur_tail) {
+                    tail = head;
+                } else {
+                    __sync_bool_compare_and_swap(&tail, cur_tail, node->next);
+                }
             }
         } while (!__sync_bool_compare_and_swap(&tail->next, head, node));
     }
+
     ywQueue<DATA>  * pop() {
         ywQueue<DATA> *ret;
-        do {
+        ywQueue<DATA> *new_next;
+
+        while (true) {
+            __sync_synchronize();
             ret = head->next;
+            new_next = ret->next;
             if (ret == head) {
                 return NULL;
             }
-            __sync_bool_compare_and_swap(&tail, ret, ret->next);
-        } while (!__sync_bool_compare_and_swap(&head->next, ret, ret->next));
+            if (new_next == ret) {
+                continue;
+            }
+            if (__sync_bool_compare_and_swap(&ret->next, new_next, ret)) {
+                break;
+            }
+        }
+        assert(__sync_bool_compare_and_swap(&head->next, ret, new_next));
 
         return ret;
     }

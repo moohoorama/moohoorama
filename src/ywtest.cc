@@ -24,6 +24,13 @@
 #include <vector>
 #include <algorithm>
 
+TEST(Queue, Basic) {
+    int32_t i;
+    for (i = 0; i < 1; ++i) {
+        ywq_test();
+    }
+}
+
 static const int32_t DATA_SIZE = 1024*1024;
 static const int32_t TRY_COUNT = 1024*1024*8;
 int32_t data[DATA_SIZE];
@@ -109,13 +116,6 @@ TEST(ThreadPool, Basic) {
         printf("\r%d%%", i*100/8);
     }
     printf("\r%d%%\n", i*100/8);
-}
-
-TEST(Queue, Basic) {
-    int32_t i;
-    for (i = 0; i < 1; ++i) {
-        ywq_test();
-    }
 }
 
 TEST(RCURef, Basic) {

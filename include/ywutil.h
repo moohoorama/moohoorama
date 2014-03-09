@@ -20,4 +20,21 @@ inline uint32_t simple_hash(size_t len, char * body) {
     return h;
 }
 
+template<typename T>
+T load_consume(T const* addr) {
+      // hardware fence is implicit on x86
+    T v = *const_cast<T const volatile*>(addr);
+    __sync_synchronize();
+    return v;
+}
+
+// store with 'release' memory ordering
+    template<typename T>
+void store_release(T* addr, T v) {
+    // hardware fence is implicit on x86
+    __sync_synchronize();
+    *const_cast<T volatile*>(addr) = v;
+}
+
+
 #endif  // INCLUDE_YWUTIL_H_
