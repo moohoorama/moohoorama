@@ -36,6 +36,7 @@ class ywMemPool {
     explicit ywMemPool() {
         init();
     }
+
     ~ywMemPool() {
         report();
         free_all();

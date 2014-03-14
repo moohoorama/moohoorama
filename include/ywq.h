@@ -16,7 +16,7 @@ class ywQueue {
     DATA         data;
 };
 
-template<typename DATA>
+template<typename DATA, bool sync = true>
 class ywQueueHead {
  public:
     ywQueueHead():head(&head_instance) {
@@ -27,8 +27,32 @@ class ywQueueHead {
         tail = head;
     }
 
-    ywQueue<DATA> *get_end() {
+    ywQueue<DATA> *get_head() {
         return head;
+    }
+
+    template<typename T>
+    bool cas(T *ptr, T prev, T next) {
+        if (sync)
+            return __sync_bool_compare_and_swap(ptr, prev, next);
+        *ptr = next;
+        return true;
+    }
+
+    template<typename T>
+    T *make_circle(T *ptr) {
+        T * old_next = ptr->next;
+        if (old_next != ptr) {
+            if (cas(&ptr->next, old_next, ptr)) {
+                return old_next;
+            }
+        }
+        return NULL;
+    }
+
+    void synchronize() {
+        if (sync)
+            __sync_synchronize();
     }
 
     void push(ywQueue<DATA> *node) {
@@ -36,7 +60,7 @@ class ywQueueHead {
 
         do {
             while (true) {
-                __sync_synchronize();
+                synchronize();
                 cur_tail = tail;
                 node->next = cur_tail->next;
                 if (node->next == head) {
@@ -45,31 +69,25 @@ class ywQueueHead {
                 if (cur_tail->next == cur_tail) {
                     tail = head;
                 } else {
-                    __sync_bool_compare_and_swap(&tail, cur_tail, node->next);
+                    cas(&tail, cur_tail, node->next);
                 }
             }
-        } while (!__sync_bool_compare_and_swap(&tail->next, head, node));
+        } while (!cas(&tail->next, head, node));
     }
 
     ywQueue<DATA>  * pop() {
         ywQueue<DATA> *ret;
         ywQueue<DATA> *new_next;
 
-        while (true) {
-            __sync_synchronize();
+        do {
+            synchronize();
             ret = head->next;
-            new_next = ret->next;
             if (ret == head) {
                 return NULL;
             }
-            if (new_next == ret) {
-                continue;
-            }
-            if (__sync_bool_compare_and_swap(&ret->next, new_next, ret)) {
-                break;
-            }
-        }
-        assert(__sync_bool_compare_and_swap(&head->next, ret, new_next));
+        } while (!(new_next = make_circle(ret)));
+
+        assert(cas(&head->next, ret, new_next));
 
         return ret;
     }
@@ -84,7 +102,30 @@ class ywQueueHead {
         return k;
     }
 
+    /*  src_q : -A-B-C-D- => dst_q.bring(A,C) => src_q : -A-D-
+     *  dst_q : -E-F-                            dst_q : -B-C-E-F- */
+    void bring(ywQueue<DATA> * _before_first, ywQueue<DATA> *_last) {
+        assert(sync == false);
 
+        ywQueue<DATA> * _first = _before_first->next;
+
+        /* detach targets from src_1 */
+        /* src_q : -A-B-C-D- => src_q : -A-D- */
+        _before_first->next = _last->next;
+
+        /*  dst_q :-E-F-  => -B-C-E-F- */
+        _last->next = head->next;
+        head->next  = _first;
+    }
+
+    void bring_all(ywQueueHead<DATA, sync> * src_q) {
+        ywQueue<int32_t> * iter;
+        ywQueue<int32_t> * s_head = src_q->head;
+
+        for (iter = s_head->next; iter->next != s_head; iter = iter->next) {
+        }
+        bring(s_head, iter);
+    }
 
  private:
     ywQueue<DATA> *head;
@@ -95,126 +136,5 @@ class ywQueueHead {
 };
 
 void     ywq_test();
-
-
-/*
-template<typename DATA>
-class ywQueueHead {
-    ywQueue<DATA> retry_node;
-
- public:
-    ywQueueHead() {
-        init();
-    }
-    void init() {
-        head.next = &head;
-        head.prev = &head;
-    }
-
-    void push(ywQueue<DATA> *node) {
-        ywQueue<DATA> * old_next;
-        do {
-            old_next = push_before(node);
-        } while (is_retry(old_next));
-
-        push_after(old_next, node);
-    }
-    ywQueue<DATA>  * pop() {
-        ywQueue<DATA> * ret;
-        ywQueue<DATA> * prev = NULL;
-        ywQueue<DATA> * prev_prev = NULL;
-
-        do {
-            ret = pop_before(&prev, &prev_prev);
-        } while (is_retry(ret));
-
-        if (ret) {
-            pop_after(prev, prev_prev);
-        }
-        return ret;
-    }
-
-    ywQueue<DATA> *getEnd() {
-        return &head;
-    }
-
-    size_t calc_count() {
-        size_t k = 0;
-        ywQueue<int32_t> * iter;
-
-        for (iter = head.next; iter != &head; iter = iter->next) {
-            k++;
-        }
-        return k;
-    }
-
- private:
-    ywQueue<DATA> * push_before(ywQueue<DATA> *node) {
-        ywQueue<DATA> * old_next;
-
-        __sync_synchronize();
-        old_next = head.next;
-        node->next = old_next;
-        node->prev = &head;
-        if (old_next->prev != &head) {
-            return &retry_node;
-        }
-        if (!__sync_bool_compare_and_swap(&head.next, old_next, node)) {
-            return &retry_node;
-        }
-
-        return old_next;
-    }
-
-    void push_after(ywQueue<DATA> *old_next, ywQueue<DATA> *node) {
-        while (!__sync_bool_compare_and_swap(&old_next->prev, &head, node)) {
-        }
-    }
-
-    ywQueue<DATA>  * pop_before(ywQueue<DATA> **_prev,
-                                ywQueue<DATA> **_prev_prev) {
-        ywQueue<DATA> * prev;
-        ywQueue<DATA> * prev_prev;
-
-        __sync_synchronize();
-        prev = head.prev;
-        prev_prev = prev->prev;
-        if (prev == &head) {
-            return NULL;
-        }
-        if ((prev->next != &head) || (prev_prev->next != prev)) {
-            return &retry_node;
-        }
-        if (!__sync_bool_compare_and_swap(&prev_prev->next, prev, &head)) {
-            return &retry_node;
-        }
-
-        *_prev = prev;
-        *_prev_prev = prev_prev;
-
-        return prev;
-    }
-
-    bool is_retry(ywQueue<DATA> * node) {
-        return node == &retry_node;
-    }
-
-    template<typename TYPE>
-    inline static TYPE load(TYPE *target) {
-            return *const_cast<volatile TYPE *>(target);
-    }
-
-    void pop_after(ywQueue<DATA> * prev, ywQueue<DATA> * prev_prev) {
-        while (!__sync_bool_compare_and_swap(&head.prev, prev, prev_prev)) {
-        }
-    }
-
-    ywQueue<DATA> head;
-
-    friend class ywqTestClass;
-};
-
-void     ywq_test();
-*/
 
 #endif  // INCLUDE_YWQ_H_

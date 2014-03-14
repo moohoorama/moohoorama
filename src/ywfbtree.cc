@@ -324,17 +324,18 @@ void fb_validation(void *_fbt) {
 
 void fb_report(void *_fbt) {
     fbt_t      *fbt = fb_get_handle(_fbt);
-    float       usage;
+    float       alloc_ratio = 0.0f;
+    float       use_ratio = 0.0f;
     int64_t     free_count = fbt->free_node_count.get();
     int64_t     alloc_count = fbt->node_count.get();
+    int64_t     total_count = free_count + alloc_count;
     int64_t     ikey_count = alloc_count - 1;
     ywRcuGuard  rcuGuard(&fbt->rcu);
 
-    if (alloc_count) {
-        usage = (ikey_count + fbt->key_count.get())*100.0/
-            (alloc_count*FB_SLOT_MAX);
-    } else {
-        usage = 0.0;
+    if (total_count) {
+        alloc_ratio = alloc_count*100.0f / total_count;
+        use_ratio = (ikey_count + fbt->key_count.get())*100.0/
+            (total_count*FB_SLOT_MAX);
     }
 
     printf("Tree:0x%08" PRIxPTR "\n",
@@ -345,7 +346,8 @@ void fb_report(void *_fbt) {
     printf("free_node_count  : %" PRId64 "\n", free_count);
     printf("alloc_count      : %" PRId64 "\n", alloc_count);
     printf("total_node_count : %" PRId64 "\n", free_count + alloc_count);
-    printf("space_usage      : %6.2f%%\n", usage);
+    printf("alloc_ratio      : %6.2f%%\n", alloc_ratio);
+    printf("use_ratio        : %6.2f%%\n", use_ratio);
 }
 
 /********************* Internal Functions *************/

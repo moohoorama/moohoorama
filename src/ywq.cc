@@ -8,33 +8,60 @@
 #include <ywthread.h>
 #include <ywq.h>
 
-const int32_t THREAD_COUNT = 4;
-const int32_t ITER_COUNT = 16;
-const int32_t TRY_COUNT  = 1024*16;
+class ywqTestClass {
+ public:
+    static const int32_t TRY_COUNT  = 1024*16;
 
-static ywQueueHead<int32_t> head;
-static ywQueue<int32_t> slot[THREAD_COUNT][TRY_COUNT];
+    ywqTestClass() {
+    }
 
-void pushRoutine(void * arg) {
-    intptr_t          num = reinterpret_cast<intptr_t>(arg);
+    void set(ywQueueHead<int32_t> *_head, int32_t _op) {
+        head = _head;
+        op   = _op;
+    }
+
+    void pushTest();
+    void popTest();
+    static void run(void * arg);
+
+ private:
+    int32_t               op;
+    ywQueueHead<int32_t> *head;
+    ywQueue<int32_t>      slot[TRY_COUNT];
+};
+
+
+void ywqTestClass::run(void * arg) {
+    ywqTestClass * qtc = reinterpret_cast<ywqTestClass*>(arg);
+
+    switch (qtc->op) {
+        case 0:
+            qtc->pushTest();
+            break;
+        case 1:
+            qtc->popTest();
+            break;
+        default:
+            assert(false);
+    }
+}
+
+void ywqTestClass::pushTest() {
     int               i;
 
     for (i = 0; i < TRY_COUNT; i ++) {
-        slot[num][i].data = i + 100000;
-        head.push(&slot[num][i]);
+        head->push(&slot[i]);
     }
 }
-void popRoutine(void * /*arg*/) {
+
+void ywqTestClass::popTest() {
     ywQueue<int32_t> * iter;
     int                i;
-    int                prev      = 0;
 
-    prev = 100000;
     for (i = 0; i < TRY_COUNT; i ++) {
-        while (!(iter = head.pop())) {
+        while (!(iter = head->pop())) {
         }
-        assert(iter != head.get_end());
-        prev++;
+        assert(iter != head->get_head());
     }
 }
 
@@ -49,357 +76,85 @@ void ywq_test_basic() {
     head.push(&slot);
     (void) head.pop();
 }
+void ywq_move_test() {
+    ywQueueHead<int32_t, false>  q1;
+    ywQueueHead<int32_t, false>  q2;
+    ywQueue<int32_t>             slot[16];
+    ywQueue<int32_t>            *iter;
+    int32_t                      i;
 
-class ywqTestClass {
-    ywQueueHead<int32_t> head;
-    ywQueue<int32_t>     slot[4];
-    ywQueue<int32_t>    *push[4];
-    ywQueue<int32_t>    *pop1[4], *pop2[4], *popr[4];
-    int32_t              k;
+    q1.init();
+    q2.init();
 
- public:
-    ywqTestClass(): k(0) {
-    }
-    void init() {
-        int i;
-        head.init();
-        for (i = 0; i < 4; ++i) {
-            push[i] = 0;
-            pop1[i] = 0;
-            pop2[i] = 0;
-            popr[i] = 0;
-            slot[i].data = 0;
-        }
-    }
-    void end() {
-#ifdef REPORT
-        printf("[%d] [%d, %d, %d, %d]\n",
-               k++,
-               !!popr[0],
-               !!popr[1],
-               !!popr[2],
-               !!popr[3]);
-#endif
-    }
-    void test();
-    void test_all();
+    ASSERT_EQ(0, q1.calc_count());
+    ASSERT_EQ(0, q2.calc_count());
 
-#ifdef __TEST__
-    ywQueue<int32_t> *push_begin(int x) {
-        if (!slot[x].data) {
-            push[x] = head.push_before(&slot[x]);
-            if (push[x] && !head.is_retry(push[x])) {
-                slot[x].data = 1;
-            }
-            return push[x];
-        }
-        return push[x];
+    for (i = 0; i < 8; i ++) {
+        ASSERT_EQ(i, q1.calc_count());
+        ASSERT_EQ(i, q2.calc_count());
+        q1.push(&slot[i]);
+        q2.push(&slot[i+8]);
+        ASSERT_EQ(i+1, q1.calc_count());
+        ASSERT_EQ(i+1, q2.calc_count());
     }
 
-    void push_begin(int x, bool ret) {
-        assert((!head.is_retry(push_begin(x))) == ret);
-    }
+    ASSERT_EQ(8, q1.calc_count());
+    ASSERT_EQ(8, q2.calc_count());
 
-    void push_end(int x) {
-        if (push[x] && !head.is_retry(push[x])) {
-            head.push_after(push[x], &slot[x]);
-            push[x] = NULL;
-        }
-    }
+    q2.bring_all(&q1);
 
-    ywQueue<int32_t> *pop_begin(int x) {
-        popr[x] = head.pop_before(&pop1[x], &pop2[x]);
-        return  popr[x];
-    }
-    void pop_begin(int x, bool ret) {
-        pop_begin(x);
-        if (ret) {
-            assert(!head.is_retry(popr[x]) && popr);
-        } else {
-            assert(head.is_retry(popr[x]));
-        }
-    }
-    void pop_end(int x) {
-        if (popr[x] && !head.is_retry(popr[x])) {
-            head.pop_after(pop1[x], pop2[x]);
-            popr[x] = NULL;
-        }
-    }
-#endif
+    ASSERT_EQ(0,  q1.calc_count());
+    ASSERT_EQ(16, q2.calc_count());
 
- private:
-    void try_op(int idx);
-};
+    for (i = 0; i < 8; i ++) {
+        iter = q2.get_head()->next->next;
 
-void ywqTestClass::try_op(int idx) {
-//    const char op_name[][8]={"pushb", "pushe", "popb", "pope"};
-//    int op     = idx / 4;
-//    int thread = idx % 4;
-
-    //  printf("%8s : %d\n", op_name[op], thread);
-#ifdef __TEST__
-    switch (op) {
-        case 0:
-            push_begin(thread);
-            break;
-        case 1:
-            push_end(thread);
-            break;
-        case 2:
-            pop_begin(thread);
-            break;
-        case 3:
-            pop_end(thread);
-            break;
+        ASSERT_EQ(i*2,  q1.calc_count());
+        ASSERT_EQ(16 - i*2, q2.calc_count());
+        q1.bring(q2.get_head(), iter);
+        ASSERT_EQ(2 + i*2,  q1.calc_count());
+        ASSERT_EQ(14 - i*2, q2.calc_count());
     }
-#endif
 }
-
-void ywqTestClass::test_all() {
-    int i;
-    int j;
-    int val;
-    int thread_count = 3;
-    int op_set = 4 * thread_count;
-    int op_count = 6;
-    int max;
-
-    max = 1;
-    for (j = 0; j < op_count; ++j) {
-        max *= op_set;
-    }
-    printf("MAX:%d\n", max);
-
-    for (i = 0; i < max; i++) {
-        init();
-        val = i;
-        for (j = 0; j < op_count; ++j) {
-            try_op(val % op_set);
-            val /=op_set;
-        }
-        end();
-        if (!(i & 255)) {
-            printf("\r%3d%%", i*100/max);
-            fflush(stdout);
-        }
-    }
-    printf("\r%3d%%\n", i*100/max);
-}
-
-void ywqTestClass::test() {
-    /*
-    init();
-    pop_begin(0, true);
-    end();
-
-    init();
-    push_end(0);
-    push_end(0);
-    end();
-
-    init();
-    push_begin(0, true);
-    push_end(0);
-    pop_begin(0, true);
-    pop_end(0);
-    end();
-
-    init();
-    push_begin(0, true);
-    pop_begin(0, true);
-    push_end(0);
-    pop_end(0);
-    end();
-
-    init();
-    push_begin(0, true);
-    pop_begin(0, true);
-    push_end(0);
-    pop_begin(0, true);
-    pop_end(0);
-    end();
-
-    init();
-    push_begin(0, true);
-    pop_begin(0, true);
-    pop_end(0);
-    push_end(0);
-    end();
-
-    init();
-    push_begin(0, true);
-                    push_begin(1, true);
-    push_end(0);
-                    push_end(1);
-    end();
-
-    init();
-    push_begin(0, true);
-                    push_begin(1, true);
-                    push_end(1);
-    push_end(0);
-    end();
-
-    init();
-    push_begin(0, true);
-    push_end(0);
-    pop_begin(0, true);
-                    push_begin(1, false);
-                    push_begin(1, false);
-    pop_end(0);
-                    push_begin(1, true);
-                    push_end(1);
-    end();
-
-    init();
-    push_begin(0, true);
-    push_end(0);
-    pop_begin(0, true);
-                    pop_begin(1, false);
-    pop_end(0);
-    end();
-
-    init();
-    push_begin(0, true);
-                    push_begin(1, true);
-                    push_end(1);
-                                    pop_begin(2);
-    push_end(0);
-                                    pop_end(2);
-    end();
-
-    init();
-    push_begin(0, true);
-                    push_begin(1, true);
-    push_end(0);
-                                    pop_begin(2, false);
-                    push_end(1);
-                                    pop_end(2);
-    end();
-
-    init();
-    push_begin(0, true);
-    push_end(0);
-                    push_begin(0, true);
-                    push_end(1);
-    pop_begin(0, true);
-                    pop_begin(1, false);
-    end();
-    */
-}
-
 
 void   ywq_test() {
-    int          i;
-    int          j;
-    ywqTestClass tc;
+    const int32_t        THREAD_COUNT = 4;
+    const int32_t        ITER_COUNT   = 64;
+    int                  phase;
+    int                  push_task_cnt;
+    int                  pop_task_cnt;
+    int                  i;
+    int                  j;
+    ywQueueHead<int32_t> head;
+    ywqTestClass         tc[THREAD_COUNT];
 
     ywq_test_basic();
-    tc.test();
-    tc.test_all();
 
-    printf("Push~    Pop~\n");
-    for (i = 0; i < ITER_COUNT; i ++) {
-        head.init();
-        for (j = 0; j < THREAD_COUNT; j ++) {
-            ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                    pushRoutine, reinterpret_cast<void*>(j)));
+    ywq_move_test();
+
+    for (phase = 0; phase <= THREAD_COUNT/2; phase++) {
+        push_task_cnt = THREAD_COUNT-phase;
+        pop_task_cnt  = phase;
+        printf("Push : %d    Pop : %d\n", push_task_cnt, pop_task_cnt);
+        for (j = 0; j < THREAD_COUNT; j++) {
+            tc[j].set(&head, j < phase);
         }
-        ywThreadPool::get_instance()->wait_to_idle();
 
-        assert(head.calc_count() == TRY_COUNT*THREAD_COUNT);
+        for (i = 0; i < ITER_COUNT; i ++) {
+            head.init();
+            for (j = 0; j < THREAD_COUNT; j ++) {
+                ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+                        ywqTestClass::run, &tc[j]));
+            }
 
-        for (j = 0; j < THREAD_COUNT; j ++) {
-            ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                    popRoutine, reinterpret_cast<void*>(j)));
+            ywThreadPool::get_instance()->wait_to_idle();
+
+            assert(static_cast<int32_t>(head.calc_count()) ==
+                   ywqTestClass::TRY_COUNT*(push_task_cnt-pop_task_cnt));
+
+            printf("\r%3d%%", i*100/ITER_COUNT);
+            fflush(stdout);
         }
-        ywThreadPool::get_instance()->wait_to_idle();
-
-        assert(head.calc_count() == 0);
-        printf("\r%3d%%", i*100/ITER_COUNT);
-        fflush(stdout);
+        printf("\r%3d%%\n", i*100/ITER_COUNT);
     }
-    printf("\r%3d%%\n", i*100/ITER_COUNT);
-
-    printf("Push 1  &  Pop 1\n");
-    for (i = 0; i < ITER_COUNT; i ++) {
-        head.init();
-        assert(head.calc_count() == 0);
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                popRoutine, reinterpret_cast<void*>(1)));
-        usleep(10000);
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                pushRoutine, reinterpret_cast<void*>(0)));
-        ywThreadPool::get_instance()->wait_to_idle();
-
-        assert(head.calc_count() == 0);
-        printf("\r%3d%%", i*100/ITER_COUNT);
-        fflush(stdout);
-    }
-    printf("\r%3d%%\n", i*100/ITER_COUNT);
-
-    printf("Push 2  &  Pop 1\n");
-    for (i = 0; i < ITER_COUNT; i ++) {
-        head.init();
-        assert(head.calc_count() == 0);
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                popRoutine, reinterpret_cast<void*>(1)));
-        usleep(10000);
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                pushRoutine, reinterpret_cast<void*>(0)));
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                pushRoutine, reinterpret_cast<void*>(1)));
-        ywThreadPool::get_instance()->wait_to_idle();
-
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                popRoutine, reinterpret_cast<void*>(1)));
-        ywThreadPool::get_instance()->wait_to_idle();
-        assert(head.calc_count() == 0);
-        printf("\r%3d%%", i*100/ITER_COUNT);
-        fflush(stdout);
-    }
-    printf("\r%3d%%\n", i*100/ITER_COUNT);
-
-    printf("Push 1  &  Pop 2\n");
-    for (i = 0; i < ITER_COUNT; i ++) {
-        head.init();
-        assert(head.calc_count() == 0);
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                pushRoutine, reinterpret_cast<void*>(0)));
-        ywThreadPool::get_instance()->wait_to_idle();
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                popRoutine, reinterpret_cast<void*>(1)));
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                popRoutine, reinterpret_cast<void*>(1)));
-        usleep(10000);
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                pushRoutine, reinterpret_cast<void*>(1)));
-        ywThreadPool::get_instance()->wait_to_idle();
-
-        assert(head.calc_count() == 0);
-        printf("\r%3d%%", i*100/ITER_COUNT);
-        fflush(stdout);
-    }
-    printf("\r%3d%%\n", i*100/ITER_COUNT);
-
-    printf("Push 2  &  Pop 2\n");
-    for (i = 0; i < ITER_COUNT; i ++) {
-        head.init();
-        assert(head.calc_count() == 0);
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                popRoutine, reinterpret_cast<void*>(1)));
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                popRoutine, reinterpret_cast<void*>(1)));
-        usleep(10000);
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                pushRoutine, reinterpret_cast<void*>(0)));
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                pushRoutine, reinterpret_cast<void*>(1)));
-        ywThreadPool::get_instance()->wait_to_idle();
-
-        assert(head.calc_count() == 0);
-        printf("\r%3d%%", i*100/ITER_COUNT);
-        fflush(stdout);
-    }
-    printf("\r%3d%%\n", i*100/ITER_COUNT);
 }

@@ -34,7 +34,7 @@ typedef enum {
 typedef enum {
     FB_NODE_INIT,
     FB_NODE_RCU,
-    FB_NODE_FREE,
+    FB_NODE_FREE
 } fbn_status;
 
 /************* DataStructure **********/

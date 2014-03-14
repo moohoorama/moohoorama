@@ -24,6 +24,46 @@
 #include <vector>
 #include <algorithm>
 
+TEST(Queue, SyncPerf) {
+    const int32_t              TRY_COUNT  = 1024*64;
+    const int32_t              ITER_COUNT = 64;
+    ywQueueHead<int32_t, true> head;
+    ywQueue<int32_t>           slot[TRY_COUNT];
+    int                        i;
+    int                        j;
+
+    for (j = 0; j < ITER_COUNT; ++j) {
+        for (i = 0; i < TRY_COUNT; ++i) {
+            head.push(&slot[i]);
+        }
+        ASSERT_EQ(TRY_COUNT, head.calc_count());
+        for (i = 0; i < TRY_COUNT; ++i) {
+            head.pop();
+        }
+        ASSERT_EQ(0, head.calc_count());
+    }
+}
+
+TEST(Queue, UnsyncPerf) {
+    const int32_t               TRY_COUNT  = 1024*64;
+    const int32_t               ITER_COUNT = 64;
+    ywQueueHead<int32_t, false> head;
+    ywQueue<int32_t>            slot[TRY_COUNT];
+    int                         i;
+    int                         j;
+
+    for (j = 0; j < ITER_COUNT; ++j) {
+        for (i = 0; i < TRY_COUNT; ++i) {
+            head.push(&slot[i]);
+        }
+        ASSERT_EQ(TRY_COUNT, head.calc_count());
+        for (i = 0; i < TRY_COUNT; ++i) {
+            head.pop();
+        }
+        ASSERT_EQ(0, head.calc_count());
+    }
+}
+
 TEST(Queue, Basic) {
     int32_t i;
     for (i = 0; i < 1; ++i) {
