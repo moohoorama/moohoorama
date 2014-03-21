@@ -6,38 +6,43 @@
 #include <ywcommon.h>
 #include <string.h>
 #include <ywutil.h>
+#include <stddef.h>
+
+typedef int32_t (*compareFunc)(char *left, char *right);
 
 template<typename SLOT = uint16_t, SLOT PAGE_SIZE = 32*KB>
 class ywOrderedNode {
  public:
     static const SLOT NULL_SLOT = static_cast<SLOT>(-1);
-    static const SLOT IDEAL_MAX_SLOT_COUNT = PAGE_SIZE/sizeof(SLOT) - 2;
+    static const SLOT META_SLOT_COUNT = 2;
+    static const SLOT IDEAL_MAX_SLOT_COUNT =
+                           PAGE_SIZE/sizeof(SLOT) - META_SLOT_COUNT;
 
     ywOrderedNode() {
-        count       = 0;
-        last_offset = PAGE_SIZE - sizeof(SLOT);
+        clear();
+        static_assert(META_SLOT_COUNT ==
+                      offsetof(ywOrderedNode, slot)/sizeof(SLOT),
+                      "invalid meta slot count");
         static_assert(sizeof(*this) == PAGE_SIZE,
                       "invalid node structure");
         static_assert(PAGE_SIZE <= static_cast<SLOT>(-1),
                       "invalid PAGE_SIZE and SLOT");
     }
 
-    SLOT get_right_free() {
-        return slot[count-1];
-    }
-
-    SLOT get_left_free() {
-        return (count+2)*sizeof(SLOT);
+    void clear() {
+        count       = 0;
+        free_offset = PAGE_SIZE - sizeof(SLOT);
     }
 
     SLOT get_free() {
-        return get_right_free() - get_left_free();
+        return free_offset - (count + META_SLOT_COUNT) * sizeof(SLOT);
     }
 
     SLOT alloc(SLOT size) {
         SLOT ret = NULL_SLOT;
         if (get_free() >= size + sizeof(SLOT)) {
-            slot[count] = get_right_free() - size;
+            free_offset -= size;
+            slot[count] = free_offset;
             ret = count;
             count++;
         }
@@ -55,28 +60,139 @@ class ywOrderedNode {
     }
 
     char *get_slot(SLOT idx) {
+        return get_slot_by_offset(slot[idx]);
+    }
+    char *get_slot_by_offset(SLOT offset) {
         char * base_ptr = reinterpret_cast<char*>(&count);
-        return base_ptr + slot[idx];
+        return base_ptr + offset;
+    }
+
+    template<compareFunc func>
+    void sort() {
+        SLOT buf_dir[2][IDEAL_MAX_SLOT_COUNT];
+        SLOT *src = buf_dir[0];
+        SLOT *dst = buf_dir[1];
+        SLOT *ptr;
+        SLOT level;
+        SLOT left, right;
+        SLOT i;
+        SLOT j;
+
+        memcpy(src, slot, sizeof(SLOT)*count);
+        for (level = 2; level/2 < count; level*=2) {
+            j = 0;
+            for (i = 0; i < count; i += level) {
+                left = i;
+                right = i + level/2;
+                if (right >= count) {
+                    while ((j < i+level) && (j < count)) {
+                        dst[j++] = src[left++];
+                    }
+                    break;
+                }
+
+                do {
+                    if (0 < func(get_slot_by_offset(src[left]),
+                                 get_slot_by_offset(src[right]))) {
+                        dst[j++] = src[left++];
+                        if (left == i + level/2) {
+                            while ((j < i+level) && (j < count)) {
+                                dst[j++] = src[right++];
+                            }
+                            break;
+                        }
+                    } else {
+                        dst[j++] = src[right++];
+                        if ((right == i + level) || (right == count)) {
+                            while ((j < i+level) && (j < count)) {
+                                dst[j++] = src[left++];
+                            }
+                            break;
+                        }
+                    }
+                } while ((j < i+level) && (j < count));
+            }
+            /* Flipping*/
+            ptr = dst; dst = src; src = ptr;
+        }
+        memcpy(slot, src, sizeof(SLOT)*count);
+    }
+
+    template<compareFunc func>
+    bool isOrdered() {
+        SLOT i;
+        for (i = 0; i < count-1; ++i) {
+            if (0 > func(get_slot(i), get_slot(i+1))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    template<compareFunc func>
+    SLOT binary_search(char *key) {
+        SLOT base = 0, size = count, half, idx;
+
+        do {
+            half = size/2;
+            idx = base + half;
+            if (0 < func(key, get_slot(idx))) {
+                size = half;
+            } else {
+                base = idx;
+                size -= half;
+            }
+        } while (half > 0);
+
+        return base;
+    }
+
+    template<compareFunc func>
+    SLOT interpolation_search(char *key) {
+        SLOT    base = 0, size = count, pos, idx;
+        int     val = *reinterpret_cast<int*>(key);
+        int     left, right;
+        int32_t ret;
+
+        while (size > 1) {
+            left  = *reinterpret_cast<int*>(get_slot(base));
+            right = *reinterpret_cast<int*>(get_slot(base + size-1));
+            pos = val * size / (right - left);
+            idx = base + pos;
+            ret = func(key, get_slot(idx));
+            if (ret == 0) {
+                return idx;
+            }
+            if (0 < ret) {
+                size = pos;
+            } else {
+                base = idx;
+                size -= pos;
+            }
+        };
+
+        return base;
     }
 
     void dump() {
         SLOT i;
 
-        printf("count:%-5d last_offset:%-5d\n",
+        printf("count:%-5d free_offset:%-5d\n",
                count,
-               last_offset);
+               free_offset);
         for (i = 0; i < count; ++i) {
-            printf("[%3d] 0x%05x ", i, slot[i]);
-            printVar(" ", slot[i-1] - slot[i], get_slot(i));
+            printf("[%5d] 0x%05x ", i, slot[i]);
+            printHex(4, get_slot(i));
         }
     }
 
  private:
     SLOT count;
-    SLOT last_offset;
+    SLOT free_offset;
     SLOT slot[IDEAL_MAX_SLOT_COUNT];
 };
 
-extern void OrderedNode_basic_test();
+extern void OrderedNode_basic_test(int32_t cnt, int32_t method);
 
 #endif  // INCLUDE_YWORDEREDNODE_H_

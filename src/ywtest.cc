@@ -19,10 +19,25 @@
 #include <ywbtree.h>
 #include <ywfbtree.h>
 #include <ywrcuref.h>
+#include <yworderednode.h>
 
 #include <map>
 #include <vector>
 #include <algorithm>
+
+TEST(OrderedNode, Basic) {
+    OrderedNode_basic_test(64, 0);
+}
+
+
+TEST(OrderedNode, Basic_huge_binary) {
+    OrderedNode_basic_test(1024, 0);
+}
+
+TEST(OrderedNode, Basic_huge_interpolation) {
+    OrderedNode_basic_test(1024, 1);
+}
+
 
 TEST(Queue, SyncPerf) {
     const int32_t              TRY_COUNT  = 1024*64;
@@ -74,11 +89,6 @@ TEST(Queue, Basic) {
 static const int32_t DATA_SIZE = 1024*1024;
 static const int32_t TRY_COUNT = 1024*1024*8;
 int32_t data[DATA_SIZE];
-
-typedef bool (*compareFunc)(int32_t a, int32_t b);
-bool compare_int(int32_t a, int32_t b) {
-    return a < b;
-}
 
 int32_t get_next_rnd(int32_t prev) {
 //    return simple_hash(sizeof(prev), reinterpret_cast<char*>(&prev))
@@ -409,41 +419,6 @@ TEST(BinarySearch, Branch) {
     }
 }
 
-
-TEST(BinarySearch, Branch_func_pointer) {
-    int32_t i;
-    int32_t rnd = 2;
-    int32_t val;
-    int32_t min;
-    int32_t max;
-    int32_t mid;
-    int32_t ret = 0;
-    compareFunc func = compare_int;
-
-    for (i = 0; i < TRY_COUNT; ++i) {
-        if (i % DATA_SIZE == 0) {
-            rnd = 2;
-        }
-        rnd = get_next_rnd(rnd);
-        val = rnd % INT32_MAX;
-
-        min = 0;
-        max = DATA_SIZE-1;
-        do {
-            mid = (min+max)/2;
-            if (func(val, data[mid])) {
-                max = mid - 1;
-            } else {
-                min = mid + 1;
-            }
-        } while (min <= max);
-
-        mid = (min+max)/2;
-
-        ret = data[mid];
-        assert(ret == rnd);
-    }
-}
 static void * rbt = rb_create_tree();
 
 TEST(RBTree, Generate) {
