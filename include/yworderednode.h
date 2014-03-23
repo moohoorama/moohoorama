@@ -150,29 +150,28 @@ class ywOrderedNode {
 
     template<compareFunc func>
     SLOT interpolation_search(char *key) {
-        SLOT    base = 0, size = count, pos, idx;
         int     val = *reinterpret_cast<int*>(key);
         int     left, right;
+        SLOT    pos, idx, lidx = 0, ridx = count-1;;
         int32_t ret;
 
-        while (size > 1) {
-            left  = *reinterpret_cast<int*>(get_slot(base));
-            right = *reinterpret_cast<int*>(get_slot(base + size-1));
-            pos = val * size / (right - left);
-            idx = base + pos;
+        while (lidx != ridx) {
+            left  = *reinterpret_cast<int*>(get_slot(lidx));
+            right = *reinterpret_cast<int*>(get_slot(ridx));
+            pos = (val-left) * (ridx-lidx) / (right - left);
+            idx = lidx + pos;
             ret = func(key, get_slot(idx));
             if (ret == 0) {
                 return idx;
             }
             if (0 < ret) {
-                size = pos;
+                ridx = pos;
             } else {
-                base = idx;
-                size -= pos;
+                lidx = pos;
             }
-        };
+        }
 
-        return base;
+        return lidx;
     }
 
     void dump() {
