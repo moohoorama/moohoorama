@@ -113,6 +113,7 @@ void basic_test() {
 
     rcu.lock();                             /* lock3 */
     rcu.unfix();
+    rcu.update_reusable_time();
     EXPECT_TRUE(rcu.get_reusable_item());   /*success don't care lock3*/
     rcu.release();
 }

@@ -24,7 +24,7 @@ class ywQueueHead {
     }
     void init() {
         head->next = head;
-        tail = head;
+       tail = head;
     }
 
     ywQueue<DATA> *get_head() {
@@ -57,6 +57,7 @@ class ywQueueHead {
 
     void push(ywQueue<DATA> *node) {
         ywQueue<DATA> *cur_tail;
+        int32_t        retry = 0;
 
         do {
             while (true) {
@@ -70,6 +71,11 @@ class ywQueueHead {
                     tail = head;
                 } else {
                     cas(&tail, cur_tail, node->next);
+                }
+                ++retry;
+                if (retry > 1000000) {
+                    dump();
+                    retry = 0;
                 }
             }
         } while (!cas(&tail->next, head, node));
@@ -119,12 +125,28 @@ class ywQueueHead {
     }
 
     void bring_all(ywQueueHead<DATA, sync> * src_q) {
-        ywQueue<int32_t> * iter;
-        ywQueue<int32_t> * s_head = src_q->head;
+        ywQueue<DATA> * iter;
+        ywQueue<DATA> * s_head = src_q->head;
 
         for (iter = s_head->next; iter->next != s_head; iter = iter->next) {
         }
         bring(s_head, iter);
+    }
+
+    void dump() {
+        ywQueue<DATA> * iter;
+        intptr_t        ptr;
+
+        printf("dump {");
+        for (iter = head; iter->next != head; iter = iter->next) {
+            ptr = reinterpret_cast<intptr_t>(iter);
+            if (iter == tail) {
+                printf("T[%08"PRIxPTR"] ", ptr);
+            } else {
+                printf(" [%08"PRIxPTR"] ", ptr);
+            }
+        }
+        printf("}\n");
     }
 
  private:

@@ -38,6 +38,9 @@ TEST(OrderedNode, Basic_huge_interpolation) {
     OrderedNode_basic_test(1024, 1);
 }
 
+TEST(RCURef, Basic) {
+    rcu_ref_test();
+}
 
 TEST(Queue, SyncPerf) {
     const int32_t              TRY_COUNT  = 1024*64;
@@ -166,10 +169,6 @@ TEST(ThreadPool, Basic) {
         printf("\r%d%%", i*100/8);
     }
     printf("\r%d%%\n", i*100/8);
-}
-
-TEST(RCURef, Basic) {
-    rcu_ref_test();
 }
 
 TEST(Serialization, Basic) {
