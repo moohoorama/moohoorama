@@ -2,7 +2,6 @@
 
 #include <ywrcuref.h>
 #include <gtest/gtest.h>
-#include <ywsll.h>
 
 ywMemPool<ywrcu_free_queue>  ywRcuRef::rc_free_pool;
 

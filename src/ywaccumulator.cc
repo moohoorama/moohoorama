@@ -18,9 +18,9 @@ template<> int32_t     ywAccumulator<int64_t, 0>::free_count = 0;
 template<> int32_t     ywAccumulator<int64_t, 1>::free_count = 0;
 template<> int32_t     ywAccumulator<int64_t, 2>::free_count = 0;
 
-template<> ywsllNode   ywAccumulator<int64_t, 0>::free_list{};
-template<> ywsllNode   ywAccumulator<int64_t, 1>::free_list{};
-template<> ywsllNode   ywAccumulator<int64_t, 2>::free_list{};
+template<> ywQueueHead<int32_t, false> ywAccumulator<int64_t, 0>::free_list{};
+template<> ywQueueHead<int32_t, false> ywAccumulator<int64_t, 1>::free_list{};
+template<> ywQueueHead<int32_t, false> ywAccumulator<int64_t, 2>::free_list{};
 
 template<> ywSpinLock  ywAccumulator<int64_t, 0>::g_acc_lock{};
 template<> ywSpinLock  ywAccumulator<int64_t, 1>::g_acc_lock{};

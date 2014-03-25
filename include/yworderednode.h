@@ -189,8 +189,9 @@ class ywOrderedNode {
                count,
                free_offset);
         for (i = 0; i < count; ++i) {
-            printf("[%5d] 0x%05x ", i, slot[i]);
-            printHex(4, get_slot(i));
+            printf("[%5d:0x%05x] ", i, slot[i]);
+            printHex(4, get_slot(i), false/*info*/);
+            printf("\n");
         }
     }
 

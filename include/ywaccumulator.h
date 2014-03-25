@@ -6,7 +6,7 @@
 #include <ywcommon.h>
 #include <ywthread.h>
 #include <ywspinlock.h>
-#include <ywsll.h>
+#include <ywq.h>
 
 template<typename T, int32_t method = 0>
 class ywAccumulator{
@@ -80,13 +80,13 @@ class ywAccumulator{
 
  private:
     bool alloc_slot() {
-        ywsllNode * free_ptr;
-        int32_t     i;
+        ywQueue<int32_t> * free_ptr;
+        int32_t            i;
 
         if (!lock()) {
             return false;
         }
-        free_ptr = ywsll_pop(&free_list);
+        free_ptr = free_list.pop();
         if (free_ptr) {
             --free_count;
             slot_idx = *((reinterpret_cast<T*>(free_ptr))+SLOT_COUNT);
@@ -116,14 +116,15 @@ class ywAccumulator{
         return true;
     }
     bool free_slot() {
-        ywsllNode * ptr;
+        ywQueue<int32_t> * ptr;
+
         if (!lock()) {
             return false;
         }
         ++free_count;
-        ptr = reinterpret_cast<ywsllNode*>(get_ptr(0, slot_idx));
+        ptr = reinterpret_cast<ywQueue<int32_t>*>(get_ptr(0, slot_idx));
         *get_ptr(1, slot_idx) = slot_idx;
-        ywsll_attach(&free_list, ptr);
+        free_list.push(ptr);
 #ifdef REPORT
         report();
 #endif
@@ -146,14 +147,13 @@ class ywAccumulator{
         return get_chunk(_idx) + (_idx % SLOT_COUNT) + tid*SLOT_COUNT;
     }
 
-    int32_t             slot_idx;
-    T                  *data[MAX_THREAD_COUNT];
-
-    static ywSpinLock   g_acc_lock;
-    static T           *root[CHUNK_COUNT];
-    static int32_t      global_idx;
-    static int32_t      free_count;
-    static ywsllNode    free_list;
+    int32_t                             slot_idx;
+    T                                  *data[MAX_THREAD_COUNT];
+    static ywSpinLock                   g_acc_lock;
+    static T                           *root[CHUNK_COUNT];
+    static int32_t                      global_idx;
+    static int32_t                      free_count;
+    static ywQueueHead<int32_t, false>  free_list;
 };
 
 extern void accumulator_test();

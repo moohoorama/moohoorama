@@ -25,10 +25,36 @@
 #include <vector>
 #include <algorithm>
 
+TEST(Accumulator, method_0_array) {
+    accumulator_test();
+}
+TEST(Accumulator, method_1_atomic) {
+    atomic_stat_test();
+}
+TEST(Accumulator, method_2_dirty) {
+    dirty_stat_test();
+}
+
+TEST(ParallelDList, Basic) {
+    ywParallelDListTest();
+}
+
+TEST(ParallelDListCCTest, Single) {
+    ywParallelDListCCTest(1);
+}
+TEST(ParallelDListCCTest, 2) {
+    ywParallelDListCCTest(2);
+}
+TEST(ParallelDListCCTest, 4) {
+    ywParallelDListCCTest(4);
+}
+TEST(ParallelDListCCTest, 8) {
+    ywParallelDListCCTest(8);
+}
+
 TEST(OrderedNode, Basic) {
     OrderedNode_basic_test(64, 0);
 }
-
 
 TEST(OrderedNode, Basic_huge_binary) {
     OrderedNode_basic_test(1024, 0);
@@ -256,61 +282,6 @@ TEST(DoublyLinkedList, Basic) {
     ywdl_test();
 }
 
-TEST(SyncList, Basic) {
-    ywSyncList   list;
-    ywNode       node[8];
-    int          i;
-
-    for (i = 0; i < 8; ++i) {
-        ASSERT_TRUE(list.add(&node[i]));
-    }
-    for (i = 0; i < 8; ++i) {
-        ASSERT_TRUE(list.remove(&node[i]));
-    }
-}
-
-const int    THREAD_COUNT = 32;
-ywSyncList   list;
-ywNode       node[THREAD_COUNT][8192];
-
-void sl_test_routine(void * arg) {
-    intptr_t  num = reinterpret_cast<intptr_t>(arg);
-    int       i;
-
-    for (i = 0; i < 8192; ++i) {
-        node[num][i].data = reinterpret_cast<void*>(num*100000+i);
-        while (!list.add(&node[num][i])) {
-        }
-    }
-    for (i = 0; i < 8192; ++i) {
-        while (!list.remove(&node[num][i])) {
-        }
-    }
-}
-
-
-TEST(SyncList, Concurrency) {
-    int        i;
-
-    for (i = 0; i< THREAD_COUNT; ++i) {
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
-                sl_test_routine, reinterpret_cast<void*>(i)));
-    }
-    ywThreadPool::get_instance()->wait_to_idle();
-}
-
-TEST(Atomic, BasicPerformance) {
-    atomic_stat_test();
-}
-TEST(Accumulator, method_0_array) {
-    accumulator_test();
-}
-TEST(Accumulator, method_1_atomic) {
-    atomic_stat_test();
-}
-TEST(Accumulator, method_2_dirty) {
-    dirty_stat_test();
-}
 
 /*
 TEST(SkipList, ConcurrentInsert) {

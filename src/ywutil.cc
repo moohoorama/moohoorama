@@ -72,18 +72,20 @@ void printVar(const char * name, uint32_t size, char * buf) {
 //            break;
         default:
             printf("\n");
-            printHex(size, buf);
+            printHex(size, buf, false/*info*/);
             break;
     }
 }
-void printHex(uint32_t size, char * buf) {
+void printHex(uint32_t size, char * buf, bool info) {
     uint32_t i, j;
-    uint32_t oldI;
+    uint32_t oldI = 0;
     uint32_t line_size = 16;
 
     for (i = 0; i < size;) {
-        printf("0x%08x | ", i);
-        oldI = i;
+        if (info) {
+            printf("0x%08x | ", i);
+            oldI = i;
+        }
         for (j = 0; j < line_size; ++j, ++i) {
             if (i < size) {
                 printf("%02X", (uint8_t)buf[i]);
@@ -93,18 +95,20 @@ void printHex(uint32_t size, char * buf) {
 
             if ((j&3) == 3) printf(" ");
         }
-        printf(" | ");
-        i = oldI;
-        for (j = 0; j < line_size; ++j, ++i) {
-            if (i < size) {
-                if (isprint(buf[i]))
-                    printf("%c", buf[i]);
-                else
-                    printf(".");
-            } else {
-                printf(" ");
+        if (info) {
+            printf(" | ");
+            i = oldI;
+            for (j = 0; j < line_size; ++j, ++i) {
+                if (i < size) {
+                    if (isprint(buf[i]))
+                        printf("%c", buf[i]);
+                    else
+                        printf(".");
+                } else {
+                    printf(" ");
+                }
             }
+            printf(" |\n");
         }
-        printf(" |\n");
     }
 }
