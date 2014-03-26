@@ -1,6 +1,6 @@
 /* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
 
-#include <ywsl.h>
+#include <ywpool.h>
 #include <stdio.h>
 #include <gtest/gtest.h>
 
@@ -9,8 +9,8 @@ class test_type {
     int32_t val[4];
 };
 
-void ywParallelDListTest() {
-    ywParallelDList<test_type> pdlist;
+void ywPoolTest() {
+    ywPool<test_type> pdlist;
     test_type                  slots[64];
     int32_t                    i;
 
@@ -38,10 +38,10 @@ void ywParallelDListTest() {
 
 class ywPDListTest {
  public:
-  static const int32_t        SLOT_COUNT = 1024;
-  static const int32_t        TRY_COUNT  = 1024;
-  ywParallelDList<test_type> *pdlist;
-  test_type                   slot[SLOT_COUNT];
+  static const int32_t   SLOT_COUNT = 1024;
+  static const int32_t   TRY_COUNT  = 1024*4;
+  ywPool<test_type>     *pdlist;
+  test_type              slot[SLOT_COUNT];
 
   void run();
 };
@@ -79,11 +79,11 @@ void ywPDListTest::run() {
     } while (ptr[0]);
 }
 
-void ywParallelDListCCTest(int32_t num) {
-    ywThreadPool   *tpool = ywThreadPool::get_instance();
-    ywParallelDList<test_type> pdlist;
-    ywPDListTest               tc[MAX_THREAD_COUNT];
-    int32_t                    i;
+void ywPoolCCTest(int32_t num) {
+    ywThreadPool      *tpool = ywThreadPool::get_instance();
+    ywPool<test_type>  pdlist;
+    ywPDListTest       tc[MAX_THREAD_COUNT];
+    int32_t            i;
 
     assert(num < MAX_THREAD_COUNT);
 
@@ -98,3 +98,4 @@ void ywParallelDListCCTest(int32_t num) {
 
     tpool->wait_to_idle();
 }
+

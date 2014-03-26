@@ -19,10 +19,12 @@ class ywTimer {
         assert(0 == pthread_create(&pt, &attr, run, NULL));
     }
     int32_t regist(ywTimerFunc _func, void *_arg, int32_t _interval) {
-        int32_t idx = count++;
+        int32_t idx = count;
         func[idx]     = _func;
         arg[idx]      = _arg;
         interval[idx] = _interval;
+
+        count++;
 
         return idx;
     }

@@ -88,23 +88,27 @@ class ywAccumulator{
         }
         free_ptr = free_list.pop();
         if (free_ptr) {
+            T * base_ptr = reinterpret_cast<T*>(free_ptr);
             --free_count;
-            slot_idx = *((reinterpret_cast<T*>(free_ptr))+SLOT_COUNT);
+
+            for (i = 0; i < MAX_THREAD_COUNT; ++i) {
+                data[i] = base_ptr + SLOT_COUNT*i;
+            }
         } else {
             if (global_idx >= get_max_slot_count()) {
                 release();
                 return false;
             }
 
-            slot_idx =  global_idx++;
+            int32_t slot_idx =  global_idx++;
             if (!get_chunk(slot_idx)) {
                 root[slot_idx / SLOT_COUNT] =
                     new T[SLOT_COUNT*MAX_THREAD_COUNT];
             }
-        }
 
-        for (i = 0; i < MAX_THREAD_COUNT; ++i) {
-            data[i] = get_ptr(i, slot_idx);
+            for (i = 0; i < MAX_THREAD_COUNT; ++i) {
+                data[i] = get_ptr(i, slot_idx);
+            }
         }
 
         reset();
@@ -122,8 +126,8 @@ class ywAccumulator{
             return false;
         }
         ++free_count;
-        ptr = reinterpret_cast<ywQueue<int32_t>*>(get_ptr(0, slot_idx));
-        *get_ptr(1, slot_idx) = slot_idx;
+        ptr = reinterpret_cast<ywQueue<int32_t>*>(data[0]);
+        assert(ptr);
         free_list.push(ptr);
 #ifdef REPORT
         report();
@@ -147,7 +151,6 @@ class ywAccumulator{
         return get_chunk(_idx) + (_idx % SLOT_COUNT) + tid*SLOT_COUNT;
     }
 
-    int32_t                             slot_idx;
     T                                  *data[MAX_THREAD_COUNT];
     static ywSpinLock                   g_acc_lock;
     static T                           *root[CHUNK_COUNT];

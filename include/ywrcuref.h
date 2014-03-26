@@ -11,25 +11,22 @@
 #include <ywmempool.h>
 #include <ywaccumulator.h>
 #include <ywtimer.h>
+#include <ywpool.h>
 
 typedef uint64_t ywr_time;
 typedef int32_t  ref_count;
 typedef void**   rcu_ptr;
 
 typedef struct {
+    ywDList   node;
     ywr_time  remove_time;
     void     *target;
 } ywrcu_free_t;
 
-
-typedef ywQueue<ywrcu_free_t> ywrcu_free_queue;
-
 typedef struct {
     volatile ywr_time                 fixtime;
     ref_count                         ref;
-    ywrcu_free_queue                 *oldest_free;
-    ywQueueHead<ywrcu_free_t, false>  free_q;
-    int32_t                           free_count;
+    ywrcu_free_t                 *oldest_free;
 } ywrcu_slot;
 
 class ywRcuRef {
@@ -46,15 +43,13 @@ class ywRcuRef {
             slot[i].fixtime     = NIL_TIME;
             slot[i].ref         = 0;
             slot[i].oldest_free = NULL;
-            slot[i].free_q.init();
-            slot[i].free_count  = 0;
         }
         global_time = INIT_TIME;
         reusable_time = INIT_TIME;
-        ywTimer::get_instance()->regist(update_rcu, this, REUSE_INTERVAL);
     }
     ~ywRcuRef() {
         free_all();
+        unregist_rcu();
     }
 
     ywrcu_slot *fix() {
@@ -102,30 +97,28 @@ class ywRcuRef {
     }
 
     void regist_free_obj(void *ptr) {
-        ywrcu_free_queue *node;
-        ywrcu_slot       *slot = get_slot();
+        ywrcu_free_t *q_node;
 
+        if (node.is_unlinked()) {
+            regist_rcu();
+        }
         assert(global_time & LOCK_BIT);
 
-        node = rc_free_pool.alloc();
-        node->data.remove_time = global_time;
-        node->data.target      = ptr;
-        slot->free_q.push(node);
-        ++slot->free_count;
+        q_node = rc_free_pool.alloc();
+        q_node->remove_time = global_time;
+        q_node->target      = ptr;
+        pool.push(q_node);
     }
 
     void *get_reusable_item() {
-        ywrcu_slot       *slot = get_slot();
-        ywrcu_free_queue *node = slot->oldest_free;
+        ywrcu_slot   *slot = get_slot();
+        ywrcu_free_t *node = slot->oldest_free;
         if (!node) {
-            node = slot->free_q.pop();
-            if (node) {
-                --slot->free_count;
-            }
+            node = pool.pop();
         }
         if (node) {
-            if (is_reusable(&(node->data))) {
-                void *ret = node->data.target;
+            if (is_reusable(node)) {
+                void *ret = node->target;
                 assert(!(reinterpret_cast<ywSpinLock*>(ret))->hasWLock());
                 slot->oldest_free = NULL;
                 rc_free_pool.free_mem(node);
@@ -137,16 +130,10 @@ class ywRcuRef {
     }
 
     void free_all() {
-        ywrcu_free_queue *node;
-        int32_t  i;
+        ywrcu_free_t *node;
 
-        for (i = 0; i < SLOT_COUNT; ++i) {
-            while ((node = slot[i].free_q.pop())) {
-                rc_free_pool.free_mem(node);
-                assert(slot[i].free_count > 0);
-                --slot[i].free_count;
-            }
-            assert(slot[i].free_count == 0);
+        while ((node = pool.pop())) {
+            rc_free_pool.free_mem(node);
         }
     }
 
@@ -188,17 +175,21 @@ class ywRcuRef {
         return &slot[tid];
     }
 
-    static void update_rcu(void *arg) {
-        ywRcuRef *rcu = reinterpret_cast<ywRcuRef*>(arg);
+    void regist_rcu();
+    void unregist_rcu();
+    static void update_rcu(void *arg);
 
-        rcu->update_reusable_time();
-    }
+    ywrcu_slot                         slot[SLOT_COUNT];
+    volatile ywr_time                  global_time;
+    volatile ywr_time                  reusable_time;
+    ywPool<ywrcu_free_t, 0, 0>         pool;
 
-    ywrcu_slot                        slot[SLOT_COUNT];
-    volatile ywr_time                 global_time;
-    volatile ywr_time                 reusable_time;
+    ywDList                            node;
 
-    static ywMemPool<ywrcu_free_queue> rc_free_pool;
+    static ywMemPool<ywrcu_free_t> rc_free_pool;
+    static ywDList                     global_list;
+    static int32_t                     rcu_count;
+    static ywSpinLock                  global_lock;
 
     friend void basic_test();
 };

@@ -3,8 +3,49 @@
 #include <ywrcuref.h>
 #include <gtest/gtest.h>
 
-ywMemPool<ywrcu_free_queue>  ywRcuRef::rc_free_pool;
+ywMemPool<ywrcu_free_t> ywRcuRef::rc_free_pool;
+ywDList                 ywRcuRef::global_list;
+int32_t                 ywRcuRef::rcu_count = 0;
+ywSpinLock              ywRcuRef::global_lock;
 
+void ywRcuRef::regist_rcu() {
+    while (!global_lock.WLock()) {}
+
+    if (rcu_count == 0) {
+        ywTimer::get_instance()->regist(update_rcu, NULL, REUSE_INTERVAL);
+    }
+    global_list.attach(&node);
+    ++rcu_count;
+
+    global_lock.release();
+}
+
+void ywRcuRef::unregist_rcu() {
+    if (!node.is_unlinked()) {
+        while (!global_lock.WLock()) {}
+
+        assert(rcu_count > 0);
+        node.detach();
+        --rcu_count;
+
+        global_lock.release();
+    }
+}
+
+void ywRcuRef::update_rcu(void *arg) {
+    ywDList  *iter = global_list.next;
+    ywRcuRef *rcu;
+
+    while (!global_lock.WLock()) {}
+
+    while (iter != &global_list) {
+        rcu = reinterpret_cast<ywRcuRef*>(
+            reinterpret_cast<char*>(iter) - offsetof(ywRcuRef, node));
+        rcu->update_reusable_time();
+        iter = iter->next;
+    }
+    global_lock.release();
+}
 
 class ywRcuTestClass {
  public:

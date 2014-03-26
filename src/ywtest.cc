@@ -4,7 +4,6 @@
 #include <gtest/gtest.h>
 #include <stdlib.h>
 
-#include <ywdlist.h>
 #include <ywq.h>
 #include <ywutil.h>
 #include <ywserializer.h>
@@ -20,10 +19,15 @@
 #include <ywfbtree.h>
 #include <ywrcuref.h>
 #include <yworderednode.h>
+#include <ywpool.h>
 
 #include <map>
 #include <vector>
 #include <algorithm>
+
+TEST(FBTree, Basic) {
+    fb_basic_test();
+}
 
 TEST(Accumulator, method_0_array) {
     accumulator_test();
@@ -35,21 +39,21 @@ TEST(Accumulator, method_2_dirty) {
     dirty_stat_test();
 }
 
-TEST(ParallelDList, Basic) {
-    ywParallelDListTest();
+TEST(Pool, Basic) {
+    ywPoolTest();
 }
 
-TEST(ParallelDListCCTest, Single) {
-    ywParallelDListCCTest(1);
+TEST(PoolCCTest, Single) {
+    ywPoolCCTest(1);
 }
-TEST(ParallelDListCCTest, 2) {
-    ywParallelDListCCTest(2);
+TEST(PoolCCTest, 2) {
+    ywPoolCCTest(2);
 }
-TEST(ParallelDListCCTest, 4) {
-    ywParallelDListCCTest(4);
+TEST(PoolCCTest, 4) {
+    ywPoolCCTest(4);
 }
-TEST(ParallelDListCCTest, 8) {
-    ywParallelDListCCTest(8);
+TEST(PoolCCTest, 8) {
+    ywPoolCCTest(8);
 }
 
 TEST(OrderedNode, Basic) {
@@ -129,10 +133,6 @@ int32_t get_next_rnd(int32_t prev) {
     return prev - 1;
 //    return rand_r(reinterpret_cast<uint32_t*>(&prev));
 //    return (prev+1) % 64;
-}
-
-TEST(FBTree, Basic) {
-    fb_basic_test();
 }
 
 void *fbt = fb_create();
@@ -277,11 +277,6 @@ TEST(MemPool, Basic) {
 TEST(MemPool, Guard) {
     mempool_guard_test();
 }
-
-TEST(DoublyLinkedList, Basic) {
-    ywdl_test();
-}
-
 
 /*
 TEST(SkipList, ConcurrentInsert) {
