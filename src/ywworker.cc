@@ -1,12 +1,13 @@
 /* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
 
-#include <ywthread.h>
+#include <ywworker.h>
 #include <gtest/gtest.h>
 
-ywThreadPool ywThreadPool::gInstance;
-int32_t      ywThreadPool::NULL_ARG_PTR;
+__thread ywTID        ywWorkerPool::local_tid = -1;
+ywWorkerPool ywWorkerPool::gInstance;
+int32_t      ywWorkerPool::NULL_ARG_PTR;
 
-void ywThreadPool::init() {
+void ywWorkerPool::init() {
     pthread_attr_t  attr;
     int32_t         i;
     cpu_set_t      *cmask;
@@ -26,7 +27,7 @@ void ywThreadPool::init() {
 
     for (i = 0; i < thread_count; ++i) {
         assert(0 == pthread_create(
-                &pt[i], &attr, ywThreadPool::work, NULL));
+                &pt[i], &attr, ywWorkerPool::work, NULL));
         CPU_ZERO_S(thread_count, cmask);
         CPU_SET_S(i, (size_t)thread_count, cmask);
         assert(0 == pthread_setaffinity_np(pt[i], thread_count, cmask));
@@ -35,8 +36,8 @@ void ywThreadPool::init() {
 }
 
 
-void *ywThreadPool::work(void * /*arg_ptr*/) {
-    ywThreadPool *tpool = ywThreadPool::get_instance();
+void *ywWorkerPool::work(void * /*arg_ptr*/) {
+    ywWorkerPool *tpool = ywWorkerPool::get_instance();
     ywTaskFunc    func;
     void         *arg;
     ywTID         tid = tpool->get_thread_id();
@@ -70,13 +71,13 @@ void sleep_task(void *arg) {
 }
 
 void threadpool_test() {
-    ywThreadPool *tpool = ywThreadPool::get_instance();
-    int           processor_count = ywThreadPool::get_processor_count();
+    ywWorkerPool *tpool = ywWorkerPool::get_instance();
+    int           processor_count = ywWorkerPool::get_processor_count();
     bool          act = true;
     int           i;
 
     /* TEST add_task */
-    for (i = 0; i < ywThreadPool::MAX_QUEUE_SIZE-1; ++i) {
+    for (i = 0; i < ywWorkerPool::MAX_QUEUE_SIZE-1; ++i) {
         EXPECT_TRUE(tpool->add_task(sleep_task, &act));
     }
     usleep(100*1000);

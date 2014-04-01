@@ -9,6 +9,7 @@
 typedef uint32_t     fbKey;
 
 void *fb_create();
+void  fb_drop(void *fbt);
 bool  fb_insert(void *_fbt, fbKey key, void *data);
 bool  fb_remove(void *_fbt, fbKey key);
 void *fb_find(void *_fbt, fbKey key);

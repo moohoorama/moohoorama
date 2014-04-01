@@ -108,11 +108,11 @@ void skiplist_conc_insert_test() {
     for (i = 0; i< SK_THREAD_COUNT; ++i) {
         targ[i].num = i+1;
         targ[i].op  = 0;/*insert*/
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+        ASSERT_TRUE(ywWorkerPool::get_instance()->add_task(
                 skip_test_routine, &targ[i]));
     }
 
-    ywThreadPool::get_instance()->wait_to_idle();
+    ywWorkerPool::get_instance()->wait_to_idle();
 
     ASSERT_EQ(SK_TEST_COUNT, g_skip_list.get_key_count());
 }
@@ -125,11 +125,11 @@ void skiplist_conc_remove_test() {
     for (i = 0; i< SK_THREAD_COUNT; ++i) {
         targ[i].num = i+1;
         targ[i].op  = 1;  // remove
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+        ASSERT_TRUE(ywWorkerPool::get_instance()->add_task(
                 skip_test_routine, &targ[i]));
     }
 
-    ywThreadPool::get_instance()->wait_to_idle();
+    ywWorkerPool::get_instance()->wait_to_idle();
 
     ASSERT_EQ(0, g_skip_list.get_node_count());
     ASSERT_EQ(0, g_skip_list.get_key_count());

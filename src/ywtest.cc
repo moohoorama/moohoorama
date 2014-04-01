@@ -11,7 +11,7 @@
 #include <ywspinlock.h>
 #include <ywsl.h>
 #include <ywskiplist.h>
-#include <ywthread.h>
+#include <ywworker.h>
 #include <ywaccumulator.h>
 #include <ywrbtree.h>
 #include <ywmempool.h>
@@ -20,10 +20,15 @@
 #include <ywrcuref.h>
 #include <yworderednode.h>
 #include <ywpool.h>
+#include <ywstack.h>
 
 #include <map>
 #include <vector>
 #include <algorithm>
+
+TEST(ywStack, Basic) {
+    stack_basic_test();
+}
 
 TEST(FBTree, Basic) {
     fb_basic_test();
@@ -249,10 +254,10 @@ TEST(Spinlock, Count) {
     int        i;
 
     for (i = 0; i< THREAD_COUNT; ++i) {
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+        ASSERT_TRUE(ywWorkerPool::get_instance()->add_task(
                 spin_routine, reinterpret_cast<void*>(&count)));
     }
-    ywThreadPool::get_instance()->wait_to_idle();
+    ywWorkerPool::get_instance()->wait_to_idle();
 
     ASSERT_EQ(THREAD_COUNT * 65536, count);
 }
@@ -263,10 +268,10 @@ TEST(Atomic, Count) {
     int        i;
 
     for (i = 0; i< THREAD_COUNT; ++i) {
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+        ASSERT_TRUE(ywWorkerPool::get_instance()->add_task(
                 add_routine, reinterpret_cast<void*>(&count)));
     }
-    ywThreadPool::get_instance()->wait_to_idle();
+    ywWorkerPool::get_instance()->wait_to_idle();
 
     ASSERT_EQ(THREAD_COUNT * 65536, count);
 }

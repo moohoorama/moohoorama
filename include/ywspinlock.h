@@ -4,7 +4,7 @@
 #define INCLUDE_YWSPINLOCK_H_
 
 #include <ywcommon.h>
-#include <ywthread.h>
+#include <ywworker.h>
 
 //   #define __CHECK_WLOCK_TID__
 
@@ -28,7 +28,7 @@ class ywSpinLock {
         if (__sync_bool_compare_and_swap(&status, prev, WLOCK)) {
 #ifdef __CHECK_WLOCK_TID__
             assert(wlock_tid == -1);
-            wlock_tid = ywThreadPool::get_instance()->get_thread_id();
+            wlock_tid = ywWorkerPool::get_instance()->get_thread_id();
 #endif
             return true;
         }
@@ -39,7 +39,7 @@ class ywSpinLock {
 #ifdef __CHECK_WLOCK_TID__
             assert(status == WLOCK);
             assert(wlock_tid ==
-                    ywThreadPool::get_instance()->get_thread_id());
+                    ywWorkerPool::get_instance()->get_thread_id());
             wlock_tid = -1;
 #endif
             assert(__sync_bool_compare_and_swap(&status, WLOCK, NONE));
@@ -110,7 +110,7 @@ class ywLockGuard {
     ywLockGuard():rlock_idx(0), wlock_idx(0) {
     }
 
-    bool WLock(ywSpinLock *lock, int32_t line) {
+    bool WLock(ywSpinLock *lock) {
         if (wlock_idx >= GUARD_SIZE) return false;
 
         if (wlock_idx > 0) {
@@ -123,7 +123,6 @@ class ywLockGuard {
         }
 
         if (lock->WLock()) {
-            wlock_line[ wlock_idx ] = line;
             wlock[ wlock_idx++] = lock;
             return true;
         }
@@ -184,7 +183,6 @@ class ywLockGuard {
     int32_t     rlock_idx;
 
     ywSpinLock *wlock[GUARD_SIZE];
-    int32_t     wlock_line[GUARD_SIZE];
     int32_t     wlock_idx;
 };
 

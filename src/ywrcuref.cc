@@ -14,18 +14,18 @@ void ywRcuRef::regist_rcu() {
     if (rcu_count == 0) {
         ywTimer::get_instance()->regist(update_rcu, NULL, REUSE_INTERVAL);
     }
-    global_list.attach(&node);
+    global_list.attach(&local_list);
     ++rcu_count;
 
     global_lock.release();
 }
 
 void ywRcuRef::unregist_rcu() {
-    if (!node.is_unlinked()) {
+    if (!local_list.is_unlinked()) {
         while (!global_lock.WLock()) {}
 
         assert(rcu_count > 0);
-        node.detach();
+        local_list.detach();
         --rcu_count;
 
         global_lock.release();
@@ -40,7 +40,7 @@ void ywRcuRef::update_rcu(void *arg) {
 
     while (iter != &global_list) {
         rcu = reinterpret_cast<ywRcuRef*>(
-            reinterpret_cast<char*>(iter) - offsetof(ywRcuRef, node));
+            reinterpret_cast<char*>(iter) - offsetof(ywRcuRef, local_list));
         rcu->update_reusable_time();
         iter = iter->next;
     }
@@ -172,10 +172,10 @@ void auto_fix_test() {
 }
 
 void rcu_ref_test() {
-    ywThreadPool   *tpool = ywThreadPool::get_instance();
+    ywWorkerPool   *tpool = ywWorkerPool::get_instance();
     ywRcuRef        rcu;
     ywRcuTestClass  tc[MAX_THREAD_COUNT];
-    int32_t         processor_count = ywThreadPool::get_processor_count();
+    int32_t         processor_count = ywWorkerPool::get_processor_count();
     int32_t        *test_ptr;
     int32_t         init = 0x123456;
     int32_t         i;

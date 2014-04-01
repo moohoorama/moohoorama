@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <gtest/gtest.h>
 
-#include <ywthread.h>
+#include <ywworker.h>
 #include <ywq.h>
 
 class ywqTestClass {
@@ -143,11 +143,11 @@ void   ywq_test() {
         for (i = 0; i < ITER_COUNT; i ++) {
             head.init();
             for (j = 0; j < THREAD_COUNT; j ++) {
-                ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+                ASSERT_TRUE(ywWorkerPool::get_instance()->add_task(
                         ywqTestClass::run, &tc[j]));
             }
 
-            ywThreadPool::get_instance()->wait_to_idle();
+            ywWorkerPool::get_instance()->wait_to_idle();
 
             assert(static_cast<int32_t>(head.calc_count()) ==
                    ywqTestClass::TRY_COUNT*(push_task_cnt-pop_task_cnt));

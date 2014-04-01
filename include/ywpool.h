@@ -182,7 +182,7 @@ class ywPool {
     }
 
     ywPoolSlot *get_private_slot() {
-        int32_t tid = ywThreadPool::get_thread_id();
+        int32_t tid = ywWorkerPool::get_thread_id();
 
         return &slot[tid];
     }

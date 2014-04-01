@@ -4,7 +4,7 @@
 #define INCLUDE_YWACCUMULATOR_H_
 
 #include <ywcommon.h>
-#include <ywthread.h>
+#include <ywworker.h>
 #include <ywspinlock.h>
 #include <ywq.h>
 
@@ -18,7 +18,7 @@ class ywAccumulator{
 
  public:
     ywAccumulator() {
-        assert(ywThreadPool::get_instance()->get_max_thread_id()
+        assert(ywWorkerPool::get_instance()->get_max_thread_id()
                <= MAX_THREAD_COUNT);
         assert(MAX_THREAD_COUNT >= 2);
         assert(alloc_slot());
@@ -31,7 +31,7 @@ class ywAccumulator{
         if (delta) {
             switch (method) {
                 case 0:
-                    *data[ywThreadPool::get_thread_id()] += delta;
+                    *data[ywWorkerPool::get_thread_id()] += delta;
                     break;
                 case 1:
                     __sync_add_and_fetch(data[0], delta);

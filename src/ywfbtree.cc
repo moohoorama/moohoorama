@@ -1,7 +1,7 @@
 /* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
 
 #include <ywfbtree.h>
-#include <ywthread.h>
+#include <ywworker.h>
 #include <ywaccumulator.h>
 #include <gtest/gtest.h>
 #include <ywrcuref.h>
@@ -65,7 +65,6 @@ static fbt_t  fb_nil_tree_instance;
 static fbt_t *fb_nil_tree=&fb_nil_tree_instance;
 
 fbNodeStruct::fbNodeStruct() {
-    time = 0;
 }
 
 fbRootStruct::fbRootStruct()
@@ -105,6 +104,12 @@ void *fb_create() {
     return reinterpret_cast<void*>(fbt);
 }
 
+void fb_drop(void *_fbt) {
+    fbt_t      *fbt = fb_get_handle(_fbt);
+
+    fbt_tree_pool.free_mem(fbt);
+}
+
 bool  fb_insert(void *_fbt, fbKey key, void *_data) {
     fbt_t      *fbt = fb_get_handle(_fbt);
     fbn_t      *data = reinterpret_cast<fbn_t*>(_data);
@@ -139,7 +144,7 @@ fb_result  _fb_insert(fbt_t *fbt, fbKey key, fbn_t *data, bool smoLock) {
     }
 
     if (smoLock) {
-        if (!smoGuard.WLock(&fbt->smo, __LINE__)) {
+        if (!smoGuard.WLock(&fbt->smo)) {
             return FB_RESULT_LOW_RESOURCE;
         }
     } else {
@@ -164,7 +169,7 @@ fb_result  _fb_insert(fbt_t *fbt, fbKey key, fbn_t *data, bool smoLock) {
         }
 
         /* lock to target leaf*/
-        if (!(fbs.node_lock.WLock(&fbn->lock, fbn->time)))
+        if (!(fbs.node_lock.WLock(&fbn->lock)))
             return FB_RESULT_LOW_RESOURCE;
 
         /* check node to be recent version */
@@ -199,7 +204,7 @@ fb_result  _fb_insert(fbt_t *fbt, fbKey key, fbn_t *data, bool smoLock) {
 bool  fb_remove(void *_fbt, fbKey key) {
     fbt_t          *fbt = fb_get_handle(_fbt);
     ywRcuGuard      rcuGuard(&fbt->rcu);
-    bool        smoLock = false;
+    bool            smoLock = false;
 
     while (true) {
         switch (_fb_remove(fbt, key, smoLock)) {
@@ -229,7 +234,7 @@ fb_result _fb_remove(fbt_t *fbt, fbKey key, bool smoLock) {
     }
 
     if (smoLock) {
-        if (!smoGuard.WLock(&fbt->smo, __LINE__)) {
+        if (!smoGuard.WLock(&fbt->smo)) {
             return FB_RESULT_LOW_RESOURCE;
         }
     } else {
@@ -249,7 +254,7 @@ fb_result _fb_remove(fbt_t *fbt, fbKey key, bool smoLock) {
     }
 
     /* lock to target leaf*/
-    if (!(fbs.node_lock.WLock(&fbn->lock, __LINE__)))
+    if (!(fbs.node_lock.WLock(&fbn->lock)))
         return FB_RESULT_LOW_RESOURCE;
 
     /* check node to be recent version */
@@ -360,7 +365,6 @@ inline fbn_t *fb_create_node(fbs_t *fbs) {
     if (ret) {
         assert(ret->status == FB_NODE_RCU);
         assert(!ret->lock.hasWLock());
-        ret->time = fbs->fbt->rcu.get_global_time();
         ++fbs->reuse_node_count;
         fbs->nodePoolGuard.regist(ret);
     } else {
@@ -393,7 +397,7 @@ inline bool  fb_replace_child(fbs_t *fbs, fbn_t *old_n, fbn_t *new_n) {
     fbn_t * parent;
     if (fbs->depth >= 0) {
         parent = fbs->cursor->node;
-        if (!(fbs->node_lock.WLock(&parent->lock, __LINE__))) return false;
+        if (!(fbs->node_lock.WLock(&parent->lock))) return false;
         assert(parent->child[ fbs->cursor->idx ] == old_n);
         parent->child[ fbs->cursor->idx ] = new_n;
     } else {
@@ -793,10 +797,10 @@ void concRoutine(void * arg) {
     }
 }
 
-void    *test_fbt =fb_create();
 void  fb_conc_test(int32_t data, int32_t try_count, int32_t op) {
     int      i;
-    int      thread_count = ywThreadPool::get_processor_count();
+    int      thread_count = ywWorkerPool::get_processor_count();
+    void    *test_fbt =fb_create();
     testArg  targ[MAX_THREAD_COUNT];
 
     if (op == 3) {
@@ -807,7 +811,7 @@ void  fb_conc_test(int32_t data, int32_t try_count, int32_t op) {
         }
     }
 
-    ywThreadPool::get_instance()->wait_to_idle();
+    ywWorkerPool::get_instance()->wait_to_idle();
     for (i = 0; i < thread_count; i ++) {
         targ[i].fbt       = test_fbt;
         targ[i].idx       = i;
@@ -815,10 +819,10 @@ void  fb_conc_test(int32_t data, int32_t try_count, int32_t op) {
         targ[i].try_count = try_count / thread_count;
         targ[i].op        = op;
 
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+        ASSERT_TRUE(ywWorkerPool::get_instance()->add_task(
                 concRoutine, reinterpret_cast<void*>(&targ[i])));
     }
-    ywThreadPool::get_instance()->wait_to_idle();
+    ywWorkerPool::get_instance()->wait_to_idle();
 
     if (op == 3) {
         for (i = 0; i < FB_TEST_RANGE; ++i) {
@@ -828,5 +832,7 @@ void  fb_conc_test(int32_t data, int32_t try_count, int32_t op) {
     }
 
     fb_report(test_fbt);
+
+    fb_drop(test_fbt);
 }
 

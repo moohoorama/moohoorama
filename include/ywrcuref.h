@@ -5,7 +5,7 @@
 
 #include <ywcommon.h>
 #include <ywutil.h>
-#include <ywthread.h>
+#include <ywworker.h>
 #include <ywspinlock.h>
 #include <ywq.h>
 #include <ywmempool.h>
@@ -18,14 +18,14 @@ typedef int32_t  ref_count;
 typedef void**   rcu_ptr;
 
 typedef struct {
-    ywDList   node;
+    ywDList   freepool_list;
     ywr_time  remove_time;
     void     *target;
 } ywrcu_free_t;
 
 typedef struct {
-    volatile ywr_time                 fixtime;
-    ref_count                         ref;
+    volatile ywr_time             fixtime;
+    ref_count                     ref;
     ywrcu_free_t                 *oldest_free;
 } ywrcu_slot;
 
@@ -99,7 +99,7 @@ class ywRcuRef {
     void regist_free_obj(void *ptr) {
         ywrcu_free_t *q_node;
 
-        if (node.is_unlinked()) {
+        if (local_list.is_unlinked()) {
             regist_rcu();
         }
         assert(global_time & LOCK_BIT);
@@ -170,7 +170,7 @@ class ywRcuRef {
     }
 
     ywrcu_slot *get_slot() {
-        ywTID tid = ywThreadPool::get_thread_id();
+        ywTID tid = ywWorkerPool::get_thread_id();
 
         return &slot[tid];
     }
@@ -179,17 +179,17 @@ class ywRcuRef {
     void unregist_rcu();
     static void update_rcu(void *arg);
 
-    ywrcu_slot                         slot[SLOT_COUNT];
-    volatile ywr_time                  global_time;
-    volatile ywr_time                  reusable_time;
-    ywPool<ywrcu_free_t, 0, 0>         pool;
+    ywrcu_slot                     slot[SLOT_COUNT];
+    volatile ywr_time              global_time;
+    volatile ywr_time              reusable_time;
+    ywPool<ywrcu_free_t>           pool;
 
-    ywDList                            node;
+    ywDList                        local_list;
 
     static ywMemPool<ywrcu_free_t> rc_free_pool;
-    static ywDList                     global_list;
-    static int32_t                     rcu_count;
-    static ywSpinLock                  global_lock;
+    static ywDList                 global_list;
+    static int32_t                 rcu_count;
+    static ywSpinLock              global_lock;
 
     friend void basic_test();
 };

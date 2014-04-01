@@ -41,8 +41,8 @@ void accumulate_task(void *arg) {
 
 void accumulator_test() {
     ywAccumulator<int64_t, 0>  acc;
-    ywThreadPool  *tpool = ywThreadPool::get_instance();
-    int            processor_count = ywThreadPool::get_processor_count();
+    ywWorkerPool  *tpool = ywWorkerPool::get_instance();
+    int            processor_count = ywWorkerPool::get_processor_count();
     int            i;
 
     for (i = 0; i < processor_count; ++i) {
@@ -66,8 +66,8 @@ void atomic_stat_task(void *arg) {
 
 void atomic_stat_test() {
     ywAccumulator<int64_t, 1>  acc;
-    ywThreadPool  *tpool = ywThreadPool::get_instance();
-    int            processor_count = ywThreadPool::get_processor_count();
+    ywWorkerPool  *tpool = ywWorkerPool::get_instance();
+    int            processor_count = ywWorkerPool::get_processor_count();
     int            i;
 
     for (i = 0; i < processor_count; ++i) {
@@ -91,8 +91,8 @@ void dirty_stat_task(void *arg) {
 
 void dirty_stat_test() {
     ywAccumulator<int64_t, 2>  acc;
-    ywThreadPool  *tpool = ywThreadPool::get_instance();
-    int            processor_count = ywThreadPool::get_processor_count();
+    ywWorkerPool  *tpool = ywWorkerPool::get_instance();
+    int            processor_count = ywWorkerPool::get_processor_count();
     int            i;
 
     for (i = 0; i < processor_count; ++i) {

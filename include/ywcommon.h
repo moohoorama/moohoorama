@@ -14,6 +14,7 @@
 #include <pthread.h>
 #include <assert.h>
 #include <unistd.h>
+#include <typeinfo>
 
 static const size_t  KB = 1024;
 static const size_t  MB = 1024*KB;

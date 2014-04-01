@@ -1,7 +1,7 @@
 /* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
 
 #include <ywrbtree.h>
-#include <ywthread.h>
+#include <ywworker.h>
 #include <ywaccumulator.h>
 #include <gtest/gtest.h>
 #include <ywmempool.h>
@@ -492,10 +492,10 @@ void rbtree_concunrrency_test(void * rbt) {
         targ[i].rbt  = rbt;
         targ[i].num  = i;
         targ[i].op   = 1;
-        ASSERT_TRUE(ywThreadPool::get_instance()->add_task(
+        ASSERT_TRUE(ywWorkerPool::get_instance()->add_task(
                 rb_test_routine, &targ[i]));
     }
-    ywThreadPool::get_instance()->wait_to_idle();
+    ywWorkerPool::get_instance()->wait_to_idle();
 
     for (i = 0; i < RB_TEST_RANGE; ++i) {
         rb_remove(rbt,  100000 + i*2);

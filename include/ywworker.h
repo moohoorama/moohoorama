@@ -1,21 +1,21 @@
 /* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
 
-#ifndef INCLUDE_YWTHREAD_H_
-#define INCLUDE_YWTHREAD_H_
+#ifndef INCLUDE_YWWORKER_H_
+#define INCLUDE_YWWORKER_H_
 
 #include <ywcommon.h>
 
 typedef int32_t ywTID;
 typedef void (*ywTaskFunc)(void *arg);
 
-class ywThreadPool{
+class ywWorkerPool{
  public:
     static const int32_t     MAX_QUEUE_SIZE   = 64;
     static const int32_t     SLEEP_INTERVAL   = 1000;
     static int32_t           NULL_ARG_PTR;
 
  private:
-    ywThreadPool():
+    ywWorkerPool():
         g_tid(0),
         thread_count(0),
         block(true),
@@ -25,7 +25,7 @@ class ywThreadPool{
         thread_count = 0;
         init();
     }
-    explicit ywThreadPool(int32_t _thread_count):
+    explicit ywWorkerPool(int32_t _thread_count):
         g_tid(0),
         thread_count(_thread_count),
         block(true),
@@ -34,7 +34,7 @@ class ywThreadPool{
         queue_end(0) {
         init();
     }
-    ~ywThreadPool() {
+    ~ywWorkerPool() {
         done = true;
     }
 
@@ -42,7 +42,7 @@ class ywThreadPool{
     static void *work(void *arg_ptr);
 
  public:
-    inline static ywThreadPool *get_instance() {
+    inline static ywWorkerPool *get_instance() {
         return &gInstance;
     }
 
@@ -52,13 +52,19 @@ class ywThreadPool{
         return sysconf(_SC_NPROCESSORS_ONLN);
     }
 
-    static inline ywTID get_thread_id() {
-        static __thread ywTID tid = -1;
-        if (_UNLIKELY(tid == -1)) {
-            tid = __sync_fetch_and_add(
-                &get_instance()->g_tid, 1);
+    static inline void alloc_tid() {
+        assert(local_tid == -1);
+        if (_UNLIKELY(local_tid == -1)) {
+            local_tid = __sync_fetch_and_add(
+                &(get_instance()->g_tid), 1);
         }
-        return tid;
+    }
+    static inline ywTID get_thread_id() {
+        if (local_tid == -1) {
+            alloc_tid();
+        }
+        assert(local_tid != -1);
+        return local_tid;
     }
 
     inline ywTID get_max_thread_id() {
@@ -153,21 +159,23 @@ class ywThreadPool{
         return true;
     }
 
-    ywTID         g_tid;
-    int32_t       thread_count;
-    bool          block;
-    bool          done;
-    pthread_t     pt[MAX_THREAD_COUNT];
-    volatile bool running[MAX_THREAD_COUNT];
+    ywTID                   g_tid;
+    int32_t                 thread_count;
+    bool                    block;
+    bool                    done;
+    pthread_t               pt[MAX_THREAD_COUNT];
+    volatile bool           running[MAX_THREAD_COUNT];
 
-    volatile int32_t     queue_begin;
-    volatile int32_t     queue_end;
-    ywTaskFunc           funcs[MAX_QUEUE_SIZE];
-    void                *args[MAX_QUEUE_SIZE];
+    volatile int32_t        queue_begin;
+    volatile int32_t        queue_end;
+    ywTaskFunc              funcs[MAX_QUEUE_SIZE];
+    void                   *args[MAX_QUEUE_SIZE];
 
-    static ywThreadPool gInstance;
+    static __thread ywTID   local_tid;
+    static ywWorkerPool     gInstance;
 };
 
 extern void threadpool_test();
 
-#endif  // INCLUDE_YWTHREAD_H_
+#endif  // INCLUDE_YWWORKER_H_
+

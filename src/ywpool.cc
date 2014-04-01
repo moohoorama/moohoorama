@@ -80,7 +80,7 @@ void ywPDListTest::run() {
 }
 
 void ywPoolCCTest(int32_t num) {
-    ywThreadPool      *tpool = ywThreadPool::get_instance();
+    ywWorkerPool      *tpool = ywWorkerPool::get_instance();
     ywPool<test_type>  pdlist;
     ywPDListTest       tc[MAX_THREAD_COUNT];
     int32_t            i;

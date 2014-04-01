@@ -42,7 +42,6 @@ struct fbNodeStruct {
     explicit fbNodeStruct();
 
     ywSpinLock  lock;
-    ywr_time    time;
     fbn_status  status;
     fbKey       key[FB_SLOT_MAX];
     fbn_t      *child[FB_SLOT_MAX];

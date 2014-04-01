@@ -4,7 +4,7 @@
 #define INCLUDE_YWMEMPOOL_H_
 
 #include <ywcommon.h>
-#include <ywthread.h>
+#include <ywworker.h>
 #include <ywspinlock.h>
 #include <ywpool.h>
 #include <string.h>
