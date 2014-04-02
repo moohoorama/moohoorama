@@ -8,8 +8,11 @@ class ywDList {
  public:
     explicit ywDList():next(this), prev(this) {
     }
-    ywDList    * next;
-    ywDList    * prev;
+
+    void init() {
+        next = this;
+        prev = this;
+    }
 
     void link(ywDList * target) {
         next         = target;
@@ -39,6 +42,9 @@ class ywDList {
         return ret;
     }
 
+    void bring(ywDList * list) {
+        bring(list->next, list->prev);
+    }
     void bring(ywDList * head, ywDList * tail) {
         ywDList * before_head = head->prev;
         ywDList * after_tail = tail->next;
@@ -50,6 +56,9 @@ class ywDList {
         /*detach*/
         before_head->link(after_tail);
     }
+
+    ywDList    * next;
+    ywDList    * prev;
 };
 
 #endif  // INCLUDE_YWSL_H_

@@ -9,7 +9,7 @@ typedef void (*ywTimerFunc)(void *_arg);
 
 class ywTimer {
     static const int32_t     MAX_FUNC_COUNT = 1024;
-    static const int32_t     MIN_INTERVAL_USEC = 10;
+    static const int32_t     MIN_INTERVAL_USEC = 0;
 
  public:
     ywTimer() {

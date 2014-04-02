@@ -13,25 +13,62 @@
 #include <ywtimer.h>
 #include <ywpool.h>
 
+class ywRcuRef;
+class ywRcuRefManager;
+
 typedef uint64_t ywr_time;
 typedef int32_t  ref_count;
 typedef void**   rcu_ptr;
 
 typedef struct {
-    ywDList   freepool_list;
-    ywr_time  remove_time;
-    void     *target;
-} ywrcu_free_t;
+    ywDList    free_list;
+    ywDList    sub_list;
+    ywr_time   remove_time;
+} ywrcu_free_ring;
 
 typedef struct {
     volatile ywr_time             fixtime;
     ref_count                     ref;
-    ywrcu_free_t                 *oldest_free;
+    ywrcu_free_ring              *oldest_ring;
+    ywrcu_free_ring               latest_ring;
 } ywrcu_slot;
+
+class ywRcuRefManager {
+    static const int32_t  REUSE_INTERVAL = 1;
+
+ public:
+    explicit ywRcuRefManager() {
+        ywTimer::get_instance()->regist(update, NULL, REUSE_INTERVAL);
+    }
+    inline static ywRcuRefManager *get_instance() {
+        return &gInstance;
+    }
+
+    void regist(ywRcuRef *rcu);
+    void unregist(ywRcuRef *rcu);
+    void _update();
+
+    static void update(void *arg);
+
+    ywrcu_free_ring *alloc() {
+        return free_ring_mempool.alloc();
+    }
+    void free(ywrcu_free_ring *ring) {
+        free_ring_mempool.free_mem(ring);
+    }
+
+ private:
+    ywMemPool<ywrcu_free_ring> free_ring_mempool;
+    ywDList                    list;
+    int32_t                    rcu_count;
+    ywSpinLock                 lock;
+
+    static ywRcuRefManager     gInstance;
+};
+
 
 class ywRcuRef {
     static const int32_t  SLOT_COUNT  = MAX_THREAD_COUNT;
-    static const int32_t  REUSE_INTERVAL = 1;
     static const ywr_time NIL_TIME   = 0;
     static const ywr_time INIT_TIME  = 2;
     static const ywr_time LOCK_BIT   = 1;
@@ -42,14 +79,15 @@ class ywRcuRef {
         for (int32_t i = 0; i < SLOT_COUNT; ++i) {
             slot[i].fixtime     = NIL_TIME;
             slot[i].ref         = 0;
-            slot[i].oldest_free = NULL;
+            slot[i].oldest_ring = NULL;
+            init_ring(&slot[i].latest_ring);
         }
-        global_time = INIT_TIME;
+        global_time   = INIT_TIME;
         reusable_time = INIT_TIME;
     }
     ~ywRcuRef() {
         free_all();
-        unregist_rcu();
+        ywRcuRefManager::get_instance()->unregist(this);
     }
 
     ywrcu_slot *fix() {
@@ -76,8 +114,14 @@ class ywRcuRef {
     }
 
     bool lock(uint32_t timeout = DEFAULT_TIMEOUT) {
-        ywr_time  prev;
-        uint32_t i;
+        ywr_time    prev;
+        ywrcu_slot *slot = get_slot();
+        uint32_t    i;
+
+        if (local_list.is_unlinked()) {
+            ywRcuRefManager::get_instance()->regist(this);
+        }
+
         for (i = 0; i < timeout; ++i) {
             prev = global_time;
             if (!(prev & LOCK_BIT)) {
@@ -86,6 +130,9 @@ class ywRcuRef {
                     return true;
                 }
             }
+        }
+        if (slot->latest_ring.remove_time < global_time) {
+            change_ring(slot);
         }
         return false;
     }
@@ -96,45 +143,62 @@ class ywRcuRef {
                 &global_time, global_time, global_time + 1));
     }
 
-    void regist_free_obj(void *ptr) {
-        ywrcu_free_t *q_node;
+    template<typename T>
+    void regist_free_obj(T *ptr) {
+        static_assert(sizeof(T) >= sizeof(ywDList), "Too small datatype");
+        static_assert(sizeof(T::rcu_node) == sizeof(ywDList),
+                      "datatype don't have rcu_node");
+//        static_assert(offsetof(T, rcu_node) == 0,
+//                      "invalid rcu_node offset");
+        ywrcu_slot *slot = get_slot();
+        ywDList    *target = reinterpret_cast<ywDList*>(ptr);
 
-        if (local_list.is_unlinked()) {
-            regist_rcu();
-        }
-        assert(global_time & LOCK_BIT);
-
-        q_node = rc_free_pool.alloc();
-        q_node->remove_time = global_time;
-        q_node->target      = ptr;
-        pool.push(q_node);
+        slot->latest_ring.sub_list.attach(target);
     }
 
-    void *get_reusable_item() {
-        ywrcu_slot   *slot = get_slot();
-        ywrcu_free_t *node = slot->oldest_free;
+    template<typename T>
+    T *get_reusable_item() {
+        static_assert(sizeof(T) >= sizeof(ywDList), "Too small datatype");
+        static_assert(sizeof(T::rcu_node) == sizeof(ywDList),
+                      "datatype don't have rcu_node");
+//        static_assert(offsetof(T, rcu_node) == 0,
+//                      "invalid rcu_node offset");
+        ywrcu_slot      *slot = get_slot();
+        ywrcu_free_ring *node = slot->oldest_ring;
         if (!node) {
-            node = pool.pop();
+            node = free_ring_pool.pop();
+            if (!node) {
+                change_ring(slot);
+                node = free_ring_pool.pop();
+            }
         }
         if (node) {
+            slot->oldest_ring = node;
             if (is_reusable(node)) {
-                void *ret = node->target;
-                assert(!(reinterpret_cast<ywSpinLock*>(ret))->hasWLock());
-                slot->oldest_free = NULL;
-                rc_free_pool.free_mem(node);
-                return ret;
+                T *ret = reinterpret_cast<T*>(node->sub_list.pop());
+                if (ret) {
+                    return ret;
+                }
+                slot->oldest_ring = NULL;
+                ywRcuRefManager::get_instance()->free(node);
             }
-            slot->oldest_free = node;
         }
         return NULL;
     }
 
     void free_all() {
-        ywrcu_free_t *node;
+        ywrcu_free_ring *node;
 
-        while ((node = pool.pop())) {
-            rc_free_pool.free_mem(node);
+        while ((node = free_ring_pool.pop())) {
+            ywRcuRefManager::get_instance()->free(node);
         }
+    }
+
+    void aging() {
+        ywrcu_slot      *slot = get_slot();
+
+        change_ring(slot);
+        free_ring_pool.reclaim();
     }
 
     ywr_time get_global_time() {
@@ -142,7 +206,27 @@ class ywRcuRef {
     }
 
  private:
-    bool is_reusable(ywrcu_free_t *free) {
+    void init_ring(ywrcu_free_ring *ring) {
+        ring->free_list.init();
+        ring->sub_list.init();
+        ring->remove_time = -1;
+    }
+
+    void change_ring(ywrcu_slot *slot) {
+        if (!slot->latest_ring.sub_list.is_unlinked()) {
+            ywrcu_free_ring *ring;
+
+            ring = ywRcuRefManager::get_instance()->alloc();
+            ring->remove_time = global_time;
+            ring->free_list.init();
+            ring->sub_list.init();
+            ring->sub_list.bring(&slot->latest_ring.sub_list);
+            assert(slot->latest_ring.sub_list.is_unlinked());
+            free_ring_pool.push(ring);
+            init_ring(&slot->latest_ring);
+        }
+    }
+    bool is_reusable(ywrcu_free_ring *free) {
         if (reusable_time > free->remove_time) {
             return true;
         } else {
@@ -158,15 +242,18 @@ class ywRcuRef {
         ywr_time cur_time;
         int32_t  i;
 
-        cur_time = global_time;
-        for (i = 0; i < SLOT_COUNT; ++i) {
-            fix_time = slot[i].fixtime;
-            if ((fix_time) &&
-                (fix_time < cur_time)) {
-                cur_time = fix_time;
+        if (lock()) {
+            cur_time = global_time;
+            for (i = 0; i < SLOT_COUNT; ++i) {
+                fix_time = slot[i].fixtime;
+                if ((fix_time) &&
+                    (fix_time < cur_time)) {
+                    cur_time = fix_time;
+                }
             }
+            reusable_time = cur_time;
+            release();
         }
-        reusable_time = cur_time;
     }
 
     ywrcu_slot *get_slot() {
@@ -175,22 +262,14 @@ class ywRcuRef {
         return &slot[tid];
     }
 
-    void regist_rcu();
-    void unregist_rcu();
-    static void update_rcu(void *arg);
+    ywDList                           local_list;
+    ywrcu_slot                        slot[SLOT_COUNT];
+    volatile ywr_time                 global_time;
+    volatile ywr_time                 reusable_time;
+    ywPool<ywrcu_free_ring>           free_ring_pool;
 
-    ywrcu_slot                     slot[SLOT_COUNT];
-    volatile ywr_time              global_time;
-    volatile ywr_time              reusable_time;
-    ywPool<ywrcu_free_t>           pool;
 
-    ywDList                        local_list;
-
-    static ywMemPool<ywrcu_free_t> rc_free_pool;
-    static ywDList                 global_list;
-    static int32_t                 rcu_count;
-    static ywSpinLock              global_lock;
-
+    friend class ywRcuRefManager;
     friend void basic_test();
 };
 
@@ -204,8 +283,8 @@ class ywRcuGuard {
     }
 
  private:
-    ywrcu_slot *slot;
-    ywRcuRef   *target;
+    ywrcu_slot   *slot;
+    ywRcuRef  *target;
 };
 
 extern void rcu_ref_test();

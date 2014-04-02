@@ -79,6 +79,10 @@ class ywPool {
     ~ywPool() {
     }
 
+    void reclaim() {
+        move_to_shared_area(get_private_slot());
+    }
+
     void push(T * _target) {
         if (PRIVATE_COUNT == 0) {
             ywPoolSlot * shared_slot = get_shared_slot();
@@ -92,26 +96,6 @@ class ywPool {
             if (private_slot->count > SHARING_THRESHOLD) {
                 move_to_shared_area(private_slot);
             }
-        }
-    }
-
-    void move_to_shared_area(ywPoolSlot *private_slot) {
-        ywPoolSlot *shared_slot = get_shared_slot();
-        ywDList    *head;
-        ywDList    *tail;
-        size_t     i;
-
-        head = private_slot->list.next;
-        tail = &private_slot->list;
-        for (i = 0; i < PRIVATE_COUNT; ++i) {
-            if (tail == private_slot->list.prev) {
-                break;
-            }
-            tail = tail->next;
-        }
-        if (lock.tryWLock()) {
-            shared_slot->bring(private_slot, head, tail, i);
-            lock.release();
         }
     }
 
@@ -131,17 +115,6 @@ class ywPool {
             }
         }
         return reinterpret_cast<T*>(ret);
-    }
-
-    bool bring_from_shared_area(ywPoolSlot *private_slot) {
-        ywPoolSlot *shared_slot = get_shared_slot();
-
-        if (lock.tryWLock()) {
-            private_slot->bring(shared_slot, PRIVATE_COUNT);
-            lock.release();
-            return true;
-        }
-        return false;
     }
 
     void print() {
@@ -177,6 +150,38 @@ class ywPool {
     }
 
  private:
+    void move_to_shared_area(ywPoolSlot *private_slot) {
+        ywPoolSlot *shared_slot = get_shared_slot();
+        ywDList    *head;
+        ywDList    *tail;
+        size_t     i;
+
+        head = private_slot->list.next;
+        tail = &private_slot->list;
+        for (i = 0; i < PRIVATE_COUNT; ++i) {
+            if (tail == private_slot->list.prev) {
+                break;
+            }
+            tail = tail->next;
+        }
+        if (lock.tryWLock()) {
+            shared_slot->bring(private_slot, head, tail, i);
+            lock.release();
+        }
+    }
+
+    bool bring_from_shared_area(ywPoolSlot *private_slot) {
+        ywPoolSlot *shared_slot = get_shared_slot();
+
+        if (lock.tryWLock()) {
+            private_slot->bring(shared_slot, PRIVATE_COUNT);
+            lock.release();
+            return true;
+        }
+        return false;
+    }
+
+
     ywPoolSlot *get_shared_slot() {
         return &slot[SHARED_IDX];
     }
@@ -187,7 +192,7 @@ class ywPool {
         return &slot[tid];
     }
 
-    ywPoolSlot    slot[MAX_IDX];
+    ywPoolSlot  slot[MAX_IDX];
     ywSpinLock  lock;
 };
 

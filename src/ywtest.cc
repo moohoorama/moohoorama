@@ -26,6 +26,10 @@
 #include <vector>
 #include <algorithm>
 
+TEST(RCURef, Basic) {
+    rcu_ref_test();
+}
+
 TEST(ywStack, Basic) {
     stack_basic_test();
 }
@@ -71,10 +75,6 @@ TEST(OrderedNode, Basic_huge_binary) {
 
 TEST(OrderedNode, Basic_huge_interpolation) {
     OrderedNode_basic_test(1024, 1);
-}
-
-TEST(RCURef, Basic) {
-    rcu_ref_test();
 }
 
 TEST(Queue, SyncPerf) {

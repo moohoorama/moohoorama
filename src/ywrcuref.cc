@@ -3,64 +3,73 @@
 #include <ywrcuref.h>
 #include <gtest/gtest.h>
 
-ywMemPool<ywrcu_free_t> ywRcuRef::rc_free_pool;
-ywDList                 ywRcuRef::global_list;
-int32_t                 ywRcuRef::rcu_count = 0;
-ywSpinLock              ywRcuRef::global_lock;
+ywRcuRefManager ywRcuRefManager::gInstance;
 
-void ywRcuRef::regist_rcu() {
-    while (!global_lock.WLock()) {}
+void ywRcuRefManager::regist(ywRcuRef *rcu) {
+    while (!lock.WLock()) {}
 
-    if (rcu_count == 0) {
-        ywTimer::get_instance()->regist(update_rcu, NULL, REUSE_INTERVAL);
-    }
-    global_list.attach(&local_list);
+    list.attach(&rcu->local_list);
     ++rcu_count;
 
-    global_lock.release();
+    lock.release();
 }
 
-void ywRcuRef::unregist_rcu() {
-    if (!local_list.is_unlinked()) {
-        while (!global_lock.WLock()) {}
+void ywRcuRefManager::unregist(ywRcuRef *rcu) {
+    if (!rcu->local_list.is_unlinked()) {
+        while (!lock.WLock()) {}
 
         assert(rcu_count > 0);
-        local_list.detach();
+        rcu->local_list.detach();
         --rcu_count;
 
-        global_lock.release();
+        lock.release();
     }
 }
 
-void ywRcuRef::update_rcu(void *arg) {
-    ywDList  *iter = global_list.next;
+void ywRcuRefManager::update(void *arg) {
+    gInstance._update();
+}
+void ywRcuRefManager::_update() {
+    ywDList  *iter = list.next;
     ywRcuRef *rcu;
 
-    while (!global_lock.WLock()) {}
+    while (!lock.WLock()) {}
 
-    while (iter != &global_list) {
+    while (iter != &list) {
         rcu = reinterpret_cast<ywRcuRef*>(
             reinterpret_cast<char*>(iter) - offsetof(ywRcuRef, local_list));
         rcu->update_reusable_time();
         iter = iter->next;
     }
-    global_lock.release();
+    lock.release();
 }
+
+
+class testType {
+ public:
+    explicit testType() {
+    }
+    explicit testType(int64_t _value):value(_value) {
+    }
+
+    ywDList rcu_node;
+    int64_t value;
+};
 
 class ywRcuTestClass {
  public:
     static const int32_t YWR_TEST_COUNT = 1024*128;
-    static const int32_t YWR_SLOT_COUNT = 1;
+    static const int32_t YWR_SLOT_COUNT = 16;
     static const int32_t YWR_MAGIC = 0x123456;
 
     ywRcuTestClass():reuse_cnt(0), wait_cnt(0) {
     }
-    int32_t  **ptr;
     ywRcuRef  *rcu;
     int32_t    operation;
     int32_t    reuse_cnt;
     int32_t    wait_cnt;
-    int32_t    slot[YWR_SLOT_COUNT];
+    testType **ptr;
+    testType   slot[YWR_SLOT_COUNT];
 
     static int estimated_reuse_cnt() {
         return YWR_TEST_COUNT - YWR_SLOT_COUNT;
@@ -76,25 +85,27 @@ void rcu_ref_task(void *arg) {
 }
 
 void ywRcuTestClass::run() {
-    int32_t   val;
-    int32_t  *nval;
-    int32_t  *oval;
+    volatile testType *val;
+    testType *nval;
+    testType *oval;
     int32_t   i;
 
     switch (operation) {
         case 0:
-            assert(!rcu->get_reusable_item());
+            nval = rcu->get_reusable_item<testType>();
+            assert(!nval);
             return;
         case 1:
-            assert(rcu->get_reusable_item());
+            nval = rcu->get_reusable_item<testType>();
+            assert(nval);
             return;
     }
 
     for (i = 0; i < YWR_TEST_COUNT; ++i) {
         rcu->fix();
-        val = *const_cast<volatile int32_t *>(*ptr);
-        if (val != YWR_MAGIC) {
-            printf("Error: %d\n", val);
+        val = const_cast<volatile testType *>(*ptr);
+        if (val->value != YWR_MAGIC) {
+            printf("Error: %"PRId64"\n", val->value);
             assert(false);
         }
         rcu->unfix();
@@ -102,8 +113,7 @@ void ywRcuTestClass::run() {
         if (i < YWR_SLOT_COUNT) {
             nval = &slot[i];
         } else {
-            while (!(nval =
-                    reinterpret_cast<int32_t*>(rcu->get_reusable_item()))) {
+            while (!(nval = rcu->get_reusable_item<testType>())) {
                 wait_cnt++;
             }
             reuse_cnt++;
@@ -113,17 +123,18 @@ void ywRcuTestClass::run() {
         }
         oval = *ptr;
         rcu->regist_free_obj(oval);
-        *nval = YWR_MAGIC;
+        nval->value = YWR_MAGIC;
         *ptr = nval;
 //      *oval = rcu->get_global_ref();
         rcu->release();
     }
+    rcu->aging();
 }
 
 void basic_test() {
     ywRcuRef        rcu;
-    int32_t         init = 0x123456;
-    int32_t        *test_ptr = &init;
+    testType        init(0x123456);
+    testType       *test_ptr = &init;
 
     /* don't care dup unfix*/
     rcu.unfix();
@@ -138,37 +149,38 @@ void basic_test() {
     rcu.regist_free_obj(test_ptr);
     rcu.release();
 
-    EXPECT_FALSE(rcu.get_reusable_item());  /*fail by fix1 */
+    EXPECT_FALSE(rcu.get_reusable_item<testType>());  /*fail by fix1 */
 
-    rcu.lock();                             /*lock2*/
+    rcu.lock();                                      /*lock2*/
     rcu.release();
 
-    EXPECT_FALSE(rcu.get_reusable_item());  /*fail by fix1*/
+    EXPECT_FALSE(rcu.get_reusable_item<testType>());  /*fail by fix1*/
 
-    rcu.fix();                              /*fix2*/
-    EXPECT_FALSE(rcu.get_reusable_item());  /*fail by fix1,2*/
+    rcu.fix();                                       /*fix2*/
+    EXPECT_FALSE(rcu.get_reusable_item<testType>());  /*fail by fix1,2*/
     rcu.unfix();
 
-    EXPECT_FALSE(rcu.get_reusable_item());  /*fail by fix1,2*/
-
-    rcu.lock();                             /* lock3 */
+    EXPECT_FALSE(rcu.get_reusable_item<testType>());  /*fail by fix1,2*/
     rcu.unfix();
+
+    rcu.aging();
     rcu.update_reusable_time();
-    EXPECT_TRUE(rcu.get_reusable_item());   /*success don't care lock3*/
+    rcu.lock();                                    /*lock3*/
+    assert(rcu.get_reusable_item<testType>()); /*success don't care lock3*/
     rcu.release();
 }
 
 void auto_fix_test() {
     ywRcuRef        rcu;
-    int32_t         init = 0x123456;
-    int32_t        *test_ptr = &init;
+    testType        init(0x123456);
+    testType       *test_ptr = &init;
     ywRcuGuard      guard(&rcu);
 
     rcu.lock();                             /*lock1*/
     rcu.regist_free_obj(test_ptr);
     rcu.release();
 
-    EXPECT_FALSE(rcu.get_reusable_item());
+    EXPECT_FALSE(rcu.get_reusable_item<testType>());
 }
 
 void rcu_ref_test() {
@@ -176,8 +188,8 @@ void rcu_ref_test() {
     ywRcuRef        rcu;
     ywRcuTestClass  tc[MAX_THREAD_COUNT];
     int32_t         processor_count = ywWorkerPool::get_processor_count();
-    int32_t        *test_ptr;
-    int32_t         init = 0x123456;
+    testType       *test_ptr;
+    testType        init(0x123456);
     int32_t         i;
     int32_t         val;
 

@@ -41,6 +41,7 @@ typedef enum {
 struct fbNodeStruct {
     explicit fbNodeStruct();
 
+    ywDList     rcu_node;
     ywSpinLock  lock;
     fbn_status  status;
     fbKey       key[FB_SLOT_MAX];
@@ -101,7 +102,7 @@ struct fbStackStruct {
             while (free_node_idx--) {
                 assert(free_node[free_node_idx]->status == FB_NODE_INIT);
                 free_node[free_node_idx]->status = FB_NODE_RCU;
-                fbt->rcu.regist_free_obj(free_node[free_node_idx]);
+                fbt->rcu.regist_free_obj<fbn_t>(free_node[free_node_idx]);
             }
             fbt->rcu.release();
         }
