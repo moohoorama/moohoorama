@@ -15,25 +15,12 @@ void ywPoolTest() {
     int32_t                    i;
 
     for (i = 0; i < 32; ++i) pdlist.push(&slots[0+i]);
-    pdlist.print();
-
     for (i = 0; i < 16; ++i) pdlist.push(&slots[32+i]);
-    pdlist.print();
-
     for (i = 0; i < 16; ++i) pdlist.push(&slots[48+i]);
-    pdlist.print();
-
     for (i = 0; i < 16; ++i) assert(pdlist.pop());
-    pdlist.print();
-
     for (i = 0; i < 8; ++i) assert(pdlist.pop());
-    pdlist.print();
-
     for (i = 0; i < 8; ++i) assert(pdlist.pop());
-    pdlist.print();
-
     for (i = 0; i < 32; ++i) assert(pdlist.pop());
-    pdlist.print();
 }
 
 class ywPDListTest {

@@ -26,6 +26,47 @@
 #include <vector>
 #include <algorithm>
 
+TEST(SkipList, LevelTest) {
+    skiplist_level_test();
+}
+
+
+TEST(OrderedNode, Basic) {
+    OrderedNode_basic_test();
+}
+
+TEST(OrderedNode, Concurrency) {
+    OrderedNode_bsearch_insert_conc_test();
+}
+
+TEST(OrderedNode, Stress1) {
+    OrderedNode_stress_test(1);
+}
+
+TEST(OrderedNode, Stress2) {
+    OrderedNode_stress_test(2);
+}
+
+TEST(OrderedNode, Stress4) {
+    OrderedNode_stress_test(4);
+}
+
+TEST(OrderedNode, Stress8) {
+    OrderedNode_stress_test(8);
+}
+
+TEST(OrderedNode, Stress16) {
+    OrderedNode_stress_test(16);
+}
+
+TEST(OrderedNode, Basic_huge_binary) {
+    OrderedNode_search_test(1024, 0);
+}
+
+TEST(OrderedNode, search_huge_interpolation) {
+    OrderedNode_search_test(1024, 1);
+}
+
 TEST(RCURef, Basic) {
     rcu_ref_test();
 }
@@ -63,18 +104,6 @@ TEST(PoolCCTest, 4) {
 }
 TEST(PoolCCTest, 8) {
     ywPoolCCTest(8);
-}
-
-TEST(OrderedNode, Basic) {
-    OrderedNode_basic_test(64, 0);
-}
-
-TEST(OrderedNode, Basic_huge_binary) {
-    OrderedNode_basic_test(1024, 0);
-}
-
-TEST(OrderedNode, Basic_huge_interpolation) {
-    OrderedNode_basic_test(1024, 1);
 }
 
 TEST(Queue, SyncPerf) {
@@ -446,6 +475,7 @@ TEST(RBTree, Remove) {
     rb_print(rbt);
 }
 
+/*
 TEST(FBTree, Concurrent_insert) {
     fb_conc_test(DATA_SIZE, TRY_COUNT, 0);
 }
@@ -461,7 +491,7 @@ TEST(FBTree, Concurrent_remove) {
 TEST(FBTree, Concurrent_fusion) {
     fb_conc_test(DATA_SIZE, TRY_COUNT, 3);
 }
-
+*/
 
 std::map<int32_t, int32_t> test_map;
 
@@ -537,10 +567,6 @@ TEST(SkipList, Search) {
 TEST(SkipList, Remove) {
 }
 
-
-TEST(SkipList, LevelTest) {
-    skiplist_level_test();
-}
 
 TEST(SkipList, InsertRemove) {
     skiplist_insert_remove_test();

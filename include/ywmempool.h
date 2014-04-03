@@ -23,7 +23,6 @@ class ywMemPool {
     }
 
     ~ywMemPool() {
-        report();
         free_all();
     }
 

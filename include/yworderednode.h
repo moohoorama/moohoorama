@@ -8,20 +8,64 @@
 #include <ywutil.h>
 #include <stddef.h>
 
-typedef int32_t (*compareFunc)(char *left, char *right);
+typedef int32_t (*compFunc)(char *left, char *right);
+typedef int32_t (*sizeFunc)(char *ptr);
+typedef void    (*testFunc)(int32_t seq);
 
+extern void null_test_func(int32_t);
+extern void test_binary(int32_t seq);
 
-class ywONLockGuard;
+extern void OrderedNode_basic_test();
+extern void OrderedNode_search_test(int32_t cnt, int32_t method);
+extern void OrderedNode_bsearch_insert_conc_test();
+extern void OrderedNode_stress_test(int32_t thread_count);
 
-template<compareFunc func,typename SLOT = uint16_t, SLOT PAGE_SIZE = 32*KB>
-class ywOrderedNode {
+class ywONLockGuard {
+    static const uint32_t LOCK_MASK  = 0x1;
+
  public:
-    static const SLOT   NULL_SLOT = static_cast<SLOT>(-1);
-    static const size_t META_SIZE = sizeof(SLOT)*2;
-    static const SLOT   IDEAL_MAX_SLOT_COUNT =
-                           (PAGE_SIZE-META_SIZE)/sizeof(SLOT);
-    static const SLOT   LOCK_MASK  = (NULL_SLOT/2) + 1;
-    static const SLOT   COUNT_MASK = ~LOCK_MASK;
+    explicit ywONLockGuard(volatile uint32_t *_lock_seq):
+        lock_seq(_lock_seq), locked(false) {
+    }
+    ~ywONLockGuard() {
+        release();
+    }
+
+    bool lock() {
+        uint32_t prev = *lock_seq;
+
+        assert(locked == false);
+
+        if (prev & LOCK_MASK) return false;
+        if (__sync_bool_compare_and_swap(lock_seq, prev, prev | LOCK_MASK)) {
+            locked = true;
+            return true;
+        }
+        return false;
+    }
+    void release() {
+        uint32_t prev = *lock_seq;
+        if (locked) {
+            locked = false;
+            __sync_bool_compare_and_swap(lock_seq, prev, prev + 1);
+        }
+    }
+
+ private:
+    volatile uint32_t      *lock_seq;
+    bool                    locked;
+};
+
+template<compFunc comp, sizeFunc get_size, testFunc test = null_test_func,
+         typename SLOT = uint16_t, size_t PAGE_SIZE = 32*KB>
+class ywOrderedNode {
+    static const uint32_t LOCK_MASK  = 0x1;
+
+ public:
+    static const SLOT     NULL_SLOT = static_cast<SLOT>(-1);
+    static const size_t   META_SIZE = sizeof(SLOT)*2 + sizeof(uint32_t);
+    static const uint32_t IDEAL_MAX_SLOT_COUNT =
+        (PAGE_SIZE-META_SIZE)/sizeof(SLOT);
 
     ywOrderedNode() {
         clear();
@@ -29,33 +73,45 @@ class ywOrderedNode {
                       "invalid meta slot count");
         static_assert(sizeof(*this) == PAGE_SIZE,
                       "invalid node structure");
-        static_assert(PAGE_SIZE <= static_cast<SLOT>(-1),
+        static_assert(PAGE_SIZE-1 <= static_cast<SLOT>(-1),
                       "invalid PAGE_SIZE and SLOT");
-        static_assert(COUNT_MASK+1 == LOCK_MASK, "invalid lock/count mask");
     }
 
     void clear() {
+        lock_seq    = 0;
         count       = 0;
-        free_offset = PAGE_SIZE;
+        free_offset = PAGE_SIZE - META_SIZE;
+    }
+
+    size_t  get_page_size() {
+        return PAGE_SIZE;
+    }
+    SLOT  get_slot_size() {
+        return sizeof(SLOT);
+    }
+    SLOT  get_meta_size() {
+        return META_SIZE;
     }
 
     char *get_ptr(SLOT offset) {
-        char * base_ptr = reinterpret_cast<char*>(&this);
+        char * base_ptr = reinterpret_cast<char*>(slot);
         return base_ptr + offset;
     }
 
+    char *get_slot(SLOT idx) {
+        return get_ptr(slot[idx]);
+    }
+
     SLOT get_count() {
-        return count & COUNT_MASK;
+        return count;
     }
 
     SLOT get_free() {
-        return free_offset - count*sizeof(SLOT) - META_SIZE;
+        return free_offset - count*sizeof(SLOT);
     }
 
     SLOT alloc(SLOT size) {
-        SLOT ret = NULL_SLOT;
-
-        assert(count & LOCK_MASK);
+        assert(is_locked());
 
         if (get_free() >= size + sizeof(SLOT)) {
             free_offset -= size;
@@ -65,64 +121,130 @@ class ywOrderedNode {
     }
 
     bool append(size_t size, char * value) {
-        ywONLockGuard lockGuard(this);
+        ywONLockGuard lockGuard(&lock_seq);
+        if (!lockGuard.lock()) {
+            return false;
+        }
+
+        SLOT ret = alloc(size);
+        if (ret == NULL_SLOT) {
+            return false;
+        }
+        memcpy(get_ptr(ret), value, size);
+        slot[count++] = ret;
+        return true;
+    }
+
+    template<typename T> bool append(T *val) {
+        return append(sizeof(*val), reinterpret_cast<char*>(val));
+    }
+
+#define TEST_DECLARE int32_t seq = 0
+#define TEST_BLOCK   do { if (test != null_test_func) test(seq++);} while (0)
+    bool insert(size_t size, char * value) {
+        ywONLockGuard lockGuard(&lock_seq);
+        TEST_DECLARE;
+
+        TEST_BLOCK;
+
+        if (!lockGuard.lock()) {
+            return false;
+        }
+        assert(is_locked());
+
+        TEST_BLOCK;
+
+        SLOT ret = alloc(size);
+        SLOT idx;
+        SLOT i;
+        if (ret == NULL_SLOT) {
+            return false;
+        }
+        memcpy(get_ptr(ret), value, size);
+
+        TEST_BLOCK;
+
+        idx = binary_search(value)+1;
+        if (count > 0) {
+            slot[count] = slot[count-1];
+            i = count++;
+            while ((--i) > idx) {
+                slot[i] = slot[i-1];
+                TEST_BLOCK;
+            }
+        } else {
+            count++;
+        }
+        slot[idx] = ret;
+        TEST_BLOCK;
+        return true;
+    }
+
+    template<typename T> bool insert(T *val) {
+        return insert(sizeof(*val), reinterpret_cast<char*>(val));
+    }
+
+    bool remove(SLOT idx) {
+        ywONLockGuard lockGuard(&lock_seq);
+
         if (lockGuard.lock()) {
-            assert(count & LOCK_MASK);
+            return _remove(idx);
+        }
 
-            SLOT ret = alloc(size);
-            if (ret != NULL_SLOT) {
-                memcpy(get_ptr(ret), value, size);
-                slot[count++] = ret;
-                return true;
+        return false;
+    }
+
+    bool remove(size_t size, char * value) {
+        ywONLockGuard lockGuard(&lock_seq);
+        SLOT          idx;
+
+        if (lockGuard.lock()) {
+            idx = binary_search(value);
+            if ((0 <= idx) && (idx < count)) {
+                if (0 == comp(get_slot(idx), value)) {
+                    return _remove(idx);
+                }
             }
         }
         return false;
     }
 
-    template<typename T>
-    bool append(T *val) {
-        return append(sizeof(*val), val);
+    template<typename T> bool remove(T *val) {
+        return remove(sizeof(*val), reinterpret_cast<char*>(val));
     }
 
-    /*
-    bool ordered_insert(size_t size, char * value) {
-        ywONLockGuard lockGuard(this);
-        if (this->lock()) {
-            uint32_t side     = get_side();
-            assert(side & LOCK_MASK);
+    bool compact(ywOrderedNode<comp, get_size, test, SLOT, PAGE_SIZE> *target) {
+        ywONLockGuard  lockGuard(&lock_seq);
+        char          *slot;
+        SLOT           i;
 
-            SLOT ret = alloc(size);
-            SLOT idx;
-            if (ret != NULL_SLOT) {
-                memcpy(ret, value, size);
-//                binary_search
-                idx = meta.count[side];
-                *get_slot(side, idx) = ret;
-                meta.count[side]++;
-                return true;
-            }
+        if (!lockGuard.lock()) {
+            return false;
         }
-        return false;
+
+        target->clear();
+
+        for (i = 0; i < count; ++i) {
+            slot = get_slot(i);
+            target->append(get_size(slot), slot);
+        }
+
+        return true;
     }
-    */
 
     void sort() {
-        ywONLockGuard lockGuard(this);
-        SLOT      buf_dir[2][IDEAL_MAX_SLOT_COUNT];
-        SLOT     *src = buf_dir[0];
-        SLOT     *dst = buf_dir[1];
-        SLOT     *ptr;
-        SLOT      level;
-        SLOT      left, right;
-        SLOT      i;
-        SLOT      j;
-        uint32_t  side     = get_side();
-        uint32_t  opposite = 1 - side;
+        ywONLockGuard  lockGuard(&lock_seq);
+        SLOT           buf_dir[2][IDEAL_MAX_SLOT_COUNT];
+        SLOT          *src = buf_dir[0];
+        SLOT          *dst = buf_dir[1];
+        SLOT          *ptr;
+        SLOT           level;
+        SLOT           left, right;
+        SLOT           i;
+        SLOT           j;
 
         if (lockGuard.lock()) {
-            for (i = 0; i < meta.count[side]; ++i) {
-                src[i] = *get_slot(side, i);
-            }
+            memcpy(src, slot, count * sizeof(SLOT));
             /* merge sort*/
             for (level = 2; level/2 < count; level*=2) {
                 j = 0;
@@ -137,8 +259,8 @@ class ywOrderedNode {
                     }
 
                     do {
-                        if (0 < func(get_slot_by_offset(src[left]),
-                                     get_slot_by_offset(src[right]))) {
+                        if (0 < comp(get_ptr(src[left]),
+                                     get_ptr(src[right]))) {
                             dst[j++] = src[left++];
                             if (left == i + level/2) {
                                 while ((j < i+level) && (j < count)) {
@@ -160,19 +282,15 @@ class ywOrderedNode {
                 /* Flipping*/
                 ptr = dst; dst = src; src = ptr;
             }
-            for (i = 0; i < meta.count[side]; ++i) {
-                get_slot(opposide, i) = src[i];
-            }
-            lockGuard.flip_and_release();
+            memcpy(slot, src, count * sizeof(SLOT));
         }
     }
 
     bool isOrdered() {
-        uint32_t  side     = get_side();
         SLOT      i;
 
         for (i = 0; i < count-1; ++i) {
-            if (0 > func(get_slot(side, i), get_slot(side, i+1))) {
+            if (0 > comp(get_slot(i), get_slot(i+1))) {
                 return false;
             }
         }
@@ -180,119 +298,134 @@ class ywOrderedNode {
         return true;
     }
 
-    SLOT binary_search(char *key) {
-        uint32_t  side = get_side();
-        SLOT      base = 0, size = count, half, idx;
-
-        do {
-            half = size/2;
-            idx = base + half;
-            if (0 < func(key, get_slot(side, idx))) {
-                size = half;
-            } else {
-                base = idx;
-                size -= half;
-            }
-        } while (half > 0);
-
-        return base;
-    }
-
     /*
-    template<compareFunc func>
-    SLOT interpolation_search(char *key) {
-        int32_t val = *reinterpret_cast<int*>(key);
-        int32_t left, right;
-        int32_t pos, idx, lidx = 0, ridx = count-1;;
-        int32_t ret;
+       SLOT interpolation_search(char *key) {
+       int32_t val = *reinterpret_cast<int*>(key);
+       int32_t left, right;
+       int32_t pos, idx, lidx = 0, ridx = count-1;;
+       int32_t ret;
 
-        while (lidx < ridx) {
-            left  = *reinterpret_cast<int*>(get_slot(lidx));
-            right = *reinterpret_cast<int*>(get_slot(ridx));
-            pos = (val-left) * (ridx-lidx) / (right - left);
-            idx = lidx + pos;
-            ret = func(key, get_slot(idx));
-            if (ret == 0) {
-                return idx;
-            }
-            if (0 < ret) {
-                ridx = pos-1;
-            } else {
-                lidx = pos+1;
-            }
-        }
+       while (lidx < ridx) {
+       left  = *reinterpret_cast<int*>(get_slot(lidx));
+       right = *reinterpret_cast<int*>(get_slot(ridx));
+       pos = (val-left) * (ridx-lidx) / (right - left);
+       idx = lidx + pos;
+       ret = comp(key, get_slot(idx));
+       if (ret == 0) {
+       return idx;
+       }
+       if (0 < ret) {
+       ridx = pos-1;
+       } else {
+       lidx = pos+1;
+       }
+       }
 
-        if (lidx != ridx) {
-            return (lidx + ridx)>>1;
-        }
+       if (lidx != ridx) {
+       return (lidx + ridx)>>1;
+       }
 
-        ret = func(key, get_slot(lidx));
-        if (0 < ret) {
-            return lidx -1;
-        }
-        return lidx;
-    }
-    */
+       ret = comp(key, get_slot(lidx));
+       if (0 < ret) {
+       return lidx -1;
+       }
+       return lidx;
+       }
+     */
 
     void dump() {
         SLOT i;
 
-        printf("count:%-5d free_offset:%-5d\n",
+        printf("count:%-5d free_offset:%-5d free:%-5d\n",
                count,
-               free_offset);
+               free_offset,
+               get_free());
         for (i = 0; i < count; ++i) {
             printf("[%5d:0x%05x] ", i, slot[i]);
             printHex(4, get_slot(i), false/*info*/);
             printf("\n");
         }
     }
+    int32_t search(char *key) {
+        uint32_t temp_lock_seq = lock_seq;
+        __sync_synchronize();
+        int32_t ret = binary_search(key);
+        __sync_synchronize();
+
+        if ((temp_lock_seq == lock_seq) &&
+            (temp_lock_seq & LOCK_MASK) == 0) {
+            return ret;
+        }
+        return NULL_SLOT;
+    }
+
+    char *search_body(char *key) {
+        uint32_t temp_lock_seq = lock_seq;
+        __sync_synchronize();
+        int32_t  idx = binary_search(key);
+        char    *ret = get_slot(idx);
+        __sync_synchronize();
+
+        if ((temp_lock_seq == lock_seq) &&
+            (temp_lock_seq & LOCK_MASK) == 0) {
+            return ret;
+        }
+        return NULL;
+    }
+
 
  private:
-    bool tryLock() {
-        int32_t prev = count;
-        if (prev & LOCK_MASK) return false;
-        return __sync_bool_compare_and_swap(&meta.side, prev, prev | LOCK_MASK);
-    }
-    void release() {
-        int32_t prev = count;
-        assert(__sync_bool_compare_and_swap(&meta.side, prev, prev & ~LOCK_MASK);
+    bool _remove(SLOT idx) {
+        SLOT          i;
+        TEST_DECLARE;
+
+        assert(is_locked());
+
+        TEST_BLOCK;
+        if (count <= idx) {
+            return false;
+        }
+
+        TEST_BLOCK;
+
+        for (i = idx; i < count-1; ++i) {
+            slot[i] = slot[i+1];
+            TEST_BLOCK;
+        }
+        --count;
+
+        return true;
     }
 
-    SLOT      count;
-    SLOT      free_offset;
-    SLOT      slot[IDEAL_MAX_SLOT_COUNT];
+    int32_t binary_search(char *key) {
+        int32_t      min = 0;
+        int32_t      max = count - 1;
+        int32_t      mid;
 
-    friend class ywONLockGuard;
+        while (min <= max) {
+            mid = (min + max) >> 1;
+            if (0 < comp(key, get_slot(mid))) {
+                max = mid-1;
+            } else {
+                min = mid+1;
+            }
+        }
+
+        return (min + max) >> 1;
+    }
+
+    bool is_locked() {
+        return lock_seq & LOCK_MASK;
+    }
+
+    volatile uint32_t  lock_seq;
+    SLOT               count;
+    SLOT               free_offset;
+    SLOT               slot[IDEAL_MAX_SLOT_COUNT];
+
+    friend void OrderedNode_bsearch_insert_conc_test();
+    friend void test_binary(int32_t);
 };
 
-class ywONLockGuard {
- public:
-    explicit ywONLockGuard(ywOrderedNode *_node):node(_node), locked(false) {
-    }
-    ~ywONLockGuard() {
-        if (locked) {
-            node->release();
-            locked = false;
-        }
-    }
-    bool lock() {
-        assert(locked == false);
-        if (node->tryLock()) {
-            locked = true;
-        }
-        return locked;
-    }
-    void flip_and_release() {
-        assert(locked == true);
-        node->flip_and_release();
-        locked = false;
-    }
-
- private:
-    bool           locked;
-    ywOrderedNode *node;
-};
-
-extern void OrderedNode_basic_test(int32_t cnt, int32_t method);
 
 #endif  // INCLUDE_YWORDEREDNODE_H_
