@@ -29,49 +29,57 @@ int32_t get_size(char * /*ptr*/) {
 
 template <typename SLOT, size_t PAGE_SIZE>
 void OrderedNode_variable_test() {
-    ywOrderedNode<int_comp, get_size, null_test_func, SLOT, PAGE_SIZE>
-               node, node2;
-    size_t     base_size = node.get_page_size() - node.get_meta_size();
-    int32_t    slot_size = node.get_slot_size() + sizeof(int32_t);
+    typedef
+        ywOrderedNode<int_comp, get_size, null_test_func, SLOT, PAGE_SIZE>
+        test_node;
+
+    test_node  *node = new test_node();
+    test_node  *node2 = new test_node();
+    size_t     base_size = node->get_page_size() - node->get_meta_size();
+    int32_t    slot_size = node->get_slot_size() + sizeof(int32_t);
     int32_t    cnt = base_size / slot_size;
     int32_t    del_cnt = (cnt/2 < 100) ? cnt/2 : 100;
     int32_t    i;
 
-    assert(node.get_free() == base_size);
+    assert(node->get_free() == base_size);
     for (i = 0; i < cnt; ++i) {
-        assert(node.append(&i));
+        assert(node->append(&i));
     }
-    node.sort();
-    assert(node.isOrdered());
-    assert(node.get_free() == base_size - slot_size*cnt);
+    node->sort();
+    assert(node->isOrdered());
+    assert(node->get_free() == base_size - slot_size*cnt);
 
     for (i = 0; i < del_cnt; ++i) {
         assert(0 == memcmp(&i,
-               node.search_body(reinterpret_cast<char*>(&i)),
+               node->search_body(reinterpret_cast<char*>(&i)),
                sizeof(i)));
-        assert(node.remove(&i));
+        assert(node->remove(&i));
     }
-    node.compact(&node2);
-    assert(node2.get_free() ==
+    node->compact(node2);
+    assert(node2->get_free() ==
            base_size - slot_size*(cnt - del_cnt));
-    node.clear();
+    node->clear();
 
-    assert(node.get_free() == base_size);
+    assert(node->get_free() == base_size);
     for (i = 0; i < cnt; ++i) {
-        assert(node.insert(&i));
+        assert(node->insert(&i));
     }
-    assert(node.isOrdered());
-    assert(node.get_free() == base_size - slot_size*cnt);
+    assert(node->isOrdered());
+    assert(node->get_free() == base_size - slot_size*cnt);
 
     for (i = 0; i < del_cnt; ++i) {
         assert(0 == memcmp(&i,
-               node.search_body(reinterpret_cast<char*>(&i)),
+               node->search_body(reinterpret_cast<char*>(&i)),
                sizeof(i)));
-        assert(node.remove(&i));
+        assert(node->remove(&i));
     }
+
+    delete node;
+    delete node2;
 }
 
 void OrderedNode_basic_test() {
+    assert(8*MB <= get_stack_size() );
     OrderedNode_variable_test<uint8_t, 64>();
     OrderedNode_variable_test<uint8_t, 128>();
     OrderedNode_variable_test<uint8_t, 256>();

@@ -4,6 +4,8 @@
 #define INCLUDE_YWUTIL_H_
 
 #include <ywcommon.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 void ywuGlobalInit();
 void dump_stack();
@@ -29,11 +31,18 @@ T load_consume(T const* addr) {
 }
 
 // store with 'release' memory ordering
-    template<typename T>
+template<typename T>
 void store_release(T* addr, T v) {
     // hardware fence is implicit on x86
     __sync_synchronize();
     *const_cast<T volatile*>(addr) = v;
+}
+
+inline size_t get_stack_size() {
+    struct rlimit limit;
+
+    getrlimit(RLIMIT_STACK, &limit);
+    return limit.rlim_cur;
 }
 
 

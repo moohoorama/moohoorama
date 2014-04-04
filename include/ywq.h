@@ -24,7 +24,7 @@ class ywQueueHead {
     }
     void init() {
         head->next = head;
-       tail = head;
+        tail = head;
     }
 
     ywQueue<DATA> *get_head() {
@@ -42,8 +42,15 @@ class ywQueueHead {
     template<typename T>
     T *make_circle(T *ptr) {
         T * old_next = ptr->next;
+        if (ptr == tail) {
+            cas(&tail, tail, tail->next);
+            return NULL;
+        }
         if (old_next != ptr) {
             if (cas(&ptr->next, old_next, ptr)) {
+                if (ptr == tail) {
+                    cas(&tail, tail, tail->next);
+                }
                 return old_next;
             }
         }
@@ -63,14 +70,17 @@ class ywQueueHead {
             while (true) {
                 synchronize();
                 cur_tail = tail;
+                assert(tail->next);
                 node->next = cur_tail->next;
                 if (node->next == head) {
                     break;
                 }
                 if (cur_tail->next == cur_tail) {
                     tail = head;
+                    assert(tail->next);
                 } else {
                     cas(&tail, cur_tail, node->next);
+                    assert(tail->next);
                 }
                 ++retry;
                 if (retry > 1000000) {
