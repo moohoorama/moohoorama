@@ -137,14 +137,14 @@ class ywPool {
             if (j != PRINT_WIDTH) {
                 printf("%6d ", i);
                 for (j = 0; (j < PRINT_WIDTH) && (i < MAX_IDX); ++j) {
-                    printf("%6"PRId64" ", (int64_t)slot[i+j].count);
+                    printf("%6" PRId64 " ", (int64_t)slot[i+j].count);
                     total += slot[i+j].count;
                 }
                 printf("\n");
             }
         }
         total += slot[SHARED_IDX].count;
-        printf("%6s %6"PRId64"    %6s %6"PRId64"\n\n",
+        printf("%6s %6" PRId64 "    %6s %6" PRId64 "\n\n",
                "SHARED", (int64_t)slot[SHARED_IDX].count,
                "TOTAL", total);
     }

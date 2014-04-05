@@ -79,7 +79,7 @@ void OrderedNode_variable_test() {
 }
 
 void OrderedNode_basic_test() {
-    assert(8*MB <= get_stack_size() );
+    assert(16*MB <= get_stack_size() );
     OrderedNode_variable_test<uint8_t, 64>();
     OrderedNode_variable_test<uint8_t, 128>();
     OrderedNode_variable_test<uint8_t, 256>();
@@ -212,7 +212,7 @@ void ywOrderStressTestClass::run() {
                     ret = node->search_body(reinterpret_cast<char*>(&val));
                 } while (!ret);
                 if (int_comp(ret, reinterpret_cast<char*>(&val))) {
-                    printf("offset : %"PRIdPTR"\n",
+                    printf("offset : %" PRIdPTR "\n",
                            static_cast<intptr_t>(
                                ret - reinterpret_cast<char*>(node)));
                     printf("%d <=> %d\n", *reinterpret_cast<int*>(ret), val);

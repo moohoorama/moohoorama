@@ -105,7 +105,7 @@ void ywRcuTestClass::run() {
         rcu->fix();
         val = const_cast<volatile testType *>(*ptr);
         if (val->value != YWR_MAGIC) {
-            printf("Error: %"PRId64"\n", val->value);
+            printf("Error: %" PRId64 "\n", val->value);
             assert(false);
         }
         rcu->unfix();

@@ -151,9 +151,9 @@ class ywQueueHead {
         for (iter = head; iter->next != head; iter = iter->next) {
             ptr = reinterpret_cast<intptr_t>(iter);
             if (iter == tail) {
-                printf("T[%08"PRIxPTR"] ", ptr);
+                printf("T[%08" PRIxPTR "] ", ptr);
             } else {
-                printf(" [%08"PRIxPTR"] ", ptr);
+                printf(" [%08" PRIxPTR "] ", ptr);
             }
         }
         printf("}\n");
