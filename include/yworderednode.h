@@ -63,7 +63,8 @@ class ywOrderedNode {
 
  public:
     static const SLOT     NULL_SLOT = static_cast<SLOT>(-1);
-    static const size_t   META_SIZE = sizeof(SLOT)*2 + sizeof(uint32_t);
+    static const size_t   META_SIZE = sizeof(uint32_t) + sizeof(void*) +
+                                      sizeof(SLOT)*2;
     static const uint32_t IDEAL_MAX_SLOT_COUNT =
         (PAGE_SIZE-META_SIZE)/sizeof(SLOT);
 
@@ -80,6 +81,7 @@ class ywOrderedNode {
     void clear() {
         lock_seq    = 0;
         count       = 0;
+        new_node    = this;
         free_offset = PAGE_SIZE - META_SIZE;
     }
 
@@ -179,6 +181,8 @@ class ywOrderedNode {
         TEST_BLOCK;
         return true;
     }
+#undef TEST_DECLARE
+#undef TEST_BLOCK
 
     template<typename T> bool insert(T *val) {
         return insert(sizeof(*val), reinterpret_cast<char*>(val));
@@ -375,6 +379,9 @@ class ywOrderedNode {
 
 
  private:
+#define TEST_DECLARE int32_t seq = 0
+#define TEST_BLOCK   do { if (test != null_test_func) test(seq++);} while (0)
+
     bool _remove(SLOT idx) {
         SLOT          i;
         TEST_DECLARE;
@@ -396,6 +403,8 @@ class ywOrderedNode {
 
         return true;
     }
+#undef TEST_DECLARE
+#undef TEST_BLOCK
 
     int32_t binary_search(char *key) {
         int32_t      min = 0;
@@ -419,6 +428,7 @@ class ywOrderedNode {
     }
 
     volatile uint32_t  lock_seq;
+    void              *new_node;
     SLOT               count;
     SLOT               free_offset;
     SLOT               slot[IDEAL_MAX_SLOT_COUNT];
