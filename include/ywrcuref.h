@@ -66,7 +66,6 @@ class ywRcuRefManager {
     static ywRcuRefManager     gInstance;
 };
 
-
 class ywRcuRef {
     static const int32_t  SLOT_COUNT  = MAX_THREAD_COUNT;
     static const ywr_time NIL_TIME   = 0;
@@ -115,7 +114,7 @@ class ywRcuRef {
 
     bool lock(uint32_t timeout = DEFAULT_TIMEOUT) {
         ywr_time    prev;
-        ywrcu_slot *slot = get_slot();
+//        ywrcu_slot *slot = get_slot();
         uint32_t    i;
 
         if (local_list.is_unlinked()) {
@@ -131,9 +130,6 @@ class ywRcuRef {
                 }
             }
         }
-        if (slot->latest_ring.remove_time < global_time) {
-            change_ring(slot);
-        }
         return false;
     }
 
@@ -146,23 +142,19 @@ class ywRcuRef {
     template<typename T>
     void regist_free_obj(T *ptr) {
         static_assert(sizeof(T) >= sizeof(ywDList), "Too small datatype");
-        static_assert(sizeof(T::rcu_node) == sizeof(ywDList),
-                      "datatype don't have rcu_node");
-//        static_assert(offsetof(T, rcu_node) == 0,
-//                      "invalid rcu_node offset");
+
         ywrcu_slot *slot = get_slot();
         ywDList    *target = reinterpret_cast<ywDList*>(ptr);
 
+        if (slot->latest_ring.remove_time < global_time) {
+            change_ring(slot);
+        }
         slot->latest_ring.sub_list.attach(target);
     }
 
     template<typename T>
     T *get_reusable_item() {
         static_assert(sizeof(T) >= sizeof(ywDList), "Too small datatype");
-        static_assert(sizeof(T::rcu_node) == sizeof(ywDList),
-                      "datatype don't have rcu_node");
-//        static_assert(offsetof(T, rcu_node) == 0,
-//                      "invalid rcu_node offset");
         ywrcu_slot      *slot = get_slot();
         ywrcu_free_ring *node = slot->oldest_ring;
         if (!node) {
@@ -284,7 +276,7 @@ class ywRcuGuard {
 
  private:
     ywrcu_slot   *slot;
-    ywRcuRef  *target;
+    ywRcuRef     *target;
 };
 
 extern void rcu_ref_test();

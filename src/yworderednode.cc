@@ -79,7 +79,7 @@ void OrderedNode_variable_test() {
 }
 
 void OrderedNode_basic_test() {
-    assert(16*MB <= get_stack_size() );
+    assert(8*MB <= get_stack_size() );
     OrderedNode_variable_test<uint8_t, 64>();
     OrderedNode_variable_test<uint8_t, 128>();
     OrderedNode_variable_test<uint8_t, 256>();
@@ -112,7 +112,6 @@ void OrderedNode_basic_test() {
     OrderedNode_variable_test<uint32_t, 512*KB>();
     OrderedNode_variable_test<uint32_t, 1*MB>();
     OrderedNode_variable_test<uint32_t, 2*MB>();
-    OrderedNode_variable_test<uint32_t, 4*MB>();
 }
 
 ywOrderedNode<int_comp, get_size, test_binary> *temp_node;

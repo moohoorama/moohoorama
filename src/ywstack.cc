@@ -4,12 +4,12 @@
 #include <gtest/gtest.h>
 
 void stack_basic_test() {
-    ywStack<int32_t, -1> int_stack;
+    ywStack<int32_t> int_stack(-1);
 
     ASSERT_EQ(-1, int_stack.get(-1));
     ASSERT_EQ(-1, int_stack.get(0));
     ASSERT_EQ(-1, int_stack.get(1));
-    ASSERT_EQ(-1, int_stack.get(1000000));
+    ASSERT_EQ(-1, int_stack.get(15));
 
     int_stack.push(3);
     int_stack.push(2);

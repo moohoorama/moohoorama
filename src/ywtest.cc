@@ -15,21 +15,20 @@
 #include <ywaccumulator.h>
 #include <ywrbtree.h>
 #include <ywmempool.h>
-#include <ywbtree.h>
 #include <ywfbtree.h>
 #include <ywrcuref.h>
 #include <yworderednode.h>
 #include <ywpool.h>
 #include <ywstack.h>
+#include <ywbtree.h>
 
 #include <map>
 #include <vector>
 #include <algorithm>
 
-TEST(SkipList, LevelTest) {
-    skiplist_level_test();
+TEST(Btree, Basic) {
+    btree_basic_test();
 }
-
 
 TEST(OrderedNode, Basic) {
     OrderedNode_basic_test();
@@ -532,6 +531,10 @@ TEST(STD_MAP, Remove) {
 }
 
 ywSkipList     test_skip_list;
+
+TEST(SkipList, LevelTest) {
+    skiplist_level_test();
+}
 
 TEST(SkipList, Generate) {
     int32_t rnd = 2;
