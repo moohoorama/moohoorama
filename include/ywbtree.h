@@ -15,32 +15,36 @@ class ywBTreeHeader {
     uint64_t  smo_seq;
 };
 
-template<compFunc comp, sizeFunc _get_size, size_t PAGE_SIZE = 32*KB>
+template<typename KEY, typename VAL, size_t PAGE_SIZE = 32*KB>
 class ywBTree {
  public:
     static const size_t  PID_SIZE = sizeof(void*);
 
-    static int32_t get_size(char * ptr) {
-        return _get_size(ptr) + PID_SIZE;
+    static int32_t get_size(Byte * ptr) {
+        return key_size(ptr) + PID_SIZE;
     }
 
-    typedef ywOrderedNode<comp, _get_size, null_test_func,
+//    typedef ywKey<key_comp, key_size, val_size> key_type;
+    typedef ywOrderedNode<key_comp, key_size, null_test_func,
             uint16_t, PAGE_SIZE, ywBTreeHeader> node_type;
 
     ywBTree() {
         clear();
     }
 
-    bool insert(char *key, char *data) {
+    bool insert(Byte *key, Byte *data) {
 //        ywSeqLockGuard guard(&smo_seq);
         ywRcuPoolGuard<node_type>  rpGuard(&node_pool);
+//        key_type                   key(key, data);
+
+//        if (root->insert(
 
         return true;
     }
-    bool remove(char *key) {
+    bool remove(Byte *key) {
         return true;
     }
-    char *find(char *key) {
+    Byte *find(Byte *key) {
         return NULL;
     }
 
@@ -59,8 +63,6 @@ class ywBTree {
     node_type             nil_node;
     ywRcuPool<node_type>  node_pool;
 };
-
-char *bt_find(void *bt, char *key);
 
 void btree_basic_test();
 

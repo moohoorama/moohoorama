@@ -21,10 +21,20 @@
 #include <ywpool.h>
 #include <ywstack.h>
 #include <ywbtree.h>
+#include <ywbarray.h>
+#include <ywkey.h>
 
 #include <map>
 #include <vector>
 #include <algorithm>
+
+TEST(Barray, Basic) {
+    barray_test();
+}
+
+TEST(Key, Basic) {
+    key_test();
+}
 
 TEST(Btree, Basic) {
     btree_basic_test();

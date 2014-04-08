@@ -76,6 +76,11 @@ void printVar(const char * name, uint32_t size, char * buf) {
             break;
     }
 }
+
+void printHex(uint32_t size, Byte * buf, bool info) {
+    printHex(size, reinterpret_cast<char*>(buf), info);
+}
+
 void printHex(uint32_t size, char * buf, bool info) {
     uint32_t i, j;
     uint32_t oldI = 0;

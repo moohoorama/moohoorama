@@ -7,7 +7,7 @@ typedef int32_t testVar;
 
 static int32_t count = 0;
 
-int32_t int_count_comp(char *_left, char *_right) {
+int32_t int_count_comp(Byte *_left, Byte *_right) {
     int32_t *left = reinterpret_cast<int32_t*>(_left);
     int32_t *right= reinterpret_cast<int32_t*>(_right);
 
@@ -16,14 +16,14 @@ int32_t int_count_comp(char *_left, char *_right) {
     return *right - *left;
 }
 
-int32_t int_comp(char *_left, char *_right) {
+int32_t int_comp(Byte *_left, Byte *_right) {
     int32_t *left = reinterpret_cast<int32_t*>(_left);
     int32_t *right= reinterpret_cast<int32_t*>(_right);
 
     return *right - *left;
 }
 
-int32_t get_size(char * /*ptr*/) {
+int32_t get_size(Byte * /*ptr*/) {
     return 4;
 }
 
@@ -51,7 +51,7 @@ void OrderedNode_variable_test() {
 
     for (i = 0; i < del_cnt; ++i) {
         assert(0 == memcmp(&i,
-               node->search_body(reinterpret_cast<char*>(&i)),
+               node->search_body(reinterpret_cast<Byte*>(&i)),
                sizeof(i)));
         assert(node->remove(&i));
     }
@@ -69,7 +69,7 @@ void OrderedNode_variable_test() {
 
     for (i = 0; i < del_cnt; ++i) {
         assert(0 == memcmp(&i,
-               node->search_body(reinterpret_cast<char*>(&i)),
+               node->search_body(reinterpret_cast<Byte*>(&i)),
                sizeof(i)));
         assert(node->remove(&i));
     }
@@ -123,7 +123,7 @@ void test_binary(int32_t seq) {
     int32_t  idx;
 
     for (val = 0; val < 32; val += 2) {
-        idx = temp_node->binary_search(reinterpret_cast<char*>(&val));
+        idx = temp_node->binary_search(reinterpret_cast<Byte*>(&val));
         if (idx < 0) idx = 0;
         assert(val == *reinterpret_cast<int32_t*>(temp_node->get_slot(idx)));
     }
@@ -166,9 +166,9 @@ void OrderedNode_search_test(int32_t cnt, int32_t method) {
         assert(node.isOrdered());
 
         for (j = (cnt-i)*16; j <= cnt*16; ++j) {
-            ret = node.search(reinterpret_cast<char*>(&j));
+            ret = node.search(reinterpret_cast<Byte*>(&j));
             assert(0 <=
-                   int_comp(node.get_slot(ret), reinterpret_cast<char*>(&j)));
+                   int_comp(node.get_slot(ret), reinterpret_cast<Byte*>(&j)));
             ++k;
         }
     }
@@ -192,7 +192,7 @@ class ywOrderStressTestClass {
 
 void ywOrderStressTestClass::run() {
     int32_t                            val;
-    char                              *ret;
+    Byte                              *ret;
     int32_t                            i;
     int32_t                            try_count = 0;
 
@@ -208,12 +208,12 @@ void ywOrderStressTestClass::run() {
             for (val = 0; val < 256; val += 2) {
                 do {
                     try_count++;
-                    ret = node->search_body(reinterpret_cast<char*>(&val));
+                    ret = node->search_body(reinterpret_cast<Byte*>(&val));
                 } while (!ret);
-                if (int_comp(ret, reinterpret_cast<char*>(&val))) {
+                if (int_comp(ret, reinterpret_cast<Byte*>(&val))) {
                     printf("offset : %" PRIdPTR "\n",
                            static_cast<intptr_t>(
-                               ret - reinterpret_cast<char*>(node)));
+                               ret - reinterpret_cast<Byte*>(node)));
                     printf("%d <=> %d\n", *reinterpret_cast<int*>(ret), val);
                     assert(false);
                 }

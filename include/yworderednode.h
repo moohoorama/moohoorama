@@ -9,8 +9,6 @@
 #include <ywseqlock.h>
 #include <stddef.h>
 
-typedef int32_t (*compFunc)(char *left, char *right);
-typedef int32_t (*sizeFunc)(char *ptr);
 typedef void    (*testFunc)(int32_t seq);
 
 extern void null_test_func(int32_t);
@@ -68,12 +66,12 @@ class ywOrderedNode {
         return META_SIZE;
     }
 
-    char *get_ptr(SLOT offset) {
-        char * base_ptr = reinterpret_cast<char*>(slot);
+    Byte *get_ptr(SLOT offset) {
+        Byte * base_ptr = reinterpret_cast<Byte*>(slot);
         return base_ptr + offset;
     }
 
-    char *get_slot(SLOT idx) {
+    Byte *get_slot(SLOT idx) {
         return get_ptr(slot[idx]);
     }
 
@@ -95,7 +93,7 @@ class ywOrderedNode {
         return NULL_SLOT;
     }
 
-    bool append(size_t size, char * value) {
+    bool append(size_t size, Byte * value) {
         ywSeqLockGuard lockGuard(&lock_seq);
         if (!lockGuard.lock()) {
             return false;
@@ -111,12 +109,12 @@ class ywOrderedNode {
     }
 
     template<typename T> bool append(T *val) {
-        return append(sizeof(*val), reinterpret_cast<char*>(val));
+        return append(sizeof(*val), reinterpret_cast<Byte*>(val));
     }
 
 #define TEST_DECLARE int32_t seq = 0
 #define TEST_BLOCK   do { if (test != null_test_func) test(seq++);} while (0)
-    bool insert(size_t size, char * value) {
+    bool insert(size_t size, Byte * value) {
         ywSeqLockGuard lockGuard(&lock_seq);
         TEST_DECLARE;
 
@@ -157,8 +155,11 @@ class ywOrderedNode {
 #undef TEST_DECLARE
 #undef TEST_BLOCK
 
+    bool insert(Byte * value) {
+        return insert(get_size(value), value);
+    }
     template<typename T> bool insert(T *val) {
-        return insert(sizeof(*val), reinterpret_cast<char*>(val));
+        return insert(sizeof(*val), reinterpret_cast<Byte*>(val));
     }
 
     bool remove(SLOT idx) {
@@ -171,7 +172,7 @@ class ywOrderedNode {
         return false;
     }
 
-    bool remove(size_t size, char * value) {
+    bool remove(size_t size, Byte * value) {
         ywSeqLockGuard lockGuard(&lock_seq);
         SLOT           idx;
 
@@ -187,11 +188,11 @@ class ywOrderedNode {
     }
 
     template<typename T> bool remove(T *val) {
-        return remove(sizeof(*val), reinterpret_cast<char*>(val));
+        return remove(sizeof(*val), reinterpret_cast<Byte*>(val));
     }
 
     bool copy_node(node_type *target, int begin_idx) {
-        char          *slot;
+        Byte          *slot;
         SLOT           i;
 
         assert(is_locked());
@@ -286,7 +287,7 @@ class ywOrderedNode {
     }
 
     /*
-       SLOT interpolation_search(char *key) {
+       SLOT interpolation_search(Byte *key) {
        int32_t val = *reinterpret_cast<int*>(key);
        int32_t left, right;
        int32_t pos, idx, lidx = 0, ridx = count-1;;
@@ -333,7 +334,7 @@ class ywOrderedNode {
             printf("\n");
         }
     }
-    int32_t search(char *key) {
+    int32_t search(Byte *key) {
         ywSeqLockGuard  lockGuard(&lock_seq);
         int32_t         ret;
         lockGuard.read_begin();
@@ -344,10 +345,10 @@ class ywOrderedNode {
         return NULL_SLOT;
     }
 
-    char *search_body(char *key) {
+    Byte *search_body(Byte *key) {
         ywSeqLockGuard  lockGuard(&lock_seq);
         int32_t         idx;
-        char           *ret;
+        Byte           *ret;
 
         lockGuard.read_begin();
         idx = binary_search(key);
@@ -386,7 +387,7 @@ class ywOrderedNode {
 #undef TEST_DECLARE
 #undef TEST_BLOCK
 
-    int32_t binary_search(char *key) {
+    int32_t binary_search(Byte *key) {
         int32_t      min = 0;
         int32_t      max = count - 1;
         int32_t      mid;

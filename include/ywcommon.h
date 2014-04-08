@@ -14,10 +14,16 @@
 #include <pthread.h>
 #include <assert.h>
 #include <unistd.h>
+#include <string.h>
 #include <typeinfo>
 
 static const size_t  KB = 1024;
 static const size_t  MB = 1024*KB;
 static const size_t  GB = 1024*MB;
+
+typedef uint8_t Byte;
+
+typedef int32_t (*compFunc)(Byte *left, Byte *right);
+typedef int32_t (*sizeFunc)(Byte *ptr);
 
 #endif  // INCLUDE_YWCOMMON_H_

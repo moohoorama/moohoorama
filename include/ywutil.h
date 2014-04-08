@@ -11,6 +11,7 @@ void ywuGlobalInit();
 void dump_stack();
 void printVar(const char * name, uint32_t size, char * buf);
 void printHex(uint32_t size, char * buf, bool info = true);
+void printHex(uint32_t size, Byte * buf, bool info = true);
 
 inline uint32_t simple_hash(size_t len, char * body) {
     uint32_t h = 5381;
