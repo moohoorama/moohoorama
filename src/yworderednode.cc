@@ -5,32 +5,55 @@
 
 typedef int32_t testVar;
 
+class ywInt {
+ public:
+    void read(Byte *src) {
+        memcpy(src, &val, sizeof(val));
+    }
+    void write(Byte *src) {
+        memcpy(&val, src, sizeof(val));
+    }
+    int32_t   comp(Byte *_right) {
+        ywInt right;
+        right.read(_right);
+        return val < right;
+
+    }
+    int32_t   get_size() {
+        return sizeof(val);
+    }
+
+    int32_t val;
+};
+
 static int32_t count = 0;
 
-int32_t int_count_comp(Byte *_left, Byte *_right) {
-    int32_t *left = reinterpret_cast<int32_t*>(_left);
-    int32_t *right= reinterpret_cast<int32_t*>(_right);
+class ywIntCount {
+ public:
+    void read(Byte *src) {
+        memcpy(src, &val, sizeof(val));
+    }
+    void write(Byte *src) {
+        memcpy(&val, src, sizeof(val));
+    }
+    int32_t   comp(Byte *_right) {
+        ywInt right;
+        right.read(_right);
+        +=count;
+        return val < right;
 
-    count++;
+    }
+    int32_t   get_size() {
+        return sizeof(val);
+    }
 
-    return *right - *left;
-}
-
-int32_t int_comp(Byte *_left, Byte *_right) {
-    int32_t *left = reinterpret_cast<int32_t*>(_left);
-    int32_t *right= reinterpret_cast<int32_t*>(_right);
-
-    return *right - *left;
-}
-
-int32_t get_size(Byte * /*ptr*/) {
-    return 4;
-}
+    int32_t val;
+};
 
 template <typename SLOT, size_t PAGE_SIZE>
 void OrderedNode_variable_test() {
     typedef
-        ywOrderedNode<int_comp, get_size, null_test_func, SLOT, PAGE_SIZE>
+        ywOrderedNode<ywBarray, null_test_func, SLOT, PAGE_SIZE>
         test_node;
 
     test_node  *node = new test_node();

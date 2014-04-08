@@ -8,6 +8,8 @@
 #include <ywsl.h>
 #include <ywmempool.h>
 #include <ywrcupool.h>
+#include <ywkey.h>
+#include <ywbarray.h>
 
 class ywBTreeHeader {
  public:
@@ -20,12 +22,8 @@ class ywBTree {
  public:
     static const size_t  PID_SIZE = sizeof(void*);
 
-    static int32_t get_size(Byte * ptr) {
-        return key_size(ptr) + PID_SIZE;
-    }
-
 //    typedef ywKey<key_comp, key_size, val_size> key_type;
-    typedef ywOrderedNode<key_comp, key_size, null_test_func,
+    typedef ywOrderedNode<ywBarray, null_test_func,
             uint16_t, PAGE_SIZE, ywBTreeHeader> node_type;
 
     ywBTree() {

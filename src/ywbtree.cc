@@ -18,5 +18,5 @@ int32_t ywb_get_size(char * /*ptr*/) {
 }
 
 void btree_basic_test() {
-    ywBTree<ywb_int_comp, ywb_get_size> btree;
+//    ywBTree<ywb_int_comp, ywb_get_size> btree;
 }

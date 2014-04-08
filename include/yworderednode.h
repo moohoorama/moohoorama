@@ -19,16 +19,15 @@ extern void OrderedNode_search_test(int32_t cnt, int32_t method);
 extern void OrderedNode_bsearch_insert_conc_test();
 extern void OrderedNode_stress_test(int32_t thread_count);
 
-template<compFunc comp, sizeFunc get_size, testFunc test = null_test_func,
+template<typename TYPE, testFunc test = null_test_func,
          typename SLOT = uint16_t, size_t PAGE_SIZE = 32*KB,
-         typename APPENDIX_HEADER = intptr_t>
+         typename APPENDIX = intptr_t>
 class ywOrderedNode {
-    typedef ywOrderedNode<comp, get_size, test,
-            SLOT, PAGE_SIZE, APPENDIX_HEADER> node_type;
+    typedef ywOrderedNode<TYPE, test, SLOT, PAGE_SIZE, APPENDIX> node_type;
     static const uint32_t LOCK_MASK  = 0x1;
 
     static const SLOT     NULL_SLOT = static_cast<SLOT>(-1);
-    static const size_t   META_SIZE = sizeof(APPENDIX_HEADER) +
+    static const size_t   META_SIZE = sizeof(APPENDIX) +
                                       sizeof(node_type*) + sizeof(uint32_t) +
                                       sizeof(SLOT)*2;
     static const uint32_t IDEAL_MAX_SLOT_COUNT =
@@ -81,6 +80,15 @@ class ywOrderedNode {
 
     SLOT get_free() {
         return free_offset - count*sizeof(SLOT);
+    }
+
+    int32_t compare(Byte *left, Byte *right) {
+        TYPE value(left);
+        return value.comp(right);
+    }
+
+    int32_t get_size(Byte *val) {
+        return TYPE(val).get_size();
     }
 
     SLOT alloc(SLOT size) {
@@ -179,7 +187,7 @@ class ywOrderedNode {
         if (lockGuard.lock()) {
             idx = binary_search(value);
             if ((0 <= idx) && (idx < count)) {
-                if (0 == comp(get_slot(idx), value)) {
+                if (0 == compare(get_slot(idx), value)) {
                     return _remove(idx);
                 }
             }
@@ -247,8 +255,8 @@ class ywOrderedNode {
                     }
 
                     do {
-                        if (0 < comp(get_ptr(src[left]),
-                                     get_ptr(src[right]))) {
+                        if (0 < compare(get_ptr(src[left]),
+                                        get_ptr(src[right]))) {
                             dst[j++] = src[left++];
                             if (left == i + level/2) {
                                 while ((j < i+level) && (j < count)) {
@@ -278,7 +286,7 @@ class ywOrderedNode {
         SLOT      i;
 
         for (i = 0; i < count-1; ++i) {
-            if (0 > comp(get_slot(i), get_slot(i+1))) {
+            if (0 > compare(get_slot(i), get_slot(i+1))) {
                 return false;
             }
         }
@@ -408,7 +416,7 @@ class ywOrderedNode {
         return lock_seq & LOCK_MASK;
     }
 
-    APPENDIX_HEADER    appendix_header;
+    APPENDIX           appendix;
     node_type         *new_node;
     volatile uint32_t  lock_seq;
     SLOT               count;
