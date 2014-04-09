@@ -6,11 +6,8 @@
 
 void key_test() {
     typedef  ywKey<ywBarray, ywBarray> key_type;
-
     int32_t  num  = 0x01;
-//    int32_t  num2 = 0x02;
     Byte     buf[1024];
-//    Byte     buf2[1024];
 
     {
         ywBarray test(
@@ -19,12 +16,12 @@ void key_test() {
         key_type key(test, test);
 
         key.write(buf);
-        ASSERT_EQ(0, key.comp(buf));
+        ASSERT_EQ(0, key.compare(key));
         ASSERT_EQ(10, key.get_size());
         {
             key_type key2(test, test);
 
-            assert(key2.comp(buf) == 0);
+            assert(key2.compare(key) == 0);
         }
     }
 }

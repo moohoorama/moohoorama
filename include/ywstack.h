@@ -10,7 +10,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-template <typename T, int32_t MAX_COUNT = 16>
+template <typename T, int32_t MAX_COUNT = 4>
 class ywStack {
  public:
     explicit ywStack(T _nil, int32_t _nil_idx = -1):

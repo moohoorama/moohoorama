@@ -5,18 +5,23 @@
 #include <ywaccumulator.h>
 #include <gtest/gtest.h>
 #include <ywmempool.h>
-
-int32_t ywb_int_comp(char *_left, char *_right) {
-    int32_t *left = reinterpret_cast<int32_t*>(_left);
-    int32_t *right= reinterpret_cast<int32_t*>(_right);
-
-    return *right - *left;
-}
-
-int32_t ywb_get_size(char * /*ptr*/) {
-    return 4;
-}
+#include <ywtypes.h>
 
 void btree_basic_test() {
-//    ywBTree<ywb_int_comp, ywb_get_size> btree;
+    static const int32_t  count = 6;
+    ywBTree<ywInt>        btree;
+    ywInt                 val[count];
+    int32_t               i;
+
+    for (i = 0; i < count; ++i) {
+        val[i] = ywInt(count-i);
+        btree.insert(val[i], &val[i]);
+    }
+    btree.dump();
+
+    for (i = 0; i < count; ++i) {
+        val[i] = ywInt(count-i);
+        assert(btree.find(val[i]) == &val[i]);
+    }
+    btree.dump();
 }

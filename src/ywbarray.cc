@@ -15,12 +15,12 @@ void barray_test() {
             reinterpret_cast<Byte*>(&num));
 
         test.write(buf);
-        ASSERT_EQ(0, test.comp(buf));
+        ASSERT_EQ(0, test.compare(test));
         ASSERT_EQ(5, test.get_size());
         {
             ywBarray test2(buf);
 
-            assert(test2.comp(buf) == 0);
+            assert(test2.compare(test) == 0);
         }
     }
 
@@ -35,11 +35,11 @@ void barray_test() {
         test.write(buf);
         test2.write(buf2);
 
-        ASSERT_EQ(0, test.comp(buf));
-        ASSERT_EQ(1, test2.comp(buf));
+        ASSERT_EQ(0, test.compare(test));
+        ASSERT_EQ(1, test2.compare(test));
 
-        ASSERT_EQ(-1, test.comp(buf2));
-        ASSERT_EQ(0,  test2.comp(buf2));
+        ASSERT_EQ(-1, test.compare(test2));
+        ASSERT_EQ(0,  test2.compare(test2));
 
         ASSERT_EQ(5, test.get_size());
         ASSERT_EQ(5, test2.get_size());
@@ -49,36 +49,36 @@ void barray_test() {
     {
         ywBarray test(249, buf2);
         test.write(buf);
-        ASSERT_EQ(0, test.comp(buf));
+        ASSERT_EQ(0, test.compare(test));
         ASSERT_EQ(250, test.get_size());
         {
             ywBarray test2(buf);
 
-            assert(test2.comp(buf) == 0);
+            assert(test2.compare(test) == 0);
         }
     }
 
     {
         ywBarray test(250, buf2);
         test.write(buf);
-        ASSERT_EQ(0, test.comp(buf));
+        ASSERT_EQ(0, test.compare(test));
         ASSERT_EQ(255, test.get_size());
         {
             ywBarray test2(buf);
 
-            assert(test2.comp(buf) == 0);
+            assert(test2.compare(test) == 0);
         }
     }
 
     {
         ywBarray test(251, buf2);
         test.write(buf);
-        ASSERT_EQ(0, test.comp(buf));
+        ASSERT_EQ(0, test.compare(test));
         ASSERT_EQ(256, test.get_size());
         {
             ywBarray test2(buf);
 
-            assert(test2.comp(buf) == 0);
+            assert(test2.compare(test) == 0);
         }
     }
 }

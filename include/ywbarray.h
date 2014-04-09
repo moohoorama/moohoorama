@@ -5,10 +5,11 @@
 
 #include <ywcommon.h>
 #include <ywutil.h>
+#include <ywtypes.h>
 
 #include <algorithm>
 
-class ywBarray {
+class ywBarray : public ywTypes{
     static const Byte LONG_LEN = 250;
 
  public:
@@ -50,21 +51,28 @@ class ywBarray {
             memcpy(src+5, value, len);
         }
     }
-    int32_t   comp(Byte *_right) {
-        ywBarray right(_right);
+    int32_t   compare(ywBarray right) {
+        return compare(&right);
+    }
+    int32_t   compare(ywBarray *right) {
         uint32_t min_len;
         int32_t  ret;
 
-        min_len = std::min(len, right.len);
+        min_len = std::min(len, right->len);
 
-        if (0 != (ret = memcmp(value, right.value, min_len))) {
+        if (0 != (ret = memcmp(value, right->value, min_len))) {
             return ret;
         }
 
-        return len < right.len;
+        return len < right->len;
     }
+
     int32_t   get_size() {
         return size;
+    }
+    void     dump() {
+        printHex(len, value, false/*info*/);
+        printf(" ");
     }
 
     uint32_t  len;

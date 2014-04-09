@@ -9,7 +9,7 @@ void stack_basic_test() {
     ASSERT_EQ(-1, int_stack.get(-1));
     ASSERT_EQ(-1, int_stack.get(0));
     ASSERT_EQ(-1, int_stack.get(1));
-    ASSERT_EQ(-1, int_stack.get(15));
+    ASSERT_EQ(-1, int_stack.get(2));
 
     int_stack.push(3);
     int_stack.push(2);

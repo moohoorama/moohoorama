@@ -8,6 +8,7 @@
 #include <ywutil.h>
 #include <ywseqlock.h>
 #include <stddef.h>
+#include <ywtypes.h>
 
 typedef void    (*testFunc)(int32_t seq);
 
@@ -19,15 +20,15 @@ extern void OrderedNode_search_test(int32_t cnt, int32_t method);
 extern void OrderedNode_bsearch_insert_conc_test();
 extern void OrderedNode_stress_test(int32_t thread_count);
 
-template<typename TYPE, testFunc test = null_test_func,
+template<typename KEY, testFunc test = null_test_func,
          typename SLOT = uint16_t, size_t PAGE_SIZE = 32*KB,
-         typename APPENDIX = intptr_t>
+         typename HEADER = intptr_t>
 class ywOrderedNode {
-    typedef ywOrderedNode<TYPE, test, SLOT, PAGE_SIZE, APPENDIX> node_type;
+    typedef ywOrderedNode<KEY, test, SLOT, PAGE_SIZE, HEADER> node_type;
     static const uint32_t LOCK_MASK  = 0x1;
 
     static const SLOT     NULL_SLOT = static_cast<SLOT>(-1);
-    static const size_t   META_SIZE = sizeof(APPENDIX) +
+    static const size_t   META_SIZE = sizeof(HEADER) +
                                       sizeof(node_type*) + sizeof(uint32_t) +
                                       sizeof(SLOT)*2;
     static const uint32_t IDEAL_MAX_SLOT_COUNT =
@@ -35,13 +36,14 @@ class ywOrderedNode {
 
  public:
     ywOrderedNode() {
-        clear();
+        check_inheritance<ywTypes, KEY>();
         static_assert(META_SIZE == offsetof(ywOrderedNode, slot),
                       "invalid meta slot count");
         static_assert(sizeof(*this) == PAGE_SIZE,
                       "invalid node structure");
         static_assert(PAGE_SIZE-1 <= static_cast<SLOT>(-1),
                       "invalid PAGE_SIZE and SLOT");
+        clear();
     }
 
     void clear() {
@@ -70,8 +72,8 @@ class ywOrderedNode {
         return base_ptr + offset;
     }
 
-    Byte *get_slot(SLOT idx) {
-        return get_ptr(slot[idx]);
+    KEY get(SLOT idx) {
+        return KEY(get_ptr(slot[idx]));
     }
 
     SLOT get_count() {
@@ -82,13 +84,8 @@ class ywOrderedNode {
         return free_offset - count*sizeof(SLOT);
     }
 
-    int32_t compare(Byte *left, Byte *right) {
-        TYPE value(left);
-        return value.comp(right);
-    }
-
     int32_t get_size(Byte *val) {
-        return TYPE(val).get_size();
+        return KEY(val).get_size();
     }
 
     SLOT alloc(SLOT size) {
@@ -99,6 +96,24 @@ class ywOrderedNode {
             return free_offset;
         }
         return NULL_SLOT;
+    }
+
+    bool append(KEY *value) {
+        ywSeqLockGuard lockGuard(&lock_seq);
+        if (!lockGuard.lock()) {
+            return false;
+        }
+
+        SLOT ret = alloc(value->get_size());
+        if (ret == NULL_SLOT) {
+            return false;
+        }
+        value->write(get_ptr(ret));
+        slot[count++] = ret;
+        return true;
+    }
+    bool append(KEY value) {
+        return append(&value);
     }
 
     bool append(size_t size, Byte * value) {
@@ -116,13 +131,12 @@ class ywOrderedNode {
         return true;
     }
 
-    template<typename T> bool append(T *val) {
-        return append(sizeof(*val), reinterpret_cast<Byte*>(val));
-    }
-
 #define TEST_DECLARE int32_t seq = 0
 #define TEST_BLOCK   do { if (test != null_test_func) test(seq++);} while (0)
-    bool insert(size_t size, Byte * value) {
+    bool insert(KEY value) {
+        return insert(&value);
+    }
+    bool insert(KEY *value) {
         ywSeqLockGuard lockGuard(&lock_seq);
         TEST_DECLARE;
 
@@ -135,13 +149,13 @@ class ywOrderedNode {
 
         TEST_BLOCK;
 
-        SLOT ret = alloc(size);
+        SLOT ret = alloc(value->get_size());
         SLOT idx;
         SLOT i;
         if (ret == NULL_SLOT) {
             return false;
         }
-        memcpy(get_ptr(ret), value, size);
+        value->write(get_ptr(ret));
 
         TEST_BLOCK;
 
@@ -160,15 +174,9 @@ class ywOrderedNode {
         TEST_BLOCK;
         return true;
     }
+
 #undef TEST_DECLARE
 #undef TEST_BLOCK
-
-    bool insert(Byte * value) {
-        return insert(get_size(value), value);
-    }
-    template<typename T> bool insert(T *val) {
-        return insert(sizeof(*val), reinterpret_cast<Byte*>(val));
-    }
 
     bool remove(SLOT idx) {
         ywSeqLockGuard lockGuard(&lock_seq);
@@ -180,14 +188,18 @@ class ywOrderedNode {
         return false;
     }
 
-    bool remove(size_t size, Byte * value) {
-        ywSeqLockGuard lockGuard(&lock_seq);
-        SLOT           idx;
+    bool remove(KEY value) {
+        return remove(&value);
+    }
+
+    bool remove(KEY *value) {
+         ywSeqLockGuard lockGuard(&lock_seq);
+         SLOT           idx;
 
         if (lockGuard.lock()) {
             idx = binary_search(value);
             if ((0 <= idx) && (idx < count)) {
-                if (0 == compare(get_slot(idx), value)) {
+                if (0 == value->compare(get(idx))) {
                     return _remove(idx);
                 }
             }
@@ -195,12 +207,7 @@ class ywOrderedNode {
         return false;
     }
 
-    template<typename T> bool remove(T *val) {
-        return remove(sizeof(*val), reinterpret_cast<Byte*>(val));
-    }
-
     bool copy_node(node_type *target, int begin_idx) {
-        Byte          *slot;
         SLOT           i;
 
         assert(is_locked());
@@ -208,8 +215,7 @@ class ywOrderedNode {
         target->clear();
 
         for (i = begin_idx; i < count; ++i) {
-            slot = get_slot(i);
-            if (!target->append(get_size(slot), slot)) {
+            if (!target->append(get(i))) {
                 return false;
             }
         }
@@ -255,8 +261,8 @@ class ywOrderedNode {
                     }
 
                     do {
-                        if (0 < compare(get_ptr(src[left]),
-                                        get_ptr(src[right]))) {
+                        if (0 < KEY(get_ptr(src[left])).
+                                 compare(KEY(get_ptr(src[right])))) {
                             dst[j++] = src[left++];
                             if (left == i + level/2) {
                                 while ((j < i+level) && (j < count)) {
@@ -286,7 +292,8 @@ class ywOrderedNode {
         SLOT      i;
 
         for (i = 0; i < count-1; ++i) {
-            if (0 > compare(get_slot(i), get_slot(i+1))) {
+            KEY      left(get(i)), right(get(i+1));
+            if (0 > left.compare(&right)) {
                 return false;
             }
         }
@@ -337,12 +344,16 @@ class ywOrderedNode {
                free_offset,
                get_free());
         for (i = 0; i < count; ++i) {
+            KEY val = get(i);
             printf("[%5d:0x%05x] ", i, slot[i]);
-            printHex(4, get_slot(i), false/*info*/);
+            val.dump();
             printf("\n");
         }
     }
-    int32_t search(Byte *key) {
+    int32_t search(KEY key) {
+        return search(&key);
+    }
+    int32_t search(KEY *key) {
         ywSeqLockGuard  lockGuard(&lock_seq);
         int32_t         ret;
         lockGuard.read_begin();
@@ -353,18 +364,27 @@ class ywOrderedNode {
         return NULL_SLOT;
     }
 
-    Byte *search_body(Byte *key) {
+    bool search_body(KEY key, KEY *ret) {
+        return search_body(&key, ret);
+    }
+    bool search_body(KEY *key, KEY *ret) {
         ywSeqLockGuard  lockGuard(&lock_seq);
         int32_t         idx;
-        Byte           *ret;
 
         lockGuard.read_begin();
         idx = binary_search(key);
-        ret = get_slot(idx);
-        if (lockGuard.read_end()) {
-            return ret;
+        if (idx < 0) {
+            idx = 0;
         }
-        return NULL;
+        *ret = get(idx);
+        if (lockGuard.read_end()) {
+            return true;
+        }
+        return false;
+    }
+
+    HEADER *get_header() {
+        return &header;
     }
 
  private:
@@ -395,14 +415,17 @@ class ywOrderedNode {
 #undef TEST_DECLARE
 #undef TEST_BLOCK
 
-    int32_t binary_search(Byte *key) {
+    int32_t binary_search(KEY key) {
+        return binary_search(&key);
+    }
+    int32_t binary_search(KEY *key) {
         int32_t      min = 0;
         int32_t      max = count - 1;
         int32_t      mid;
 
         while (min <= max) {
             mid = (min + max) >> 1;
-            if (0 < comp(key, get_slot(mid))) {
+            if (0 < key->compare(KEY(get(mid)))) {
                 max = mid-1;
             } else {
                 min = mid+1;
@@ -416,7 +439,7 @@ class ywOrderedNode {
         return lock_seq & LOCK_MASK;
     }
 
-    APPENDIX           appendix;
+    HEADER             header;
     node_type         *new_node;
     volatile uint32_t  lock_seq;
     SLOT               count;

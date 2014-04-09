@@ -2,49 +2,38 @@
 
 #include <yworderednode.h>
 #include <ywworker.h>
+#include <ywtypes.h>
 
 typedef int32_t testVar;
 
-class ywInt {
- public:
-    void read(Byte *src) {
-        memcpy(src, &val, sizeof(val));
-    }
-    void write(Byte *src) {
-        memcpy(&val, src, sizeof(val));
-    }
-    int32_t   comp(Byte *_right) {
-        ywInt right;
-        right.read(_right);
-        return val < right;
-
-    }
-    int32_t   get_size() {
-        return sizeof(val);
-    }
-
-    int32_t val;
-};
-
 static int32_t count = 0;
 
-class ywIntCount {
+class ywIntCount : ywTypes{
  public:
-    void read(Byte *src) {
-        memcpy(src, &val, sizeof(val));
+    explicit ywIntCount(int32_t src) {
+        val = src;
     }
-    void write(Byte *src) {
+    explicit ywIntCount(Byte *src) {
+        read(src);
+    }
+    void read(Byte *src) {
         memcpy(&val, src, sizeof(val));
     }
-    int32_t   comp(Byte *_right) {
-        ywInt right;
-        right.read(_right);
-        +=count;
-        return val < right;
-
+    void write(Byte *src) {
+        memcpy(src, &val, sizeof(val));
+    }
+    int32_t   compare(ywIntCount right) {
+        return compare(&right);
+    }
+    int32_t   compare(ywIntCount *right) {
+        ++count;
+        return right->val - val;
     }
     int32_t   get_size() {
         return sizeof(val);
+    }
+    void dump() {
+        printf("%d ", val);
     }
 
     int32_t val;
@@ -53,7 +42,7 @@ class ywIntCount {
 template <typename SLOT, size_t PAGE_SIZE>
 void OrderedNode_variable_test() {
     typedef
-        ywOrderedNode<ywBarray, null_test_func, SLOT, PAGE_SIZE>
+        ywOrderedNode<ywInt, null_test_func, SLOT, PAGE_SIZE>
         test_node;
 
     test_node  *node = new test_node();
@@ -66,17 +55,17 @@ void OrderedNode_variable_test() {
 
     assert(node->get_free() == base_size);
     for (i = 0; i < cnt; ++i) {
-        assert(node->append(&i));
+        assert(node->append(ywInt(i)));
     }
     node->sort();
     assert(node->isOrdered());
     assert(node->get_free() == base_size - slot_size*cnt);
 
     for (i = 0; i < del_cnt; ++i) {
-        assert(0 == memcmp(&i,
-               node->search_body(reinterpret_cast<Byte*>(&i)),
-               sizeof(i)));
-        assert(node->remove(&i));
+        ywInt ret;
+        assert(node->search_body(ywInt(i), &ret));
+        assert(i == ret.val);
+        assert(node->remove(ywInt(i)));
     }
     node->compact(node2);
     assert(node2->get_free() ==
@@ -85,16 +74,16 @@ void OrderedNode_variable_test() {
 
     assert(node->get_free() == base_size);
     for (i = 0; i < cnt; ++i) {
-        assert(node->insert(&i));
+        assert(node->insert(ywInt(i)));
     }
     assert(node->isOrdered());
     assert(node->get_free() == base_size - slot_size*cnt);
 
     for (i = 0; i < del_cnt; ++i) {
-        assert(0 == memcmp(&i,
-               node->search_body(reinterpret_cast<Byte*>(&i)),
-               sizeof(i)));
-        assert(node->remove(&i));
+        ywInt ret;
+        assert(node->search_body(ywInt(i), &ret));
+        assert(i == ret.val);
+        assert(node->remove(ywInt(i)));
     }
 
     delete node;
@@ -137,7 +126,7 @@ void OrderedNode_basic_test() {
     OrderedNode_variable_test<uint32_t, 2*MB>();
 }
 
-ywOrderedNode<int_comp, get_size, test_binary> *temp_node;
+ywOrderedNode<ywInt, test_binary> *temp_node;
 
 void null_test_func(int32_t) {
 }
@@ -146,33 +135,34 @@ void test_binary(int32_t seq) {
     int32_t  idx;
 
     for (val = 0; val < 32; val += 2) {
-        idx = temp_node->binary_search(reinterpret_cast<Byte*>(&val));
+        ywInt    base(val);
+        idx = temp_node->binary_search(&base);
         if (idx < 0) idx = 0;
-        assert(val == *reinterpret_cast<int32_t*>(temp_node->get_slot(idx)));
+        assert(0 == base.compare(temp_node->get(idx)));
     }
 }
 
 void OrderedNode_bsearch_insert_conc_test() {
-    ywOrderedNode<int_comp, get_size, test_binary> node;
+    ywOrderedNode<ywInt, test_binary> node;
     int32_t  val;
 
     for (val = 0; val < 32; val += 2) {
-        assert(node.append(&val));
+        assert(node.append(ywInt(val)));
     }
     node.sort();
 
     temp_node = &node;
     for (val = 1; val < 32; val += 2) {
-        assert(node.insert(&val));
+        assert(node.insert(ywInt(val)));
     }
 
     for (val = 1; val < 32; val += 2) {
-        assert(node.remove(&val));
+        assert(node.remove(ywInt(val)));
     }
 }
 
 void OrderedNode_search_test(int32_t cnt, int32_t method) {
-    ywOrderedNode<int_comp, get_size> node;
+    ywOrderedNode<ywIntCount> node;
     int32_t    i;
     int32_t    j;
     int32_t    k;
@@ -184,14 +174,13 @@ void OrderedNode_search_test(int32_t cnt, int32_t method) {
     k = 0;
     for (i = 0; i < cnt; ++i) {
         val = (cnt - i)*16;
-        assert(node.append(&val));
+        assert(node.append(ywIntCount(val)));
         node.sort();
         assert(node.isOrdered());
 
         for (j = (cnt-i)*16; j <= cnt*16; ++j) {
-            ret = node.search(reinterpret_cast<Byte*>(&j));
-            assert(0 <=
-                   int_comp(node.get_slot(ret), reinterpret_cast<Byte*>(&j)));
+            ret = node.search(ywIntCount(j));
+            assert(0 <= node.get(ret).compare(ywIntCount(j)));
             ++k;
         }
     }
@@ -209,35 +198,33 @@ class ywOrderStressTestClass {
 
     void run();
 
-    int32_t                            operation;
-    ywOrderedNode<int_comp, get_size> *node;
+    int32_t               operation;
+    ywOrderedNode<ywInt> *node;
 };
 
 void ywOrderStressTestClass::run() {
-    int32_t                            val;
-    Byte                              *ret;
-    int32_t                            i;
-    int32_t                            try_count = 0;
+    int32_t   val;
+    ywInt     ret;
+    int32_t   i;
+    int32_t   try_count = 0;
 
     for (i = 0; i < TEST_COUNT; ++i) {
         if (operation == 0) {
             for (val = 1; val < 256; val += 2) {
-                node->insert(&val);
+                node->insert(ywInt(val));
             }
             for (val = 1; val < 256; val += 2) {
-                node->remove(&val);
+                node->remove(ywInt(val));
             }
         } else {
             for (val = 0; val < 256; val += 2) {
                 do {
                     try_count++;
-                    ret = node->search_body(reinterpret_cast<Byte*>(&val));
-                } while (!ret);
-                if (int_comp(ret, reinterpret_cast<Byte*>(&val))) {
-                    printf("offset : %" PRIdPTR "\n",
-                           static_cast<intptr_t>(
-                               ret - reinterpret_cast<Byte*>(node)));
-                    printf("%d <=> %d\n", *reinterpret_cast<int*>(ret), val);
+                } while (!node->search_body(ywInt(val), &ret));
+
+                if (ret.compare(ywInt(val))) {
+                    ret.dump();
+                    ywInt(val).dump();
                     assert(false);
                 }
             }
@@ -257,14 +244,14 @@ void onode_stress_task(void *arg) {
 void OrderedNode_stress_test(int32_t thread_count) {
     ywWorkerPool                      *tpool = ywWorkerPool::get_instance();
     ywOrderStressTestClass             tc[MAX_THREAD_COUNT];
-    ywOrderedNode<int_comp, get_size>  node;
+    ywOrderedNode<ywInt>               node;
     int32_t                            val;
     int32_t                            i;
 
     node.clear();
 
     for (val = 0; val < 256; val += 2) {
-        assert(node.insert(&val));
+        assert(node.insert(ywInt(val)));
     }
     node.sort();
 

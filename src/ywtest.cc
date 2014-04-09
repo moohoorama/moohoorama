@@ -28,16 +28,16 @@
 #include <vector>
 #include <algorithm>
 
+TEST(Btree, Basic) {
+    btree_basic_test();
+}
+
 TEST(Barray, Basic) {
     barray_test();
 }
 
 TEST(Key, Basic) {
     key_test();
-}
-
-TEST(Btree, Basic) {
-    btree_basic_test();
 }
 
 TEST(OrderedNode, Basic) {
