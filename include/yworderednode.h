@@ -207,14 +207,29 @@ class ywOrderedNode {
         return false;
     }
 
-    bool copy_node(node_type *target, int begin_idx) {
+    bool remove_range(SLOT idx) {
+        ywSeqLockGuard lockGuard(&lock_seq);
+        SLOT           i;
+
+        if (lockGuard.lock()) {
+            for (i = begin_idx; i < count; ++i) {
+                if (!_remove(count-1)) {
+                    return false;
+                }
+        }
+
+        return true;
+
+    }
+
+    bool copy_node(node_type *target, int begin_idx, int end_idx) {
         SLOT           i;
 
         assert(is_locked());
 
         target->clear();
 
-        for (i = begin_idx; i < count; ++i) {
+        for (i = begin_idx; i < end_idx; ++i) {
             if (!target->append(get(i))) {
                 return false;
             }
@@ -226,7 +241,7 @@ class ywOrderedNode {
     bool compact(node_type *target) {
         ywSeqLockGuard  lockGuard(&lock_seq);
         if (lockGuard.lock()) {
-            if (copy_node(target, 0)) {
+            if (copy_node(target, 0, count)) {
                 new_node = target;
                 return true;
             }

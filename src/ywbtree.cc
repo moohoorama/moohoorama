@@ -8,10 +8,11 @@
 #include <ywtypes.h>
 
 void btree_basic_test() {
-    static const int32_t  count = 6;
-    ywBTree<ywInt>        btree;
-    ywInt                 val[count];
-    int32_t               i;
+    static const int32_t                     count = 300;
+    typedef ywBTree<ywInt, ywPtr, 1*KB>      btree_type;
+    btree_type                               btree;
+    ywInt                                    val[count];
+    int32_t                                  i;
 
     for (i = 0; i < count; ++i) {
         val[i] = ywInt(count-i);

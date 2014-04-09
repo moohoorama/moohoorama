@@ -59,6 +59,10 @@ class ywStack {
         return nil;
     }
 
+    T get_last() {
+        return get(count-1);
+    }
+
     void clear() {
         count = 0;
     }
