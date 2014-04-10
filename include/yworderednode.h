@@ -37,7 +37,7 @@ class ywOrderedNode {
     static const SLOT     NULL_SLOT = static_cast<SLOT>(-1);
 
     ywOrderedNode() {
-        check_inheritance<ywTypes, KEY>();
+//        check_inheritance<ywTypes, KEY>();
         static_assert(META_SIZE == offsetof(ywOrderedNode, slot),
                       "invalid meta slot count");
         static_assert(sizeof(*this) == PAGE_SIZE,

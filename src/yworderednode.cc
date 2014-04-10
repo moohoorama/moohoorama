@@ -8,7 +8,7 @@ typedef int32_t testVar;
 
 static int32_t count = 0;
 
-class ywIntCount : ywTypes{
+class ywIntCount {
  public:
     explicit ywIntCount(int32_t src) {
         val = src;

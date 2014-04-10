@@ -55,8 +55,8 @@ class ywBTree {
     };
 
     ywBTree() {
-        check_inheritance<ywTypes, KEY>();
-        check_inheritance<ywTypes, VAL>();
+//        check_inheritance<ywTypes, KEY>();
+//        check_inheritance<ywTypes, VAL>();
         clear();
     }
 
@@ -122,6 +122,7 @@ class ywBTree {
         node_type      *right    = rpGuard->alloc();
         node_type      *parent;
         int32_t         cur_count = node->get_count();
+        int32_t         split_idx = cur_count/2;
         key_type        left_parent_key;
         key_type        right_parent_key;
 
@@ -132,8 +133,8 @@ class ywBTree {
         if (!stack->lock(new_left->get_lock_seq_ptr())) return false;
         if (!stack->lock(right->get_lock_seq_ptr())) return false;
 
-        if (!node->copy_node(new_left, 0, cur_count/2)) return false;
-        if (!node->copy_node(right, cur_count/2, cur_count)) return false;
+        if (!node->copy_node(new_left, 0, split_idx)) return false;
+        if (!node->copy_node(right, split_idx, cur_count)) return false;
 
         left_parent_key     = new_left->get(0);
         left_parent_key.val = ywPtr(new_left);
@@ -141,7 +142,11 @@ class ywBTree {
         right_parent_key     = right->get(0);
         right_parent_key.val = ywPtr(right);
 
-        if (!new_left->insert(keyValue, false)) return false;
+        if (0 < right_parent_key.compare(keyValue)) {
+            if (!right->insert(keyValue, false)) return false;
+        } else {
+            if (!new_left->insert(keyValue, false)) return false;
+        }
         if (!stack->pop(&parent)) { /* stack is root */
             /*make new root*/
             parent = rpGuard->alloc();

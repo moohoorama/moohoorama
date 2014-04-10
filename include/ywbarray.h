@@ -9,7 +9,7 @@
 
 #include <algorithm>
 
-class ywBarray : public ywTypes{
+class ywBarray{
     static const Byte LONG_LEN = 250;
 
  public:

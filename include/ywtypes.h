@@ -6,15 +6,7 @@
 #include <ywcommon.h>
 #include <ywutil.h>
 
-class ywTypes {
- public:
-    virtual void     read(Byte *src) = 0;
-    virtual void     write(Byte *src) = 0;
-    virtual int32_t  get_size() = 0;
-    virtual void     dump() = 0;
-};
-
-class ywInt : public ywTypes {
+class ywInt {
  public:
     explicit ywInt() {
         val = 0;
@@ -47,7 +39,7 @@ class ywInt : public ywTypes {
     int32_t val;
 };
 
-class ywPtr : public ywTypes {
+class ywPtr {
  public:
     explicit ywPtr() {
         ptr = NULL;

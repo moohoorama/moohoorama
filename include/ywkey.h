@@ -8,11 +8,11 @@
 #include <ywtypes.h>
 
 template<typename KEY, typename VAL>
-class ywKey : public ywTypes {
+class ywKey {
  public:
     explicit ywKey(Byte *src):key(src), val(src + key.get_size()) {
-        check_inheritance<ywTypes, KEY>();
-        check_inheritance<ywTypes, VAL>();
+//        check_inheritance<ywTypes, KEY>();
+//        check_inheritance<ywTypes, VAL>();
     }
     explicit ywKey(KEY _key):key(_key) {
     }
