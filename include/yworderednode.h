@@ -27,7 +27,6 @@ class ywOrderedNode {
     typedef ywOrderedNode<KEY, test, SLOT, PAGE_SIZE, HEADER> node_type;
     static const uint32_t LOCK_MASK  = 0x1;
 
-    static const SLOT     NULL_SLOT = static_cast<SLOT>(-1);
     static const size_t   META_SIZE = sizeof(HEADER) +
                                       sizeof(node_type*) + sizeof(uint32_t) +
                                       sizeof(SLOT)*2;
@@ -35,6 +34,8 @@ class ywOrderedNode {
         (PAGE_SIZE-META_SIZE)/sizeof(SLOT);
 
  public:
+    static const SLOT     NULL_SLOT = static_cast<SLOT>(-1);
+
     ywOrderedNode() {
         check_inheritance<ywTypes, KEY>();
         static_assert(META_SIZE == offsetof(ywOrderedNode, slot),
@@ -54,7 +55,7 @@ class ywOrderedNode {
     }
 
     volatile uint32_t *get_lock_seq_ptr() {
-        return lock_seq;
+        return &lock_seq;
     }
 
     size_t  get_page_size() {
@@ -104,46 +105,27 @@ class ywOrderedNode {
             return false;
         }
 
-        SLOT ret = alloc(value->get_size());
-        if (ret == NULL_SLOT) {
-            return false;
-        }
-        value->write(get_ptr(ret));
-        slot[count++] = ret;
-        return true;
+        return _append(value);
     }
     bool append(KEY value) {
         return append(&value);
     }
 
-    bool append(size_t size, Byte * value) {
-        ywSeqLockGuard lockGuard(&lock_seq);
-        if (!lockGuard.lock()) {
-            return false;
-        }
-
-        SLOT ret = alloc(size);
-        if (ret == NULL_SLOT) {
-            return false;
-        }
-        memcpy(get_ptr(ret), value, size);
-        slot[count++] = ret;
-        return true;
-    }
-
 #define TEST_DECLARE int32_t seq = 0
 #define TEST_BLOCK   do { if (test != null_test_func) test(seq++);} while (0)
-    bool insert(KEY value) {
-        return insert(&value);
+    bool insert(KEY value, bool need_locking = true) {
+        return insert(&value, need_locking);
     }
-    bool insert(KEY *value) {
+    bool insert(KEY *value, bool need_locking = true) {
         ywSeqLockGuard lockGuard(&lock_seq);
         TEST_DECLARE;
 
         TEST_BLOCK;
 
-        if (!lockGuard.lock()) {
-            return false;
+        if (need_locking) {
+            if (!lockGuard.lock()) {
+                return false;
+            }
         }
         assert(is_locked());
 
@@ -173,6 +155,27 @@ class ywOrderedNode {
         slot[idx] = ret;
         TEST_BLOCK;
         return true;
+    }
+
+    bool inplace_update(KEY value) {
+        return inplace_update(&value);
+    }
+    bool inplace_update(KEY *value) {
+        ywSeqLockGuard lockGuard(&lock_seq);
+        int32_t        idx;
+
+        if (!lockGuard.lock()) {
+            return false;
+        }
+        idx = binary_search(value);
+        if (idx < 0) idx = 0;
+        if (idx < count) {
+            if (value->get_size() == get(idx).get_size()) {
+                value->write(get_ptr(slot[idx]));
+                return true;
+            }
+        }
+        return false;
     }
 
 #undef TEST_DECLARE
@@ -207,30 +210,15 @@ class ywOrderedNode {
         return false;
     }
 
-    bool remove_range(SLOT idx) {
-        ywSeqLockGuard lockGuard(&lock_seq);
+    bool copy_node(node_type *target, SLOT begin_idx, SLOT end_idx) {
         SLOT           i;
-
-        if (lockGuard.lock()) {
-            for (i = begin_idx; i < count; ++i) {
-                if (!_remove(count-1)) {
-                    return false;
-                }
-        }
-
-        return true;
-
-    }
-
-    bool copy_node(node_type *target, int begin_idx, int end_idx) {
-        SLOT           i;
+        KEY            key;
 
         assert(is_locked());
 
-        target->clear();
-
         for (i = begin_idx; i < end_idx; ++i) {
-            if (!target->append(get(i))) {
+            key = get(i);
+            if (!target->_append(&key)) {
                 return false;
             }
         }
@@ -241,9 +229,13 @@ class ywOrderedNode {
     bool compact(node_type *target) {
         ywSeqLockGuard  lockGuard(&lock_seq);
         if (lockGuard.lock()) {
-            if (copy_node(target, 0, count)) {
-                new_node = target;
-                return true;
+            target->clear();
+            ywSeqLockGuard  lockGuard2(&target->lock_seq);
+            if (lockGuard2.lock()) {
+                if (copy_node(target, 0, count)) {
+                    new_node = target;
+                    return true;
+                }
             }
         }
         return false;
@@ -373,6 +365,7 @@ class ywOrderedNode {
         int32_t         ret;
         lockGuard.read_begin();
         ret = binary_search(key);
+        if (ret < 0) ret = 0;
         if (lockGuard.read_end()) {
             return ret;
         }
@@ -388,14 +381,32 @@ class ywOrderedNode {
 
         lockGuard.read_begin();
         idx = binary_search(key);
-        if (idx < 0) {
-            idx = 0;
-        }
+        if (idx < 0)  idx = 0;
         *ret = get(idx);
         if (lockGuard.read_end()) {
             return true;
         }
         return false;
+    }
+
+    int32_t binary_search(KEY key) {
+        return binary_search(&key);
+    }
+    int32_t binary_search(KEY *key) {
+        int32_t      min = 0;
+        int32_t      max = count - 1;
+        int32_t      mid;
+
+        while (min <= max) {
+            mid = (min + max) >> 1;
+            if (0 < key->compare(KEY(get(mid)))) {
+                max = mid-1;
+            } else {
+                min = mid+1;
+            }
+        }
+
+        return (min + max) >> 1;
     }
 
     HEADER *get_header() {
@@ -427,28 +438,20 @@ class ywOrderedNode {
 
         return true;
     }
+
+    bool _append(KEY *value) {
+        assert(is_locked());
+
+        SLOT ret = alloc(value->get_size());
+        if (ret == NULL_SLOT) {
+            return false;
+        }
+        value->write(get_ptr(ret));
+        slot[count++] = ret;
+        return true;
+    }
 #undef TEST_DECLARE
 #undef TEST_BLOCK
-
-    int32_t binary_search(KEY key) {
-        return binary_search(&key);
-    }
-    int32_t binary_search(KEY *key) {
-        int32_t      min = 0;
-        int32_t      max = count - 1;
-        int32_t      mid;
-
-        while (min <= max) {
-            mid = (min + max) >> 1;
-            if (0 < key->compare(KEY(get(mid)))) {
-                max = mid-1;
-            } else {
-                min = mid+1;
-            }
-        }
-
-        return (min + max) >> 1;
-    }
 
     bool is_locked() {
         return lock_seq & LOCK_MASK;

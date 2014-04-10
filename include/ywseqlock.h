@@ -7,12 +7,15 @@
 class ywSeqLockGuard {
     static const uint32_t LOCK_MASK  = 0x1;
     typedef enum {
+        NONE,
         INIT,
         LOCKED,
         READ
     } guardStatus;
 
  public:
+    ywSeqLockGuard():lock_seq(NULL), status(NONE) {
+    }
     explicit ywSeqLockGuard(volatile uint32_t *_lock_seq):
         lock_seq(_lock_seq), status(INIT) {
     }
@@ -20,7 +23,14 @@ class ywSeqLockGuard {
         release();
     }
 
+    void set(volatile uint32_t *_lock_seq) {
+        lock_seq = _lock_seq;
+        status = INIT;
+    }
+
     void read_begin() {
+        assert(status == INIT);
+
         status   = READ;
         read_seq = *lock_seq;
         __sync_synchronize();
@@ -46,8 +56,8 @@ class ywSeqLockGuard {
         return false;
     }
     void release() {
-        uint32_t prev = *lock_seq;
         if (status == LOCKED) {
+            uint32_t prev = *lock_seq;
             status = INIT;
             assert(__sync_bool_compare_and_swap(lock_seq, prev, prev + 1));
         } else {

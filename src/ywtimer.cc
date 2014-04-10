@@ -23,7 +23,7 @@ void ywTimer::global_timer() {
             }
         }
         ++idx;
-//        usleep(MIN_INTERVAL_USEC);
+        usleep(MIN_INTERVAL_USEC);
     }
 }
 

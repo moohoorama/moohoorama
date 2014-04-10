@@ -10,11 +10,10 @@
 #include <string.h>
 #include <stdlib.h>
 
-template <typename T, int32_t MAX_COUNT = 4>
+template <typename T, int32_t MAX_COUNT = 32>
 class ywStack {
  public:
-    explicit ywStack(T _nil, int32_t _nil_idx = -1):
-        nil(_nil), nil_idx(_nil_idx),  count(0) {
+    explicit ywStack(): count(0) {
     }
 
     ~ywStack() {
@@ -28,12 +27,12 @@ class ywStack {
         return true;
     }
 
-    T pop() {
+    bool pop(T *target) {
         if (count) {
-            return slot[--count];
+            *target = slot[--count];
+            return true;
         }
-
-        return nil;
+        return false;
     }
 
     int32_t find(T key) {
@@ -45,22 +44,26 @@ class ywStack {
             }
         }
 
-        return nil_idx;
+        return -1;
     }
 
     int32_t get_count() {
         return count;
     }
 
-    T get(int32_t n) {
+    bool get(int32_t n, T *target) {
         if ((0 <= n) && (n < count)) {
-            return slot[n];
+            *target = slot[n];
+            return true;
         }
-        return nil;
+        return false;
     }
 
-    T get_last() {
-        return get(count-1);
+    T *get_last_ptr() {
+        if (count > 0) {
+            return &slot[count-1];
+        }
+        return NULL;
     }
 
     void clear() {
@@ -68,8 +71,6 @@ class ywStack {
     }
 
  private:
-    const T       nil;
-    const int32_t nil_idx;
     int32_t      count;
     T            slot[MAX_COUNT];
 };

@@ -42,8 +42,7 @@ class ywRcuPool {
 template<typename T>
 class ywRcuPoolGuard {
  public:
-    explicit ywRcuPoolGuard(ywRcuPool<T> *_target):
-        target(_target), alloc_stack(NULL), free_stack(NULL) {
+    explicit ywRcuPoolGuard(ywRcuPool<T> *_target):target(_target) {
         slot = target->fix();
     }
     ~ywRcuPoolGuard() {
@@ -70,7 +69,7 @@ class ywRcuPoolGuard {
         T *ptr;
 
         alloc_stack.clear();
-        while ((ptr = free_stack.pop())) {
+        while (free_stack.pop(&ptr)) {
             target->free(ptr);
         }
     }
@@ -78,7 +77,7 @@ class ywRcuPoolGuard {
     void rollback() {
         T *ptr;
 
-        while ((ptr = alloc_stack.pop())) {
+        while (alloc_stack.pop(&ptr)) {
             target->free(ptr);
         }
         free_stack.clear();
