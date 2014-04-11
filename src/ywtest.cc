@@ -23,13 +23,31 @@
 #include <ywbtree.h>
 #include <ywbarray.h>
 #include <ywkey.h>
+#include <ywfsnode.h>
 
 #include <map>
 #include <vector>
 #include <algorithm>
 
+TEST(FSNode, Basic) {
+    FSNode_basic_test();
+}
+
 TEST(Btree, Basic) {
     btree_basic_test();
+}
+
+TEST(Btree, conc_insert1) {
+    btree_conc_insert(1);
+}
+TEST(Btree, conc_insert2) {
+    btree_conc_insert(2);
+}
+TEST(Btree, conc_insert4) {
+    btree_conc_insert(4);
+}
+TEST(Btree, conc_insert8) {
+    btree_conc_insert(8);
 }
 
 TEST(Barray, Basic) {

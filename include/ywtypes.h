@@ -39,6 +39,39 @@ class ywInt {
     int32_t val;
 };
 
+class ywLong {
+ public:
+    explicit ywLong() {
+        val = 0;
+    }
+    explicit ywLong(Byte *src) {
+        read(src);
+    }
+    explicit ywLong(int32_t src) {
+        val = src;
+    }
+    void read(Byte *src) {
+        memcpy(&val, src, sizeof(val));
+    }
+    void write(Byte *src) {
+        memcpy(src, &val, sizeof(val));
+    }
+    int32_t  compare(ywLong right) {
+        return compare(&right);
+    }
+    int32_t  compare(ywLong *right) {
+        return right->val - val;
+    }
+    int32_t   get_size() {
+        return sizeof(val);
+    }
+    void     dump() {
+        printf("%8"PRId64 " ", val);
+    }
+
+    int64_t val;
+};
+
 class ywPtr {
  public:
     explicit ywPtr() {

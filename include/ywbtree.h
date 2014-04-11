@@ -5,6 +5,7 @@
 
 #include <ywcommon.h>
 #include <yworderednode.h>
+#include <ywfsnode.h>
 #include <ywsl.h>
 #include <ywmempool.h>
 #include <ywrcupool.h>
@@ -24,8 +25,9 @@ class ywBTree {
     static const int32_t MAX_DEPTH = 16;
 
     typedef ywKey<KEY, VAL> key_type;
-    typedef ywOrderedNode<key_type, null_test_func,
-            uint16_t, PAGE_SIZE, ywBTreeHeader> node_type;
+//    typedef ywOrderedNode<key_type, null_test_func,
+//            uint16_t, PAGE_SIZE, ywBTreeHeader> node_type;
+    typedef ywFSNode<key_type, PAGE_SIZE, ywBTreeHeader> node_type;
 
     class ywbtStack {
      public:
@@ -45,7 +47,8 @@ class ywBTree {
         bool lock(volatile uint32_t *seq) {
             if (!lock_stack.push(ywSeqLockGuard(seq))) return false;
 
-            lock_stack.get_last_ptr()->lock();
+            while (!lock_stack.get_last_ptr()->lock()) {
+            }
             return true;
         }
 
@@ -238,5 +241,6 @@ class ywBTree {
 };
 
 void btree_basic_test();
+void btree_conc_insert(int32_t i);
 
 #endif  // INCLUDE_YWBTREE_H_

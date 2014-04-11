@@ -1,7 +1,7 @@
 OPTIMIZATION?=-O3
 #STD=-std=c99 -pedantic
 STD= -pedantic
-WARN=-Wall -Werror -fno-rtti
+WARN=-Wall -Werror -frtti
 #-fno-rtti
 OPT=$(OPTIMIZATION) -I./include/ -rdynamic -std=c++0x
 DEFINE=-DMAX_THREAD_COUNT=32 -DCACHE_LINE_SIZE=64
