@@ -15,7 +15,8 @@ extern void FSNode_search_test(int32_t cnt, int32_t method);
 extern void FSNode_bsearch_insert_conc_test();
 extern void FSNode_stress_test(int32_t thread_count);
 
-template<typename KEY, size_t PAGE_SIZE = 32*KB, typename HEADER = intptr_t>
+template<typename KEY, size_t PAGE_SIZE = 32*KB, typename HEADER = intptr_t,
+    bool bin_search = true>
 class ywFSNode {
     typedef ywFSNode<KEY, PAGE_SIZE, HEADER> node_type;
     typedef uint32_t                         SLOT;
@@ -96,6 +97,7 @@ class ywFSNode {
     }
     bool insert(KEY *value, bool need_locking = true) {
         ywSeqLockGuard lockGuard(&lock_seq);
+        int32_t        idx;
 
         if (need_locking) {
             if (!lockGuard.lock()) {
@@ -106,14 +108,23 @@ class ywFSNode {
 
         if (count >= IDEAL_MAX_SLOT_COUNT) return false;
 
-        int32_t idx = binary_search(value)+1;
         if (count > 0) {
+            if (bin_search) {
+                idx = binary_search(value)+1;
+            } else {
+                idx = binary_search(value);
+                if (0 >= value->compare(&slot[idx])) {
+                    idx++;
+                }
+            }
+
             slot[count] = slot[count-1];
             int32_t i = count++;
             while ((--i) > idx) {
                 slot[i] = slot[i-1];
             }
         } else {
+            idx = 0;
             count++;
         }
         slot[idx] = *value;
@@ -132,7 +143,8 @@ class ywFSNode {
             return false;
         }
         idx = binary_search(value);
-        if (idx < 0) idx = 0;
+        if (idx < 0)      idx = 0;
+        if (idx >= count) idx = count - 1;
         if (static_cast<SLOT>(idx) < count) {
             slot[idx] = *value;
             return true;
@@ -160,10 +172,10 @@ class ywFSNode {
 
         if (lockGuard.lock()) {
             idx = binary_search(value);
-            if ((0 <= idx) && (idx < count)) {
-                if (0 == value->compare(slot[idx])) {
-                    return _remove(idx);
-                }
+            if (idx < 0)      idx = 0;
+            if (idx >= count) idx = count - 1;
+            if (0 == value->compare(slot[idx])) {
+                return _remove(idx);
             }
         }
         return false;
@@ -319,7 +331,8 @@ class ywFSNode {
         int32_t         ret;
         lockGuard.read_begin();
         ret = binary_search(key);
-        if (ret < 0) ret = 0;
+        if (ret < 0)      ret = 0;
+        if (ret >= count) ret = count - 1;
         if (lockGuard.read_end()) {
             return ret;
         }
@@ -335,7 +348,8 @@ class ywFSNode {
 
         lockGuard.read_begin();
         idx = binary_search(key);
-        if (idx < 0)  idx = 0;
+        if (idx < 0)      idx = 0;
+        if (idx >= count) idx = count - 1;
         *ret = slot[idx];
         if (lockGuard.read_end()) {
             return true;
@@ -347,20 +361,40 @@ class ywFSNode {
         return binary_search(&key);
     }
     int32_t binary_search(KEY *key) {
-        int32_t      min = 0;
-        int32_t      max = count - 1;
-        int32_t      mid;
+        if (bin_search) {
+            int32_t      min = 0;
+            int32_t      max = count - 1;
+            int32_t      mid;
 
-        while (min <= max) {
-            mid = (min + max) >> 1;
-            if (0 < key->compare(slot[mid])) {
-                max = mid-1;
-            } else {
-                min = mid+1;
+            while (min <= max) {
+                mid = (min + max) >> 1;
+                if (0 < key->compare(slot[mid])) {
+                    max = mid-1;
+                } else {
+                    min = mid+1;
+                }
             }
-        }
 
-        return (min + max) >> 1;
+            return (min + max) >> 1;
+        } else {
+            int32_t      idx;
+            int32_t      begin = 0;
+            int32_t      size  = count;
+            int32_t      half  = size / 2;
+
+            do {
+                idx = begin + half;
+                if (0 < key->compare(&slot[idx])) {
+                    size = half;
+                } else {
+                    begin+= half;
+                    size -= half;
+                }
+                half = size/2;
+            } while (half > 0);
+
+            return begin;
+        }
     }
 
     HEADER *get_header() {

@@ -30,7 +30,7 @@ void btree_basic_test() {
 }
 
 
-typedef ywBTree<ywLong, ywPtr,  1*KB>     btree_1k;
+typedef ywBTree<ywLong, ywPtr,  8*KB>     btree_1k;
 class ywBtreeConcTest {
  public:
     static const int32_t TEST_COUNT = 1024*1024;
