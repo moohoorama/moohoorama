@@ -29,10 +29,6 @@
 #include <vector>
 #include <algorithm>
 
-TEST(FSNode, Basic) {
-    FSNode_basic_test();
-}
-
 TEST(Btree, Basic) {
     btree_basic_test();
 }
@@ -49,6 +45,20 @@ TEST(Btree, conc_insert4) {
 TEST(Btree, conc_insert8) {
     btree_conc_insert(8);
 }
+
+TEST(RCURef, Basic) {
+    rcu_ref_test();
+}
+
+TEST(RCUPool, Basic) {
+    rcu_pool_test();
+}
+
+
+TEST(FSNode, Basic) {
+    FSNode_basic_test();
+}
+
 
 TEST(Barray, Basic) {
     barray_test();
@@ -92,10 +102,6 @@ TEST(OrderedNode, Basic_huge_binary) {
 
 TEST(OrderedNode, search_huge_interpolation) {
     OrderedNode_search_test(1024, 1);
-}
-
-TEST(RCURef, Basic) {
-    rcu_ref_test();
 }
 
 TEST(ywStack, Basic) {

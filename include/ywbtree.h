@@ -63,7 +63,6 @@ class ywBTree {
         clear();
     }
     ~ywBTree() {
-        reclaim();
         free_all_node();
         if (!node_pool.all_free()) {
             report();
@@ -71,8 +70,8 @@ class ywBTree {
     }
 
     void reset() {
+        reclaim();
         free_all_node();
-        clear();
     }
 
     bool insert(KEY key, void *value) {
@@ -255,8 +254,8 @@ class ywBTree {
                 if (!stack->lock(cursor->get_lock_seq_ptr())) return false;
             }
             idx = cursor->binary_search(keyValue);
-            // if (idx < 0 ) idx = 0;
-            if (idx >= cursor->get_count()) idx = cursor->get_count() - 1;
+            if (idx < 0 ) idx = 0;
+            assert(idx < static_cast<int32_t>(cursor->get_count()));
             if (!stack->push(cursor)) return false;
 
             if (cursor->get_header()->is_leaf) {
@@ -276,6 +275,7 @@ class ywBTree {
             rpGuard.commit();
         }
         reclaim();
+        clear();
     }
 
     void reclaim() {

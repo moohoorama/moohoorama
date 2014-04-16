@@ -85,7 +85,7 @@ void ywBtreeConcTest::run() {
 
     for (i = 0; i < TEST_COUNT; ++i) {
         val = operation * TEST_COUNT + i;
-        if (operation < 0) {
+        if (operation < 90) {
             tree->insert(ywLong(val), NULL);
         } else {
             tree->find(ywLong(val));

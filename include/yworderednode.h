@@ -77,7 +77,7 @@ class ywOrderedNode {
         return KEY(get_ptr(slot[idx]));
     }
 
-    SLOT get_count() {
+    SLOT    get_count() {
         return count;
     }
 

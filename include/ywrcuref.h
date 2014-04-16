@@ -165,10 +165,10 @@ class ywRcuRef {
                     change_ring(slot);
                     node = free_ring_pool.pop();
                 }
+                slot->oldest_ring = node;
             }
             if (!node) return NULL;
 
-            slot->oldest_ring = node;
             if (!is_reusable(node)) return NULL;
 
             T *ret = reinterpret_cast<T*>(node->sub_list.pop());
@@ -215,6 +215,7 @@ class ywRcuRef {
     }
 
     void change_ring(ywrcu_slot *slot) {
+        ywDList backup = slot->latest_ring.sub_list;
         if (!slot->latest_ring.sub_list.is_unlinked()) {
             ywrcu_free_ring *ring;
 
@@ -223,7 +224,12 @@ class ywRcuRef {
             ring->free_list.init();
             ring->sub_list.init();
             ring->sub_list.bring(&slot->latest_ring.sub_list);
-            assert(slot->latest_ring.sub_list.is_unlinked());
+            if (!slot->latest_ring.sub_list.is_unlinked()) {
+                printf("%" PRIdPTR ", %" PRIdPTR "\n",
+                       reinterpret_cast<intptr_t>(backup.prev),
+                       reinterpret_cast<intptr_t>(backup.next));
+                assert(slot->latest_ring.sub_list.is_unlinked());
+            }
             free_ring_pool.push(ring);
             init_ring(&slot->latest_ring);
         }

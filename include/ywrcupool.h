@@ -80,6 +80,8 @@ class ywRcuPoolGuard {
     T *alloc() {
         T *ptr = target->alloc();
         if (ptr) {
+            assert(alloc_stack.find(ptr) == -1);
+            assert(free_stack.find(ptr) == -1);
             if (alloc_stack.push(ptr)) {
                 return ptr;
             }
@@ -89,6 +91,8 @@ class ywRcuPoolGuard {
     }
 
     bool free(T *ptr) {
+        assert(alloc_stack.find(ptr) == -1);
+        assert(free_stack.find(ptr) == -1);
         return free_stack.push(ptr);
     }
 
@@ -117,5 +121,6 @@ class ywRcuPoolGuard {
     ywrcu_slot    *slot;
 };
 
+extern void rcu_pool_test();
 
 #endif  // INCLUDE_YWRCUPOOL_H_

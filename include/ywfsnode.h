@@ -64,7 +64,7 @@ class ywFSNode {
         return META_SIZE;
     }
 
-    SLOT get_count() {
+    SLOT    get_count() {
         return count;
     }
 
@@ -144,8 +144,7 @@ class ywFSNode {
         }
         idx = binary_search(value);
         if (idx < 0)      idx = 0;
-        if (idx >= count) idx = count - 1;
-        if (static_cast<SLOT>(idx) < count) {
+        if (idx < static_cast<int32_t>(count)) {
             slot[idx] = *value;
             return true;
         }
@@ -173,7 +172,6 @@ class ywFSNode {
         if (lockGuard.lock()) {
             idx = binary_search(value);
             if (idx < 0)      idx = 0;
-            if (idx >= count) idx = count - 1;
             if (0 == value->compare(slot[idx])) {
                 return _remove(idx);
             }
@@ -349,7 +347,7 @@ class ywFSNode {
         lockGuard.read_begin();
         idx = binary_search(key);
         if (idx < 0)      idx = 0;
-        if (idx >= count) idx = count - 1;
+        assert(idx < static_cast<int32_t>(count));
         *ret = slot[idx];
         if (lockGuard.read_end()) {
             return true;
