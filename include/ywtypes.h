@@ -66,7 +66,7 @@ class ywLong {
         return sizeof(val);
     }
     void     dump() {
-        printf("%8"PRId64 " ", val);
+        printf("%8" PRId64 " ", val);
     }
 
     int64_t val;

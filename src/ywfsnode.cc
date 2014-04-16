@@ -35,6 +35,7 @@ void FSNode_basic_test() {
     assert(node.get_free() == base_size);
     for (i = 0; i < cnt; ++i) {
         assert(node.insert(ywInt(i)));
+        assert(node.isOrdered());
     }
     assert(node.isOrdered());
     assert(node.get_free() == base_size - slot_size*cnt);

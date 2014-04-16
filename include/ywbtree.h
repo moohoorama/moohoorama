@@ -239,6 +239,7 @@ class ywBTree {
                 cursor = root; /*retry*/
                 cur_smo_seq = smo_seq;
             }
+            assert(cursor);
         }
         return cursor;
     }
@@ -254,7 +255,8 @@ class ywBTree {
                 if (!stack->lock(cursor->get_lock_seq_ptr())) return false;
             }
             idx = cursor->binary_search(keyValue);
-            if (idx < 0 ) idx = 0;
+            // if (idx < 0 ) idx = 0;
+            if (idx >= cursor->get_count()) idx = cursor->get_count() - 1;
             if (!stack->push(cursor)) return false;
 
             if (cursor->get_header()->is_leaf) {
@@ -262,6 +264,7 @@ class ywBTree {
             }
 
             cursor = get_child(cursor, idx);
+            assert(cursor);
         }
         return false;
     }
