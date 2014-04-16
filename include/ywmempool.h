@@ -26,6 +26,11 @@ class ywMemPool {
         free_all();
     }
 
+    bool all_free() {
+        size_t per_count = CHUNK_SIZE/UNIT;
+        return (get_free_count() == get_chunk_count()*per_count);
+    }
+
     inline T *  alloc() {
         T * ret;
 
@@ -48,6 +53,10 @@ class ywMemPool {
 
     int32_t get_chunk_count() {
         return chunk_idx;
+    }
+
+    size_t get_free_count() {
+        return pool.get_pooling_count();
     }
 
     void report() {

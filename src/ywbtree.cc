@@ -7,25 +7,57 @@
 #include <ywmempool.h>
 #include <ywtypes.h>
 
+template<int32_t PAGE_SIZE>
+void btree_basic(ywBTree<ywLong, ywPtr, PAGE_SIZE> *btree,
+                 int32_t                            count,
+                 ywLong                            *val) {
+    int32_t    i;
+    for (i = 0; i < count; ++i) {
+        assert(btree->insert(val[i], &val[i]));
+    }
+    for (i = 0; i < count; ++i) {
+        if (btree->find(val[i]) != &val[i]) {
+            assert(btree->find(val[i]) == &val[i]);
+        }
+    }
+
+    for (i = 0; i < count; ++i) {
+        assert(btree->remove(val[i]));
+        if (btree->find(val[i]) == &val[i]) {
+            assert(btree->find(val[i]) != &val[i]);
+        }
+    }
+}
+
 void btree_basic_test() {
-    static const int32_t                     count = 1000;
+    static const int32_t                     count = 1000000;
     typedef ywBTree<ywLong, ywPtr, 2*KB>     btree_type;
     btree_type                               btree;
-    ywLong                                    *val = new ywLong[count];
+    ywLong                                  *val = new ywLong[count];
     int32_t                                  i;
+    uint32_t                                 rnd = 1;
 
     for (i = 0; i < count; ++i) {
-//        val[i] = ywLong(count-i);
         val[i] = ywLong(i);
-        btree.insert(val[i], &val[i]);
     }
-//    btree.dump();
+    btree_basic<2*KB>(&btree, count, val);
+    btree_basic<2*KB>(&btree, count, val);
+    btree.reset();
 
     for (i = 0; i < count; ++i) {
-//        val[i] = ywLong(count-i);
-        val[i] = ywLong(i);
-        assert(btree.find(val[i]) == &val[i]);
+        val[i] = ywLong(count-i);
     }
+    btree_basic<2*KB>(&btree, count, val);
+    btree_basic<2*KB>(&btree, count, val);
+    btree.reset();
+
+    for (i = 0; i < count; ++i) {
+        val[i] = ywLong(rand_r(&rnd));
+    }
+    btree_basic<2*KB>(&btree, count, val);
+    btree_basic<2*KB>(&btree, count, val);
+    btree.reset();
+
     delete val;
 }
 
@@ -33,7 +65,7 @@ void btree_basic_test() {
 typedef ywBTree<ywLong, ywPtr,  1*KB>     btree_1k;
 class ywBtreeConcTest {
  public:
-    static const int32_t TEST_COUNT = 1024*1024;
+    static const int32_t TEST_COUNT = 1024*1024*4;
 
     void run();
 

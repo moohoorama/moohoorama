@@ -34,6 +34,33 @@ class ywRcuPool {
         rcu_ref.regist_free_obj<T>(ptr);
     }
 
+    void report() {
+        printf("MEMPool: ChunkCount : %d\n", mem_pool.get_chunk_count());
+        printf("         FreeCount  : %" PRIdPTR "\n",
+               mem_pool.get_free_count());
+        printf("         All_free   : %d\n", mem_pool.all_free());
+        printf("RCURef:  freeCount  : %" PRIdPTR "\n",
+               rcu_ref.get_free_count());
+    }
+
+    bool all_free() {
+        return mem_pool.all_free();
+    }
+
+    void aging() {
+        rcu_ref.aging();
+    }
+
+    void reclaim_to_pool() {
+        T * ret;
+
+        ret = rcu_ref.get_reusable_item<T>();
+        while (ret) {
+            mem_pool.free_mem(ret);
+            ret = rcu_ref.get_reusable_item<T>();
+        }
+    }
+
  private:
     ywMemPool<T> mem_pool;
     ywRcuRef     rcu_ref;

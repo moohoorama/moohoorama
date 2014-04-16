@@ -117,6 +117,17 @@ class ywPool {
         return reinterpret_cast<T*>(ret);
     }
 
+    size_t get_pooling_count() {
+        size_t  total = 0;
+        int32_t i;
+
+        for (i = 0; i < SHARED_IDX; ++i) {
+            total += slot[i].count;
+        }
+        total += slot[SHARED_IDX].count;
+
+        return total;
+    }
     void print() {
         int32_t i = 0;
         int32_t j = 0;

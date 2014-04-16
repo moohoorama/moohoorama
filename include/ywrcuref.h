@@ -157,23 +157,28 @@ class ywRcuRef {
         static_assert(sizeof(T) >= sizeof(ywDList), "Too small datatype");
         ywrcu_slot      *slot = get_slot();
         ywrcu_free_ring *node = slot->oldest_ring;
-        if (!node) {
-            node = free_ring_pool.pop();
+
+        while (true) {
             if (!node) {
-                change_ring(slot);
                 node = free_ring_pool.pop();
-            }
-        }
-        if (node) {
-            slot->oldest_ring = node;
-            if (is_reusable(node)) {
-                T *ret = reinterpret_cast<T*>(node->sub_list.pop());
-                if (ret) {
-                    return ret;
+                if (!node) {
+                    change_ring(slot);
+                    node = free_ring_pool.pop();
                 }
-                slot->oldest_ring = NULL;
-                ywRcuRefManager::get_instance()->free(node);
             }
+            if (!node) return NULL;
+
+            slot->oldest_ring = node;
+            if (!is_reusable(node)) return NULL;
+
+            T *ret = reinterpret_cast<T*>(node->sub_list.pop());
+            if (ret) {
+                return ret;
+            }
+
+            ywRcuRefManager::get_instance()->free(node);
+            slot->oldest_ring = NULL;
+            node = NULL;
         }
         return NULL;
     }
@@ -190,7 +195,12 @@ class ywRcuRef {
         ywrcu_slot      *slot = get_slot();
 
         change_ring(slot);
+        update_reusable_time();
         free_ring_pool.reclaim();
+    }
+
+    size_t get_free_count() {
+        return free_ring_pool.get_pooling_count();
     }
 
     ywr_time get_global_time() {

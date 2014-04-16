@@ -353,7 +353,7 @@ class ywFSNode {
 
         while (min <= max) {
             mid = (min + max) >> 1;
-            if (0 < key->compare(slot[mid])) {
+            if (0 < key->compare(&slot[mid])) {
                 max = mid-1;
             } else {
                 min = mid+1;

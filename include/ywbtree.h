@@ -25,9 +25,9 @@ class ywBTree {
     static const int32_t MAX_DEPTH = 16;
 
     typedef ywKey<KEY, VAL> key_type;
-//    typedef ywOrderedNode<key_type, null_test_func,
-//            uint16_t, PAGE_SIZE, ywBTreeHeader> node_type;
-    typedef ywFSNode<key_type, PAGE_SIZE, ywBTreeHeader> node_type;
+    typedef ywOrderedNode<key_type, null_test_func,
+            uint16_t, PAGE_SIZE, ywBTreeHeader> node_type;
+//    typedef ywFSNode<key_type, PAGE_SIZE, ywBTreeHeader> node_type;
 
     class ywbtStack {
      public:
@@ -62,6 +62,18 @@ class ywBTree {
 //        check_inheritance<ywTypes, VAL>();
         clear();
     }
+    ~ywBTree() {
+        reclaim();
+        free_all_node();
+        if (!node_pool.all_free()) {
+            report();
+        }
+    }
+
+    void reset() {
+        free_all_node();
+        clear();
+    }
 
     bool insert(KEY key, void *value) {
         return insert(key, ywPtr(value));
@@ -79,7 +91,7 @@ class ywBTree {
             if (!smo_guard.lock()) return false;
             if (!traverse_with_stack(keyValue, &stack)) return false;
             if (!stack.pop(&cursor)) return false;
-            if (!split_Insert(&rpGuard, &stack, cursor, keyValue)) {
+            if (!split_insert(&rpGuard, &stack, cursor, keyValue)) {
                 return false;
             }
         }
@@ -88,8 +100,28 @@ class ywBTree {
         return true;
     }
 
-    bool remove(Byte *key) {
-        return true;
+    bool remove(KEY key) {
+        ywRcuPoolGuard<node_type>  rpGuard(&node_pool);
+        key_type                   keyValue(key);
+        key_type                   ret;
+        node_type                 *cursor = find_leaf(keyValue);
+
+        if (cursor->remove(keyValue)) {
+            return true;
+        }
+        return false;
+    }
+    int32_t get_depth() {
+        node_type *cursor = root;
+        int32_t    i = 1;
+
+        while (!cursor->get_header()->is_leaf) {
+            cursor = reinterpret_cast<node_type*>(
+                cursor->get(0).val.get());
+            i++;
+        }
+
+        return i;
     }
     bool  find(KEY key, void *_value) {
         VAL value;
@@ -106,6 +138,8 @@ class ywBTree {
         key_type                   ret;
         node_type                 *cursor = find_leaf(keyValue);
 
+        if (!cursor->get_count()) return NULL;
+
         while (!cursor->search_body(keyValue, &ret)) {
         }
 
@@ -115,8 +149,23 @@ class ywBTree {
         root->dump();
     }
 
+    void report() {
+        node_pool.report();
+    }
+
+
  private:
-    bool split_Insert(ywRcuPoolGuard<node_type> *rpGuard,
+    node_type *get_child(node_type *node, int32_t idx) {
+        return reinterpret_cast<node_type*>(node->get(idx).val.get());
+    }
+    key_type get_left_most_key(node_type * node) {
+        while (!node->get_header()->is_leaf) {
+            node = get_child(node, 0);
+        }
+
+        return node->get(0);
+    }
+    bool split_insert(ywRcuPoolGuard<node_type> *rpGuard,
                       ywbtStack                  *stack,
                       node_type                  *node,
                       key_type                    keyValue) {
@@ -131,6 +180,8 @@ class ywBTree {
 
         if (!new_left || !right) return false;
 
+        assert(rpGuard->free(node));
+
         init_node(new_left, node->get_header()->is_leaf);
         init_node(right, node->get_header()->is_leaf);
         if (!stack->lock(new_left->get_lock_seq_ptr())) return false;
@@ -139,10 +190,7 @@ class ywBTree {
         if (!node->copy_node(new_left, 0, split_idx)) return false;
         if (!node->copy_node(right, split_idx, cur_count)) return false;
 
-        left_parent_key     = new_left->get(0);
-        left_parent_key.val = ywPtr(new_left);
-
-        right_parent_key     = right->get(0);
+        right_parent_key     = get_left_most_key(right);
         right_parent_key.val = ywPtr(right);
 
         if (0 < right_parent_key.compare(keyValue)) {
@@ -150,6 +198,10 @@ class ywBTree {
         } else {
             if (!new_left->insert(keyValue, false)) return false;
         }
+
+        left_parent_key     = get_left_most_key(new_left);
+        left_parent_key.val = ywPtr(new_left);
+
         if (!stack->pop(&parent)) { /* stack is root */
             /*make new root*/
             parent = rpGuard->alloc();
@@ -165,7 +217,7 @@ class ywBTree {
             if (!parent->inplace_update(left_parent_key)) return false;
             if (!parent->insert(right_parent_key)) {
                 if (!stack->lock(parent->get_lock_seq_ptr())) return false;
-                if (!split_Insert(rpGuard, stack, parent, right_parent_key))
+                if (!split_insert(rpGuard, stack, parent, right_parent_key))
                     return false;
             }
         }
@@ -209,9 +261,39 @@ class ywBTree {
                 return true;
             }
 
-            cursor = reinterpret_cast<node_type*>(cursor->get(idx).val.get());
+            cursor = get_child(cursor, idx);
         }
         return false;
+    }
+
+    void free_all_node() {
+        {
+            ywRcuPoolGuard<node_type>  rpGuard(&node_pool);
+            free_node_cascading(&rpGuard, root);
+            rpGuard.commit();
+        }
+        reclaim();
+    }
+
+    void reclaim() {
+        node_pool.aging();
+        node_pool.reclaim_to_pool();
+    }
+
+    void free_node_cascading(ywRcuPoolGuard<node_type> *rpGuard,
+                            node_type                  *node) {
+        size_t                    i;
+
+        if (!node->get_header()->is_leaf) {
+            for (i = 0; i < node->get_count(); ++i) {
+                free_node_cascading(rpGuard, get_child(node, i));
+            }
+        }
+
+        if (!rpGuard->free(node)) {
+            rpGuard->commit();
+            rpGuard->free(node);
+        }
     }
 
     void clear() {
