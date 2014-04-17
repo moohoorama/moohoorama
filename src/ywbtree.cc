@@ -73,7 +73,7 @@ class ywBtreeConcTest {
     int32_t   operation;
 };
 
-void stress_task(void *arg) {
+void bt_stress_task(void *arg) {
     ywBtreeConcTest *tc = reinterpret_cast<ywBtreeConcTest*>(arg);
 
     tc->run();
@@ -107,7 +107,7 @@ void btree_conc_insert(int32_t thread_count) {
     for (i = 0; i < thread_count; ++i) {
         tc[i].operation = i;
         tc[i].tree      = &tree;
-        assert(tpool->add_task(stress_task, &tc[i]));
+        assert(tpool->add_task(bt_stress_task, &tc[i]));
     }
     tpool->wait_to_idle();
 }

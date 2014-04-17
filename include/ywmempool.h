@@ -12,7 +12,7 @@
 
 #include <typeinfo>
 
-template<typename T, size_t CHUNK_SIZE =  64*KB>
+template<typename T, size_t CHUNK_SIZE = 64*KB>
 class ywMemPool {
     static const size_t  UNIT = sizeof(T);
     static const size_t  CHUNK_MAX_COUNT =   2*GB / CHUNK_SIZE;

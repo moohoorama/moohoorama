@@ -24,27 +24,35 @@
 #include <ywbarray.h>
 #include <ywkey.h>
 #include <ywfsnode.h>
+#include <ywlogstore.h>
 
 #include <map>
 #include <vector>
 #include <algorithm>
 
+TEST(LogStore, no_io_concurrency1)  { logstore_basic_test(2, 1); }
+TEST(LogStore, no_io_concurrency2)  { logstore_basic_test(2, 2); }
+TEST(LogStore, no_io_concurrency4)  { logstore_basic_test(2, 4); }
+TEST(LogStore, no_io_concurrency8)  { logstore_basic_test(2, 8); }
+
+TEST(LogStore, direct_io_concurrency1)  { logstore_basic_test(1, 1); }
+TEST(LogStore, direct_io_concurrency2)  { logstore_basic_test(1, 2); }
+TEST(LogStore, direct_io_concurrency4)  { logstore_basic_test(1, 4); }
+TEST(LogStore, direct_io_concurrency8)  { logstore_basic_test(1, 8); }
+
+TEST(LogStore, buf_concurrency1)  { logstore_basic_test(0, 1); }
+TEST(LogStore, buf_concurrency2)  { logstore_basic_test(0, 2); }
+TEST(LogStore, buf_concurrency4)  { logstore_basic_test(0, 4); }
+TEST(LogStore, buf_concurrency8)  { logstore_basic_test(0, 8); }
+
 TEST(Btree, Basic) {
     btree_basic_test();
 }
 
-TEST(Btree, conc_insert1) {
-    btree_conc_insert(1);
-}
-TEST(Btree, conc_insert2) {
-    btree_conc_insert(2);
-}
-TEST(Btree, conc_insert4) {
-    btree_conc_insert(4);
-}
-TEST(Btree, conc_insert8) {
-    btree_conc_insert(8);
-}
+TEST(Btree, conc_insert1) { btree_conc_insert(1); }
+TEST(Btree, conc_insert2) { btree_conc_insert(2); }
+TEST(Btree, conc_insert4) { btree_conc_insert(4); }
+TEST(Btree, conc_insert8) { btree_conc_insert(8); }
 
 TEST(RCURef, Basic) {
     rcu_ref_test();

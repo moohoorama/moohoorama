@@ -8,7 +8,7 @@
 #include <ywmempool.h>
 #include <ywstack.h>
 
-template<typename T>
+template<typename T, size_t CHUNK_SIZE = 64*KB>
 class ywRcuPool {
  public:
     ywRcuPool() {
@@ -62,8 +62,8 @@ class ywRcuPool {
     }
 
  private:
-    ywMemPool<T> mem_pool;
-    ywRcuRef     rcu_ref;
+    ywMemPool<T, CHUNK_SIZE>  mem_pool;
+    ywRcuRef                  rcu_ref;
 };
 
 template<typename T>

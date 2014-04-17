@@ -179,6 +179,7 @@ class ywBTree {
 
         if (!new_left || !right) return false;
 
+        assert(node->get_header()->list.is_unlinked());
         assert(rpGuard->free(node));
 
         init_node(new_left, node->get_header()->is_leaf);
@@ -293,6 +294,7 @@ class ywBTree {
             }
         }
 
+        assert(node->get_header()->list.is_unlinked());
         if (!rpGuard->free(node)) {
             rpGuard->commit();
             rpGuard->free(node);
@@ -317,6 +319,7 @@ class ywBTree {
         node->clear();
         header->is_leaf = is_leaf;
         header->smo_seq = smo_seq;
+        header->list.init();
     }
 
     volatile uint32_t     smo_seq;
