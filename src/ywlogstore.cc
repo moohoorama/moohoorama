@@ -3,9 +3,32 @@
 #include <ywlogstore.h>
 #include <gtest/gtest.h>
 
+bool ywLogStore::create_flush_thread() {
+    pthread_attr_t          attr;
+    pthread_t               pt;
+    assert(0 == pthread_attr_init(&attr) );
+
+    assert(0 == pthread_create(&pt, &attr, log_flusher, this));
+    return true;
+}
+
+void *ywLogStore::log_flusher(void *arg_ptr) {
+    ywLogStore *log = reinterpret_cast<ywLogStore*>(arg_ptr);
+
+    log->running = true;
+    while (!log->done) {
+        if (!log->flush()) {
+            usleep(100);
+        }
+    }
+    log->running = false;
+
+    return NULL;
+}
+
 class logStoreConcTest {
  public:
-    static const int32_t TEST_COUNT = 4096;
+    static const int32_t TEST_COUNT = 16*KB;
 
     void run();
 
@@ -52,7 +75,13 @@ void logstore_basic_test(int32_t io_type, int32_t thread_count) {
     printf("append : %" PRId64 "(%" PRId64 "MB)\n",
            ls.get_append_pos(),
            ls.get_append_pos()/1024/1024);
-    ls.flush();
+    printf("flushd : %" PRId64 "(%" PRId64 "MB)\n",
+           ls.get_write_pos(),
+           ls.get_write_pos()/1024/1024);
+    ls.wait_flush();
+    printf("flushd : %" PRId64 "(%" PRId64 "MB)\n",
+           ls.get_write_pos(),
+           ls.get_write_pos()/1024/1024);
     perf.finish("MPS");
 //    ls.sync();
 }

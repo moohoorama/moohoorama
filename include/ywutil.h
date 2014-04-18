@@ -13,6 +13,12 @@ void printVar(const char * name, uint32_t size, char * buf);
 void printHex(uint32_t size, char * buf, bool info = true);
 void printHex(uint32_t size, Byte * buf, bool info = true);
 
+template<typename T>
+T align(T src, T unit) {
+    assert((unit & ~unit) == 0);
+    return (src + (unit-1)) & ~(unit-1);
+}
+
 inline uint32_t simple_hash(size_t len, char * body) {
     uint32_t h = 5381;
 
