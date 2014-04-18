@@ -181,7 +181,7 @@ class ywLogStore {
         size_t    ret;
         size_t    offset = write_pos.get_idx() * CHUNK_SIZE;
         ywOff     old_val = write_pos.get();
-        int32_t  *chunk_idx_ptr;
+        uint64_t *chunk_idx_ptr;
         uint32_t  cnt;
         uint32_t  mem_chunk_no = write_pos.get_idx() % MEM_CHUNK_COUNT;
         uint32_t  i;
@@ -204,7 +204,7 @@ class ywLogStore {
 
         if (io != NO_IO) {
             ret = pwritev(fd, iov, i, offset);
-            //        fsync(fd);
+            fsync(fd);
             if (!ret == iov[0].iov_len) {
                 write_pos.set(old_val);
                 perror("flush error:");
@@ -267,7 +267,7 @@ class ywLogStore {
     int32_t                 io;
     Byte                   *chunk_buffer;
     ywChunk                *chunk_ptr[MEM_CHUNK_COUNT];
-    int32_t                 chunk_idx[MEM_CHUNK_COUNT];
+    uint64_t                chunk_idx[MEM_CHUNK_COUNT];
     ywPos                   append_pos;
     ywPos                   write_pos;
     ywPos                   flush_pos;
