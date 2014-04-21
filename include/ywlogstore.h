@@ -26,35 +26,41 @@ class ywChunk {
     Byte  body[CHUNK_SIZE];
 };
 
+class ywCnkID { /*ChunkID*/
+ public:
+    uint32_t type:8;
+    uint32_t idx:24;
+};
+
+static_assert(sizeof(ywCnkID) == 4, "invalid ywCnkID Size");
+
 class ywLogStore {
     static const uint32_t CHUNK_MAP_MAX = 1024;
     static const uint32_t MEM_CHUNK_COUNT = 8;
     static const uint32_t CHUNK_SIZE    = sizeof(ywChunk);
     static const intptr_t DIO_ALIGN     = 512;
+
+    /* IO Type */
     static const int32_t  BUFFERED_IO = 0;
     static const int32_t  DIRECT_IO = 1;
     static const int32_t  NO_IO = 2;
+
+    /*CnkID Type*/
+    static const uint32_t MASTER_CNK = 0;
+    static const uint32_t LOG_CNK    = 1;
+    static const uint32_t INFO_CNK   = 2;
+    static const uint32_t SORTED_CNK = 3;
 
     class ywPos {
         static const uint32_t mask = 0xffffffff;
 
      public:
-        explicit ywPos():val(0) {
-        }
-        explicit ywPos(ywOff _val):val(_val) {
-        }
-        bool is_null() {
-            return val == 0;
-        }
-        void set_null() {
-            set(0);
-        }
-        ywOff get() {
-            return get_idx()*CHUNK_SIZE | get_offset();
-        }
-        void set(ywOff _val) {
-            val = _val;
-        }
+        explicit ywPos():val(0) { }
+        explicit ywPos(ywOff _val):val(_val) { }
+        bool  is_null() { return val == 0;}
+        ywOff get()     { return get_idx()*CHUNK_SIZE | get_offset();}
+        void set_null()      { set(0); }
+        void set(ywOff _val) { val = _val; }
         void set(uint32_t idx, uint32_t offset) {
             val = (static_cast<ywOff>(idx) << 32) |
                   (static_cast<ywOff>(offset));
@@ -89,65 +95,29 @@ class ywLogStore {
             return ywPos(prev);
         }
 
-        bool next_chunk() {
-            return next_chunk(val);
-        }
-
+        bool next_chunk() { return next_chunk(val); }
         bool next_chunk(ywOff prev) {
             ywOff    new_off = (((prev >> 32) & mask) + 1) << 32;
             return cas(&val, prev, new_off);
         }
 
-        uint64_t get_offset() {
-            return (val >>  0) & mask;
-        }
-        uint64_t get_idx() {
-            return (val >> 32) & mask;
-        }
+        uint64_t get_offset() {return (val >>  0) & mask;}
+        uint64_t get_idx() {return (val >> 32) & mask;}
 
+     private:
         ywOff val;
     };
 
  public:
     explicit ywLogStore(const char * fn, int32_t _io):fd(-1),
     io(_io), done(false), running(false) {
-        uint32_t  flag = O_RDWR | O_CREAT | O_LARGEFILE;
-        uint32_t  i;
-        Byte     *aligned_buffer;
-
-        chunk_buffer = reinterpret_cast<Byte*>(malloc(
-                MEM_CHUNK_COUNT*CHUNK_SIZE+DIO_ALIGN));
-        aligned_buffer = reinterpret_cast<Byte*>(
-            align(reinterpret_cast<intptr_t>(chunk_buffer), DIO_ALIGN));
-
-        for (i = 0; i < MEM_CHUNK_COUNT; ++i) {
-            chunk_ptr[i] = reinterpret_cast<ywChunk*>(aligned_buffer +
-                         i*CHUNK_SIZE);
-            chunk_idx[i] = i;
-//            chunk_ptr[i] = chunk_pool.alloc();
-        }
-        append_pos.set_null();
-        write_pos.set_null();
-        flush_pos.set_null();
-
-        if (io == DIRECT_IO) flag |= O_DIRECT;
-
-        fd = open(fn, flag, S_IRWXU);
-        if (fd == -1) {
-            perror("file open error:");
-            assert(fd != -1);
-        }
-
-        assert(create_flush_thread());
+        init(fn, _io);
     }
+
     ~ywLogStore() {
         done = true;
-        if (fd != -1) {
-            close(fd);
-        }
-        while (running) {
-            usleep(100);
-        }
+        if (fd != -1)   { close(fd); }
+        while (running) { usleep(100); }
 
         free(chunk_buffer);
 
@@ -175,72 +145,12 @@ class ywLogStore {
         return pos.get();
     }
 
-    bool flush() {
-        struct    iovec iov[MEM_CHUNK_COUNT];
-        int32_t   old_idx[MEM_CHUNK_COUNT];
-        size_t    ret;
-        size_t    offset = write_pos.get_idx() * CHUNK_SIZE;
-        ywOff     old_val = write_pos.get();
-        uint64_t *chunk_idx_ptr;
-        uint32_t  cnt;
-        uint32_t  mem_chunk_no = write_pos.get_idx() % MEM_CHUNK_COUNT;
-        uint32_t  i;
+    bool flush();
+    void wait_flush();
 
-        for (i = 0, cnt = 0; i < MEM_CHUNK_COUNT; ++i, ++cnt) {
-            if (write_pos.get_idx() >= append_pos.get_idx()) {
-                break;
-            }
-
-            old_idx[i]      = write_pos.get_idx();
-            iov[i].iov_base = chunk_ptr[mem_chunk_no+i]->body;
-            iov[i].iov_len  = CHUNK_SIZE;
-            if (!write_pos.next_chunk()) {
-                write_pos.set(old_val);
-                return false;
-            }
-        }
-
-        if (!cnt) return false;
-
-        if (io != NO_IO) {
-            ret = pwritev(fd, iov, i, offset);
-            fsync(fd);
-            if (!ret == iov[0].iov_len) {
-                write_pos.set(old_val);
-                perror("flush error:");
-                return false;
-            }
-        }
-
-        for (i = 0; i < cnt; ++i) {
-            chunk_idx_ptr = &chunk_idx[(mem_chunk_no + i) % MEM_CHUNK_COUNT];
-            assert(__sync_bool_compare_and_swap(
-                    chunk_idx_ptr, old_idx[i], old_idx[i] + MEM_CHUNK_COUNT));
-        }
-        return true;
+    bool read(ssize_t offset, int32_t size, Byte * buf) {
+        return (pread(fd, buf, size, offset) == offset);
     }
-
-    void wait_flush() {
-        if (io != NO_IO) {
-            while (write_pos.get_idx() <
-                   append_pos.get_idx()) {
-                usleep(100);
-            }
-        }
-    }
-
-    /*
-    bool read() {
-        struct iovec iov[1];
-        size_t ret;
-
-        iov[0].iov_base = get_chunk_ptr(mem_chunk_idx);
-        iov[0].iov_len  = CHUNK_SIZE;
-
-        ret = preadv(fd, iov, 1, 0);
-        return ret == iov[0].iov_len;
-    }
-    */
 
     void dump(int32_t chunk_idx) {
         printf("Chunk : %d\n", chunk_idx);
@@ -256,6 +166,9 @@ class ywLogStore {
     }
 
  private:
+    void init(const char * fn, int32_t _io);
+    void init_and_read_master();
+
     static void *log_flusher(void *arg_ptr);
 
     Byte *get_chunk_ptr(ywPos pos) {
@@ -271,12 +184,13 @@ class ywLogStore {
     ywPos                   append_pos;
     ywPos                   write_pos;
     ywPos                   flush_pos;
-    int32_t                 chunk_map[CHUNK_MAP_MAX];
+
+    ywCnkID                 chunk_map[CHUNK_MAP_MAX];
+    int32_t                 map_size;
+
     ywAccumulator<int64_t>  wait_count;
     bool                    done;
     bool                    running;
-
-//    ywRcuPool<ywChunk, 256*MB>  chunk_pool;
 };
 
 extern void logstore_basic_test(int32_t io, int32_t thread_count);

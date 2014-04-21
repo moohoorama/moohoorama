@@ -25,10 +25,13 @@
 #include <ywkey.h>
 #include <ywfsnode.h>
 #include <ywlogstore.h>
+#include <ywini.h>
 
 #include <map>
 #include <vector>
 #include <algorithm>
+
+TEST(INIReader, basic) { ini_test(); }
 
 TEST(LogStore, no_io_concurrency1)  { logstore_basic_test(2, 1); }
 TEST(LogStore, no_io_concurrency2)  { logstore_basic_test(2, 2); }

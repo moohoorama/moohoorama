@@ -1,7 +1,98 @@
 /* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
-
 #include <ywlogstore.h>
 #include <gtest/gtest.h>
+
+void ywLogStore::init_and_read_master() {
+    map_size = 0;
+    chunk_map[0].type = MASTER_CNK;
+    chunk_map[0].idx  = 0;
+}
+
+void ywLogStore::init(const char * fn, int32_t _io) {
+    uint32_t  flag = O_RDWR | O_CREAT | O_LARGEFILE;
+    uint32_t  i;
+    Byte     *aligned;
+
+    chunk_buffer = reinterpret_cast<Byte*>(malloc(
+            MEM_CHUNK_COUNT*CHUNK_SIZE+DIO_ALIGN));
+    aligned = reinterpret_cast<Byte*>(
+        align(reinterpret_cast<intptr_t>(chunk_buffer), DIO_ALIGN));
+
+    for (i = 0; i < MEM_CHUNK_COUNT; ++i) {
+        chunk_ptr[i] = reinterpret_cast<ywChunk*>(aligned + i*CHUNK_SIZE);
+        chunk_idx[i] = -1;
+    }
+
+    append_pos.set_null();
+    write_pos.set_null();
+    flush_pos.set_null();
+
+    if (io == DIRECT_IO) flag |= O_DIRECT;
+
+    fd = open(fn, flag, S_IRWXU);
+    if (fd == -1) {
+        perror("file open error:");
+        assert(fd != -1);
+    }
+
+    init_and_read_master();
+
+    assert(create_flush_thread());
+}
+
+bool ywLogStore::flush() {
+    struct    iovec iov[MEM_CHUNK_COUNT];
+    int32_t   old_idx[MEM_CHUNK_COUNT];
+    size_t    ret;
+    size_t    offset = write_pos.get_idx() * CHUNK_SIZE;
+    ywOff     old_val = write_pos.get();
+    uint64_t *chunk_idx_ptr;
+    uint32_t  cnt;
+    uint32_t  mem_chunk_no = write_pos.get_idx() % MEM_CHUNK_COUNT;
+    uint32_t  i;
+
+    for (i = 0, cnt = 0; i < MEM_CHUNK_COUNT; ++i, ++cnt) {
+        if (write_pos.get_idx() >= append_pos.get_idx()) {
+            break;
+        }
+
+        old_idx[i]      = write_pos.get_idx();
+        iov[i].iov_base = chunk_ptr[mem_chunk_no+i]->body;
+        iov[i].iov_len  = CHUNK_SIZE;
+        if (!write_pos.next_chunk()) {
+            write_pos.set(old_val);
+            return false;
+        }
+    }
+
+    if (!cnt) return false;
+
+    if (io != NO_IO) {
+        ret = pwritev(fd, iov, i, offset);
+        fsync(fd);
+        if (!(ret == cnt * CHUNK_SIZE)) {
+            write_pos.set(old_val);
+            perror("flush error:");
+            return false;
+        }
+    }
+
+    for (i = 0; i < cnt; ++i) {
+        chunk_idx_ptr = &chunk_idx[(mem_chunk_no + i) % MEM_CHUNK_COUNT];
+        assert(__sync_bool_compare_and_swap(
+                chunk_idx_ptr, old_idx[i], old_idx[i] + MEM_CHUNK_COUNT));
+    }
+    return true;
+}
+
+void ywLogStore::wait_flush() {
+    if (io != NO_IO) {
+        while (write_pos.get_idx() <
+               append_pos.get_idx()) {
+            usleep(100);
+        }
+    }
+}
 
 bool ywLogStore::create_flush_thread() {
     pthread_attr_t          attr;
