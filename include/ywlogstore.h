@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/uio.h>
+#include <ywchunkmgr.h>
 
 typedef uint64_t ywOff;
 
@@ -26,16 +27,10 @@ class ywChunk {
     Byte  body[CHUNK_SIZE];
 };
 
-class ywCnkID { /*ChunkID*/
- public:
-    uint32_t type:8;
-    uint32_t idx:24;
-};
-
 static_assert(sizeof(ywCnkID) == 4, "invalid ywCnkID Size");
 
 class ywLogStore {
-    static const uint32_t CHUNK_MAP_MAX = 1024;
+ public:
     static const uint32_t MEM_CHUNK_COUNT = 8;
     static const uint32_t CHUNK_SIZE    = sizeof(ywChunk);
     static const intptr_t DIO_ALIGN     = 512;
@@ -51,6 +46,7 @@ class ywLogStore {
     static const uint32_t INFO_CNK   = 2;
     static const uint32_t SORTED_CNK = 3;
 
+ private:
     class ywPos {
         static const uint32_t mask = 0xffffffff;
 
@@ -127,13 +123,18 @@ class ywLogStore {
     bool create_flush_thread();
 
     template<typename T>
+    ywOff append(T value) {
+        return append(&value);
+    }
+
+    template<typename T>
     ywOff append(T *value) {
         ywPos     pos = append_pos.alloc(value->get_size());
-        uint32_t  mem_chunk_no = pos.get_idx() % MEM_CHUNK_COUNT;
+        uint32_t  mem_chunk_idx = pos.get_idx() % MEM_CHUNK_COUNT;
         Byte     *ptr = get_chunk_ptr(pos);
         uint32_t  _wait_count = 0;
 
-        while (chunk_idx[mem_chunk_no] != pos.get_idx()) {
+        while (chunk_idx[mem_chunk_idx] != pos.get_idx()) {
             ++_wait_count;
             usleep(1);
         }
@@ -145,6 +146,16 @@ class ywLogStore {
         return pos.get();
     }
 
+    bool  write_chunk(ywChunk *chunk, int32_t idx) {
+        ssize_t ret = pwrite(fd, chunk->body, CHUNK_SIZE, idx * CHUNK_SIZE);
+        return ret == CHUNK_SIZE;
+    }
+
+    void sync() {
+        fsync(fd);
+    }
+
+    bool reserve_space();
     bool flush();
     void wait_flush();
 
@@ -152,7 +163,7 @@ class ywLogStore {
         return (pread(fd, buf, size, offset) == offset);
     }
 
-    void dump(int32_t chunk_idx) {
+    void print(int32_t chunk_idx) {
         printf("Chunk : %d\n", chunk_idx);
         // printHex(sizeof(cur_chunk->body), cur_chunk->body, true);
         printHex(1024, chunk_ptr[chunk_idx % MEM_CHUNK_COUNT]->body, true);
@@ -175,18 +186,27 @@ class ywLogStore {
         return chunk_ptr[pos.get_idx() % MEM_CHUNK_COUNT]->body
                + pos.get_offset();
     }
+    bool set_chunk_idx(int32_t cnk_idx) {
+        int32_t mem_idx = reserve_mem_idx;
+
+        if(chunk_idx[mem_idx] == -1) {
+            chunk_idx[mem_idx] = cnk_idx;
+            ++reserve_mem_idx;
+            return true;
+        }
+        return false;
+    }
 
     int32_t                 fd;
     int32_t                 io;
     Byte                   *chunk_buffer;
     ywChunk                *chunk_ptr[MEM_CHUNK_COUNT];
-    uint64_t                chunk_idx[MEM_CHUNK_COUNT];
+    int32_t                 chunk_idx[MEM_CHUNK_COUNT];
     ywPos                   append_pos;
     ywPos                   write_pos;
-    ywPos                   flush_pos;
+    int32_t                 reserve_mem_idx;
 
-    ywCnkID                 chunk_map[CHUNK_MAP_MAX];
-    int32_t                 map_size;
+    ywChunkMgr;             cnk_mgr;
 
     ywAccumulator<int64_t>  wait_count;
     bool                    done;

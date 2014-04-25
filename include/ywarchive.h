@@ -5,4 +5,17 @@
 
 #include <ywcommon.h>
 
+class ywar_print {
+ public:
+    template<typename T>
+    void dump(T val, const char * title = NULL) {
+        printf("%16s :", title);
+        val.dump();
+        printf("\n");
+    }
+    void finalize() {
+        printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+    }
+};
+
 #endif  // INCLUDE_YWARCHIVE_H_

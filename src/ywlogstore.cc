@@ -1,11 +1,55 @@
 /* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
 #include <ywlogstore.h>
+#include <ywarchive.h>
 #include <gtest/gtest.h>
 
+class ywLS_writer {
+ public:
+    explicit ywLS_writer(ywLogStore *_ls, int32_t _chunk_idx):ls(_ls),
+        chunk_idx(_chunk_idx), offset(0), done(false) {
+        buffer = reinterpret_cast<Byte*>(malloc(
+                ls->CHUNK_SIZE + ls->DIO_ALIGN));
+        chunk = reinterpret_cast<ywChunk*>(
+            align(reinterpret_cast<intptr_t>(buffer), ls->DIO_ALIGN));
+    }
+    void finalize() {
+        ls->write_chunk(chunk, 0);
+        ls->sync();
+        printHex(1024, chunk->body, true);
+        free(buffer);
+        buffer = NULL;
+        offset = 0;
+    }
+    ~ywLS_writer() {
+        assert(!buffer);
+    }
+
+    template<typename T>
+    void dump(T val, const char * title = NULL) {
+        val.write(&chunk->body[offset]);
+        offset += val.get_size();
+    }
+
+ private:
+    Byte       *buffer;
+    ywChunk    *chunk;
+    ywLogStore *ls;
+    int32_t     chunk_idx;
+    int32_t     offset;
+    bool        done;
+};
+
 void ywLogStore::init_and_read_master() {
-    map_size = 0;
-    chunk_map[0].type = MASTER_CNK;
-    chunk_map[0].idx  = 0;
+    int32_t i = 0;
+
+    assert(cnk_mgr.alloc_chunk(MASTER_CNK) == 0);
+    assert(set_chunk_idx(cnk_mgr.alloc_chunk(LOG_CNK)));
+
+    ywar_print  print_ar;
+    cnk_mgr.dump(&print_ar);
+
+    ywLS_writer ar(this, 0);
+    cnk_mgr.dump(&ar);
 }
 
 void ywLogStore::init(const char * fn, int32_t _io) {
@@ -25,7 +69,6 @@ void ywLogStore::init(const char * fn, int32_t _io) {
 
     append_pos.set_null();
     write_pos.set_null();
-    flush_pos.set_null();
 
     if (io == DIRECT_IO) flag |= O_DIRECT;
 
@@ -40,6 +83,11 @@ void ywLogStore::init(const char * fn, int32_t _io) {
     assert(create_flush_thread());
 }
 
+bool ywLogStore::reserve_space() {
+    if (chunk_idx[reserve_mem_idx] == -1) {
+        assert(set_chunk_idx(cnk_mgr.alloc_chunk(LOG_CNK)));
+    }
+}
 bool ywLogStore::flush() {
     struct    iovec iov[MEM_CHUNK_COUNT];
     int32_t   old_idx[MEM_CHUNK_COUNT];
@@ -69,7 +117,7 @@ bool ywLogStore::flush() {
 
     if (io != NO_IO) {
         ret = pwritev(fd, iov, i, offset);
-        fsync(fd);
+        sync();
         if (!(ret == cnt * CHUNK_SIZE)) {
             write_pos.set(old_val);
             perror("flush error:");
@@ -108,8 +156,10 @@ void *ywLogStore::log_flusher(void *arg_ptr) {
 
     log->running = true;
     while (!log->done) {
-        if (!log->flush()) {
-            usleep(100);
+        if (!log->reserve_space()) {
+            if (!log->flush()) {
+                usleep(100);
+            }
         }
     }
     log->running = false;

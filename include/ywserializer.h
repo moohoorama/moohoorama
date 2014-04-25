@@ -5,8 +5,6 @@
 
 #include <ywcommon.h>
 
-class ar_print {
-};
 /* precondition : declare variables fd & size */
 #define VAR_WRITE(type, name) do {                           \
         if (sizeof(type) != write(fd, &name, sizeof(type))) {\
