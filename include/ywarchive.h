@@ -9,7 +9,7 @@ class ywar_print {
  public:
     template<typename T>
     void dump(T val, const char * title = NULL) {
-        printf("%16s :", title);
+        printf("%24s :", title);
         val.dump();
         printf("\n");
     }

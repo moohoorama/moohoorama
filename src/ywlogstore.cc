@@ -40,10 +40,15 @@ class ywLS_writer {
 };
 
 void ywLogStore::init_and_read_master() {
-    int32_t i = 0;
+    int32_t init_cnk;
 
     assert(cnk_mgr.alloc_chunk(MASTER_CNK) == 0);
-    assert(set_chunk_idx(cnk_mgr.alloc_chunk(LOG_CNK)));
+    init_cnk = cnk_mgr.alloc_chunk(LOG_CNK);
+    assert(init_cnk == 1);
+
+    append_pos.set(init_cnk, 0);
+    write_pos.set(init_cnk, 0);
+    assert(set_chunk_idx(init_cnk));
 
     ywar_print  print_ar;
     cnk_mgr.dump(&print_ar);
@@ -87,14 +92,16 @@ bool ywLogStore::reserve_space() {
     if (chunk_idx[reserve_mem_idx] == -1) {
         assert(set_chunk_idx(cnk_mgr.alloc_chunk(LOG_CNK)));
     }
+
+    return true;
 }
 bool ywLogStore::flush() {
     struct    iovec iov[MEM_CHUNK_COUNT];
     int32_t   old_idx[MEM_CHUNK_COUNT];
     size_t    ret;
     size_t    offset = write_pos.get_idx() * CHUNK_SIZE;
-    ywOff     old_val = write_pos.get();
-    uint64_t *chunk_idx_ptr;
+    uint64_t  old_val = write_pos.get();
+    int32_t  *chunk_idx_ptr;
     uint32_t  cnt;
     uint32_t  mem_chunk_no = write_pos.get_idx() % MEM_CHUNK_COUNT;
     uint32_t  i;

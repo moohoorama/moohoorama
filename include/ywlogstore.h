@@ -17,8 +17,7 @@
 #include <fcntl.h>
 #include <sys/uio.h>
 #include <ywchunkmgr.h>
-
-typedef uint64_t ywOff;
+#include <ywpos.h>
 
 class ywChunk {
     static const size_t  CHUNK_SIZE = 16*MB;
@@ -41,68 +40,10 @@ class ywLogStore {
     static const int32_t  NO_IO = 2;
 
     /*CnkID Type*/
-    static const uint32_t MASTER_CNK = 0;
-    static const uint32_t LOG_CNK    = 1;
-    static const uint32_t INFO_CNK   = 2;
-    static const uint32_t SORTED_CNK = 3;
-
- private:
-    class ywPos {
-        static const uint32_t mask = 0xffffffff;
-
-     public:
-        explicit ywPos():val(0) { }
-        explicit ywPos(ywOff _val):val(_val) { }
-        bool  is_null() { return val == 0;}
-        ywOff get()     { return get_idx()*CHUNK_SIZE | get_offset();}
-        void set_null()      { set(0); }
-        void set(ywOff _val) { val = _val; }
-        void set(uint32_t idx, uint32_t offset) {
-            val = (static_cast<ywOff>(idx) << 32) |
-                  (static_cast<ywOff>(offset));
-        }
-
-        template<typename T>
-        bool cas(T *ptr, T prev, T next) {
-            return __sync_bool_compare_and_swap(ptr, prev, next);
-        }
-
-        ywPos alloc(size_t size) {
-            ywOff    prev;
-            uint32_t off;
-
-            do {
-                prev = val;
-                off = prev & mask;
-
-                assert(off < CHUNK_SIZE);
-
-                while (off + size > CHUNK_SIZE) {
-                    if (next_chunk(prev)) {
-                        prev = val;
-                        off = prev & mask;
-                        break;
-                    }
-                    prev = val;
-                    off = prev & mask;
-                }
-            } while (!cas(&val, prev, prev + size));
-
-            return ywPos(prev);
-        }
-
-        bool next_chunk() { return next_chunk(val); }
-        bool next_chunk(ywOff prev) {
-            ywOff    new_off = (((prev >> 32) & mask) + 1) << 32;
-            return cas(&val, prev, new_off);
-        }
-
-        uint64_t get_offset() {return (val >>  0) & mask;}
-        uint64_t get_idx() {return (val >> 32) & mask;}
-
-     private:
-        ywOff val;
-    };
+    static const uint32_t MASTER_CNK = 1;
+    static const uint32_t LOG_CNK    = 2;
+    static const uint32_t INFO_CNK   = 3;
+    static const uint32_t SORTED_CNK = 4;
 
  public:
     explicit ywLogStore(const char * fn, int32_t _io):fd(-1),
@@ -123,18 +64,17 @@ class ywLogStore {
     bool create_flush_thread();
 
     template<typename T>
-    ywOff append(T value) {
+    auto append(T value) {
         return append(&value);
     }
 
     template<typename T>
-    ywOff append(T *value) {
-        ywPos     pos = append_pos.alloc(value->get_size());
-        uint32_t  mem_chunk_idx = pos.get_idx() % MEM_CHUNK_COUNT;
+    ywPos append(T *value) {
+        ywPos     pos = append_pos.alloc<CHUNK_SIZE>(value->get_size());
         Byte     *ptr = get_chunk_ptr(pos);
         uint32_t  _wait_count = 0;
 
-        while (chunk_idx[mem_chunk_idx] != pos.get_idx()) {
+        while (get_cnkid(pos).is_null()) {
             ++_wait_count;
             usleep(1);
         }
@@ -143,7 +83,7 @@ class ywLogStore {
 
         wait_count.mutate(_wait_count);
 
-        return pos.get();
+        return pos;
     }
 
     bool  write_chunk(ywChunk *chunk, int32_t idx) {
@@ -163,18 +103,8 @@ class ywLogStore {
         return (pread(fd, buf, size, offset) == offset);
     }
 
-    void print(int32_t chunk_idx) {
-        printf("Chunk : %d\n", chunk_idx);
-        // printHex(sizeof(cur_chunk->body), cur_chunk->body, true);
-        printHex(1024, chunk_ptr[chunk_idx % MEM_CHUNK_COUNT]->body, true);
-    }
-
-    ywOff get_append_pos() {
-        return append_pos.get();
-    }
-    ywOff get_write_pos() {
-        return write_pos.get();
-    }
+    uint64_t get_append_pos() { return append_pos.get(); }
+    uint64_t get_write_pos()  { return write_pos.get(); }
 
  private:
     void init(const char * fn, int32_t _io);
@@ -182,6 +112,9 @@ class ywLogStore {
 
     static void *log_flusher(void *arg_ptr);
 
+    /*off - cnkid mpa*/
+    CnkID get_cnkid(ywPos pos) {
+    }
     Byte *get_chunk_ptr(ywPos pos) {
         return chunk_ptr[pos.get_idx() % MEM_CHUNK_COUNT]->body
                + pos.get_offset();
@@ -189,9 +122,9 @@ class ywLogStore {
     bool set_chunk_idx(int32_t cnk_idx) {
         int32_t mem_idx = reserve_mem_idx;
 
-        if(chunk_idx[mem_idx] == -1) {
+        if (chunk_idx[mem_idx] == -1) {
             chunk_idx[mem_idx] = cnk_idx;
-            ++reserve_mem_idx;
+            reserve_mem_idx = (reserve_mem_idx+1) % MEM_CHUNK_COUNT;
             return true;
         }
         return false;
@@ -201,12 +134,13 @@ class ywLogStore {
     int32_t                 io;
     Byte                   *chunk_buffer;
     ywChunk                *chunk_ptr[MEM_CHUNK_COUNT];
-    int32_t                 chunk_idx[MEM_CHUNK_COUNT];
+    ywCnkID                 off_to_cnkid_map[MEM_CHUNK_COUNT];
+
     ywPos                   append_pos;
     ywPos                   write_pos;
     int32_t                 reserve_mem_idx;
 
-    ywChunkMgr;             cnk_mgr;
+    ywChunkMgr              cnk_mgr;
 
     ywAccumulator<int64_t>  wait_count;
     bool                    done;
