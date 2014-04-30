@@ -1,0 +1,546 @@
+= 결론  =
+
+*[http://docs.openstack.org/trunk/install-guide/install/apt/content/ch_preface.html '''install guide''']
+*'''그냥 위 문서가 제일 좋습니다.'''
+
+
+= miscelanous  =
+
+== proxy  ==
+
+*[http://10.251.163.198:4746/redmine/documents/5 proxy문서 참조],
+
+<br> 
+
+= Keystone  =
+
+== Reference  ==
+
+*[http://docs.openstack.org/trunk/install-guide/install/apt/content/ch_preface.html install guide]
+
+== installation  ==
+
+<source lang="bash">
+mkdir stack
+cd stack
+git clone http://github.com/openstack/keystone.git
+cd keystone
+sudo pip install -r requirements.txt
+mkdir /etc/keystone
+cp etc/* /etc/keystone
+mv /etc/keystone.conf.sample /etc/keystone.conf
+sudo python setup.py install
+</source> 
+
+== Configuration your deployment  ==
+
+*vi /etc/keystone.conf
+
+<source lang="ini">
+...
+[DEFAULT]
+admin_token = stack
+admin_bind_host = 10.251.154.97
+admin_endpoint = http://10.251.154.97:%(admin_port)s/
+public_endpoint = http://10.251.154.97:%(public_port)s/
+
+[paste_deploy]
+config_file = /etc/keystone/keystone-paste.ini
+
+[token]
+driver = keystone.token.backends.sql.Token
+
+[identity]
+driver = keystone.identity.backends.sql.Identity
+
+[database] 
+connection = mysql://keystone:stack@127.0.0.1/keystone             
+</source> 
+
+== mysql  ==
+
+*mysql -u root -p
+
+<source lang="sql">
+CREATE DATABASE keystone;
+GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost'  IDENTIFIED BY 'KEYSTONE_DBPASS';
+GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'KEYSTONE_DBPASS';
+</source> 
+
+*keystone-manage db_sync
+
+== Preparing your deployment  ==
+
+<source lang="bash">
+export OS_AUTH_URL=http://10.251.154.97:35357/v2.0
+export OS_SERVICE_TOKEN=stack
+export OS_SERVICE_ENDPOINT=http://10.251.154.97:35357/v2.0
+</source> 
+
+keystone-all &amp; keystone user-list 
+
+== making service/role/tenant/user  ==
+
+*sh
+
+<source lang="bash">
+keystone tenant-create --name admin_tenant
+keystone role-create --name=admin_role
+keystone user-create --name admin --pass stack
+keystone user-role-add --user=admin --role=admin_role --tenant=admin_tenant
+keystone user-role-add --user=admin --role=_member_ --tenant=admin_tenant
+
+keystone user-create --name=demo --pass=demo
+keystone tenant-create --name=demo_tenant 
+keystone user-role-add --user=demo --role=_member_ --tenant=demo_tenant
+
+keystone tenant-create --name=service_tenant 
+
+
+keystone service-create --name=keystone_service --type=identity
+keystone endpoint-create --service-id=<service_id>  --publicurl=http://10.251.154.97:5000/v2.0 --internalurl=http://10.251.154.97:5000/v2.0  --adminurl=http://10.251.154.97:35357/v2.0
+
+* example
+keystone endpoint-create --service-id=2ab07f6d3a6c4094803e8ac963899f75  --publicurl=http://10.251.154.97:5000/v2.0 --internalurl=http://10.251.154.97:5000/v2.0  --adminurl=http://10.251.154.97:35357/v2.0    
+</source> 
+
+== token 확인  ==
+
+<source lang="bash">
+keystone --os-username=admin --os-password=stack --os-auth-url=http://10.251.154.97:35357/v2.0 token-get
+</source> 
+
+*잘 안될경우, keystone-manage의 db_sync 및 keystone-manage pki_setup 등을 확인해봄.
+
+<br> 
+
+<br> 
+
+= client 인스톨  =
+
+*pip install python-PROJECTclient 
+*예) pip install python-novaclient
+
+<br> 
+
+<br> 
+
+= Glance, Image server  =
+
+<source lang="bash">
+git clone http://github.com/openstack/glance.git
+cd glance
+sudo pip install -r requirements.txt
+mkdir /etc/glance
+cp etc/* /etc/glance
+sudo python setup.py install
+</source> 
+
+== configuration  ==
+
+*glance-api.conf
+
+<source lang="ini">
+[DEFAULT]
+rpc_backend = rabbit
+rabbit_host = controller
+rabbit_password = RABBIT_PASS
+
+[database] 
+connection = mysql://glance:stack@127.0.0.1/glance
+</source> 
+
+*glance-registry.conf
+
+<source lang="ini">
+[database] 
+connection = mysql://glance:stack@127.0.0.1/glance
+</source> 
+
+== create glance user to keystone  ==
+
+<source lang="bash">
+keystone user-create --name=glance --pass=stack
+keystone user-role-add --user=glance --tenant=service_tenant --role=admin_role
+</source> 
+
+== mysql  ==
+
+*mysql -u root -p
+
+<source lang="sql">
+CREATE DATABASE glance;
+GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost'  IDENTIFIED BY 'stack';
+GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY 'stack';
+</source> 
+
+*sudo glance-manage db_sync
+
+== keystone authentication  ==
+
+*glance-api.conf, glance-registry.conf
+
+<source lang="ini">
+[keystone_authtoken]
+auth_url = http://10.251.154.97:5000                                                                  
+auth_host = 127.0.0.1                                                                                 
+auth_port = 35357
+auth_protocol = http
+admin_tenant_name = service_tenant                                                                    
+admin_user = glance
+admin_password = stack                                                                                
+
+[paste_deploy]
+flavor = keystone
+</source> 
+
+keystone service-create --name=glance --type=image keystone endpoint-create --service-id=&lt;GLANCE_SERVICE_ID&gt; --publicurl=http://10.251.154.97:9292 --internalurl=http://10.251.154.97:9292 --adminurl=http://10.251.154.97:9292 
+
+== daemon start  ==
+
+*sudo glance-registry &amp; 
+*sudo glance-api &amp;
+
+<br> 
+
+<br> 
+
+= Nova  =
+
+== Installation ==
+
+<source lang="bash">
+git clone http://github.com/openstack/nova.git
+cd nova
+sudo pip install -r requirements.txt
+tox -egenconfig  # 무지 오래걸림. 컴파일 하기 때문.
+sudo mkdir /etc/nova
+sudo cp -rf etc/nova/* /etc/nova
+sudo python setup.py install
+sudo cp /etc/nova/nova.conf.sample /etc/nova/nova.conf
+</source> 
+
+== configuration  ==
+
+<source lang="ini">
+rpc_backend = rabbit
+rabbit_host = 10.251.154.97
+rabbit_password = stack
+
+#my_ip는 compute전용 node일때, 자신의 ip를 써준다.
+my_ip = 10.251.154.97
+vncserver_listen = 0.0.0.0
+vncserver_proxyclient_address = 10.251.154.97
+novncproxy_base_url = http://10.251.154.97:6080/vnc_auto.html
+
+auth_strategy = keystone
+glance_host = 10.251.154.97
+
+lock_path = /opt/stack/data/nova
+
+compute_driver = libvirt.LibvirtDriver
+
+
+[keystone_authtoken]
+auth_url = http://10.251.154.97:5000                                                                  
+auth_host = 127.0.0.1                                                                                 
+auth_port = 35357
+auth_protocol = http
+admin_tenant_name = service_tenant                                                                    
+admin_user = keystone
+admin_password = stack                                                                                
+
+[database]
+connection = mysql://nova:stack@127.0.0.1/nova
+</source> 
+
+== create mysql account  ==
+
+<source lang="bash">
+mysql -u root -p
+</source> <source lang="sql">
+CREATE DATABASE nova;
+GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY 'stack';
+GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY 'stack';
+</source> 
+
+*sync
+
+<source lang="bash">
+nova-manage db sync
+</source> 
+
+== keystone user, service creation  ==
+
+<source lang="bash">
+keystone user-create --name=nova --pass=stack
+keystone user-role-add --user=nova --tenant=service_tenant --role=admin_role
+
+keystone service-create --name=nova --type=compute 
+keystone endpoint-create --service-id=<SERVICE_ID> --publicurl=http://10.251.154.97:8774/v2/%\(tenant_id\)s  --internalurl=http://10.251.154.97:8774/v2/%\(tenant_id\)s  --adminurl=http://10.251.154.97:8774/v2/%\(tenant_id\)s
+</source> 
+
+== daemon start  ==
+
+<source lang="bash">
+nova-api &
+nova-cert &
+nova-consoleauth &
+nova-scheduler &
+nova-conductor &
+nova-novncproxy &
+</source> 
+
+<br> 
+
+<br>
+
+= nova for compute node  =
+
+*다음 사항 참조
+
+http://docs.openstack.org/trunk/install-guide/install/apt/content/nova-compute.html 
+
+== configuration  ==
+
+*위 설정과 동일하게 하되, 다음 사항만 변경해준다 
+*nova.conf
+
+<source lang="ini">
+[DEFAULT]
+my_ip = 10.251.154.97
+vncserver_proxyclient_address = 10.251.154.97
+glance_host = 10.251.154.97
+
+[libvirt]
+virt_type = qemu
+</source> 
+
+== daemon start  ==
+
+<source lang="bash">
+* nova-compute
+</source> 
+
+<br> 
+
+<br> 
+
+= Horizon  =
+
+== Installation  ==
+
+<source lang="bash">
+git clone http://github.com/openstack/horizon.git
+cd horizon
+./run_tests.sh
+cp openstack_dashboard/local/local_settings.py.example openstack_dashboard/local/local_settings.py
+#openstack_dashboard/local/local_settings.py => Dashboard와 Control node가 다르면, OPENSTACK_HOST를 변경함
+tools/with_venv.sh ./manage.py runserver 0.0.0.0:8080
+</source>
+
+== Configuration ==
+
+= Trouble shoot  =
+
+== keystone 인증이 잘 안될때  ==
+
+**keystone-paste.ini 를 못찾는 경우가 있음 
+**keystone.conf에 다음을 추가한다.
+
+[paste_deploy] config_file = /etc/keystone/keystone-paste.ini 
+
+<br> 
+
+== os auth url, user, pass 등이 출력될때  ==
+
+=== keystone에 유저를 keystone user-add 등으로 추가하기 전이라면  ===
+
+<source lang="bash">
+export OS_AUTH_URL=http://10.251.154.97:35357/v2.0
+export OS_SERVICE_TOKEN=stack
+export OS_SERVICE_ENDPOINT=http://10.251.154.97:35357/v2.0
+</source> 
+
+*이후 유저를 추가한다.
+
+=== 추가한 후라면  ===
+
+<source lang="bash">
+export OS_AUTH_URL=http://10.251.154.97:35357/v2.0
+export OS_USERNAME=admin
+export OS_PASSWOD=stack
+</source> 
+
+== keystone token-get시 'NoneType' object has no attribute 'has_service_catalog'  ==
+
+sudo keystone-manage pki_setup --keystone-user &lt;unix user&gt; --keystone-group &lt;unix group&gt; 
+
+<source lang="bash">
+Generating RSA private key, 2048 bit long modulus
+.................................................+++
+..+++
+e is 65537 (0x10001)
+Generating RSA private key, 2048 bit long modulus
+.............................+++
+..........................................................................................+++
+e is 65537 (0x10001)
+Using configuration from /etc/keystone/ssl/certs/openssl.conf
+Check that the request matches the signature
+Signature ok
+The Subject's Distinguished Name is as follows
+countryName           :PRINTABLE:'US'
+stateOrProvinceName   :ASN.1 12:'Unset'
+localityName          :ASN.1 12:'Unset'
+organizationName      :ASN.1 12:'Unset'
+commonName            :ASN.1 12:'www.example.com'
+Certificate is to be certified until Apr 21 04:34:18 2024 GMT (3650 days)
+
+Write out database with 1 new entries
+Data Base Updated
+</source> 
+
+<br> 
+
+== glance db_sync시 utf8 에러  ==
+
+*2014-04-24 13:58:49.060 18703 CRITICAL glance [-] ValueError: Tables "migrate_version" have non utf8 collation, please make sure all tables are CHARSET=utf8
+
+<source lang="sql">
+  ALTER TABLE <table> CONVERT TO CHARACTER SET 'utf8';
+</source> 
+
+*위의 구문으로 utf8로 변경해줌. 
+*[http://www.noelherrick.com/blog/simple-settings-mysql-charsets ref]
+
+== nova, tox error  ==
+
+=== error1  ===
+
+*nova 최신 버전의 경우 conf파일의 샘플 대신 README FIle과 tox -egenconfig 커맨드만 있다. 이때 Tox가 정상적으로 수행 안되는 경우가 있다.
+
+<source lang="python">
+Traceback (most recent call last):
+  File "/usr/local/bin/tox", line 9, in <module>
+    load_entry_point('tox==1.7.1', 'console_scripts', 'tox')()
+  File "/usr/local/lib/python2.7/dist-packages/tox/_cmdline.py", line 25, in main
+    config = parseconfig(args, 'tox')
+  File "/usr/local/lib/python2.7/dist-packages/tox/_config.py", line 47, in parseconfig
+    parseini(config, inipath)
+  File "/usr/local/lib/python2.7/dist-packages/tox/_config.py", line 281, in __init__
+    config)
+  File "/usr/local/lib/python2.7/dist-packages/tox/_config.py", line 346, in _makeenvconfig
+    vc.commands = reader.getargvlist(section, "commands")
+  File "/usr/local/lib/python2.7/dist-packages/tox/_config.py", line 518, in getargvlist
+    commandlist.append(self._processcommand(current_command))
+  File "/usr/local/lib/python2.7/dist-packages/tox/_config.py", line 550, in _processcommand
+    new_word = self._replace(word)
+  File "/usr/local/lib/python2.7/dist-packages/tox/_config.py", line 667, in _replace
+    return RE_ITEM_REF.sub(self._replace_match, x)
+  File "/usr/local/lib/python2.7/dist-packages/tox/_config.py", line 663, in _replace_match
+    return handler(match)
+  File "/usr/local/lib/python2.7/dist-packages/tox/_config.py", line 634, in _replace_substitution
+    val = self._substitute_from_other_section(sub_key)
+  File "/usr/local/lib/python2.7/dist-packages/tox/_config.py", line 627, in _substitute_from_other_section
+    "substitution key %r not found" % key)
+tox.ConfigError: ConfigError: substitution key 'posargs' not found
+</source> 
+
+*tox 버전이 1.7이상 너무 높으면 오픈스택과 안맞아 나타날 수 있다고 한다. 낮게 깔아준다.
+
+<source lang="python">
+sudo pip install tox==1.6.1 
+</source> 
+
+*[http://www.gossamer-threads.com/lists/openstack/dev/35955 ref]
+
+=== error2  ===
+
+<source lang="python">
+----------------------------------------
+Cleaning up...
+Command python setup.py egg_info failed with error code 1 in /home/kyw/stack/nova/.tox/genconfig/build/MySQL-python
+Storing debug log for failure in /home/kyw/.pip/pip.log
+
+ERROR: could not install deps [-r/home/kyw/stack/nova/requirements.txt, -r/home/kyw/stack/nova/test-requirements.txt]
+__________________________________________________________________________________________________ summary __________________________________________________________________________________________________
+ERROR:   genconfig: could not install deps [-r/home/kyw/stack/nova/requirements.txt, -r/home/kyw/stack/nova/test-requirements.txt]
+</source> 
+
+*Mysql-python client가 없으니 설치해준다. 
+**sudo apt-get install libmysqlclient-dev
+
+== nova-all lock_path error  ==
+
+<source lang="python">
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/dist-packages/eventlet/hubs/hub.py", line 346, in fire_timers
+    timer()
+  File "/usr/lib/python2.7/dist-packages/eventlet/hubs/timer.py", line 56, in __call__
+    cb(*args, **kw)
+  File "/usr/lib/python2.7/dist-packages/eventlet/greenthread.py", line 194, in main
+    result = function(*args, **kwargs)
+  File "/opt/stack/nova/nova/openstack/common/service.py", line 490, in run_service
+    service.start()
+  File "/opt/stack/nova/nova/service.py", line 163, in start
+    self.manager.init_host()
+  File "/opt/stack/nova/nova/network/manager.py", line 1732, in init_host
+    self.l3driver.initialize(fixed_range=False, networks=networks)
+  File "/opt/stack/nova/nova/network/l3.py", line 88, in initialize
+    self.initialize_network(network['cidr'])
+  File "/opt/stack/nova/nova/network/l3.py", line 99, in initialize_network
+    linux_net.init_host(cidr)
+  File "/opt/stack/nova/nova/network/linux_net.py", line 679, in init_host
+    add_snat_rule(ip_range)
+  File "/opt/stack/nova/nova/network/linux_net.py", line 671, in add_snat_rule
+    iptables_manager.apply()
+  File "/opt/stack/nova/nova/network/linux_net.py", line 428, in apply
+    self._apply()
+  File "/opt/stack/nova/nova/openstack/common/lockutils.py", line 246, in inner
+    with lock(name, lock_file_prefix, external, lock_path):
+  File "/usr/lib/python2.7/contextlib.py", line 17, in __enter__
+    return self.gen.next()
+  File "/opt/stack/nova/nova/openstack/common/lockutils.py", line 183, in lock
+    raise cfg.RequiredOptError('lock_path')
+</source> 
+
+*nova.conf 설정 잘못이다. 다시 확인해본다.
+
+<br> 
+
+== nova-novncproxy Can not find novnc html/js/css files at /usr/share/novnc.  ==
+
+*html5로 vnc를 하게 해주는 novnc 가 없어서 그렇다. 이를 설치한다. 
+*sudo apt-get install novnc
+
+== horizone /project/ internal error ==
+<source lang="python">
+Unauthorized at /project/
+Unauthorized (HTTP 401)
+Request Method: GET
+Request URL:    http://localhost:8000/project/
+Django Version: 1.6.3
+Exception Type: Unauthorized
+Exception Value:    
+Unauthorized (HTTP 401)
+Exception Location: /home/kyw/stack/horizon/.venv/local/lib/python2.7/site-packages/novaclient/client.py in _cs_request, line 275
+Python Executable:  /home/kyw/stack/horizon/.venv/bin/python
+Python Version: 2.7.5
+Python Path:    
+['/home/kyw/stack/horizon',
+ '/home/kyw/stack/horizon/.venv/lib/python2.7',
+ '/home/kyw/stack/horizon/.venv/lib/python2.7/plat-x86_64-linux-gnu',
+ '/home/kyw/stack/horizon/.venv/lib/python2.7/lib-tk',
+ '/home/kyw/stack/horizon/.venv/lib/python2.7/lib-old',
+ '/home/kyw/stack/horizon/.venv/lib/python2.7/lib-dynload',
+ '/usr/lib/python2.7',
+ '/usr/lib/python2.7/plat-x86_64-linux-gnu',
+ '/usr/lib/python2.7/lib-tk',
+ '/home/kyw/stack/horizon/.venv/local/lib/python2.7/site-packages',
+ '/home/kyw/stack/horizon/openstack_dashboard']
+Server time:    금요일, 25 4월 2014 01:06:42 +0000
+</source>
+
+* openstack_dashboard/local/local_settings.py 에 
+OPENSTACK_API_VERSIONS = { "identity": 2.0 }
+넣음.

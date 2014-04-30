@@ -1,0 +1,476 @@
+= keystone  =
+
+<source lang="bash">
+kyw@kyw-Samsung-DeskTop-System:~$ keystone --os-auth-url http://10.251.154.97:35357/v2.0 --os-token=stack --os-endpoint=http://10.251.154.97:35357/v2.0/ user-list
+WARNING: Bypassing authentication using a token & endpoint (authentication credentials are being ignored).
++----------------------------------+-------------------+---------+--------------------+
+|                id                |        name       | enabled |       email        |
++----------------------------------+-------------------+---------+--------------------+
+| 238bf85594534020baa8b10c8119d6b1 |       admin       |   True  | admin@example.com  |
+| bb681bcda5ed4a04bf9314f19d149030 |      alt_demo     |   True  |                    |
+| e9d0185e805040be9bb4280b715852b8 |       cinder      |   True  | cinder@example.com |
+| 95c516204e9e435d9031fa6036b0eaf4 |        demo       |   True  |  demo@example.com  |
+| f11306c1d71b4929ae8171c614266c1d |       glance      |   True  |                    |
+| 9c552fb73f264c1c9ebd3d9b4d9fcefd |        heat       |   True  |  heat@example.com  |
+| 86a59aef4ca9404fac6056a886a9fd79 | heat_domain_admin |   True  |                    |
+| 68611a858d4545e18dec54bd481e29b2 |        nova       |   True  |  nova@example.com  |
++----------------------------------+-------------------+---------+--------------------+
+kyw@kyw-Samsung-DeskTop-System:~$ clear
+kyw@kyw-Samsung-DeskTop-System:~$ keystone --os-auth-url http://10.251.154.97:35357/v2.0 --os-token=stack --os-endpoint=http://10.251.154.97:35357/v2.0/ user-list
+WARNING: Bypassing authentication using a token & endpoint (authentication credentials are being ignored).
++----------------------------------+-------------------+---------+--------------------+
+|                id                |        name       | enabled |       email        |
++----------------------------------+-------------------+---------+--------------------+
+| 238bf85594534020baa8b10c8119d6b1 |       admin       |   True  | admin@example.com  |
+| bb681bcda5ed4a04bf9314f19d149030 |      alt_demo     |   True  |                    |
+| e9d0185e805040be9bb4280b715852b8 |       cinder      |   True  | cinder@example.com |
+| 95c516204e9e435d9031fa6036b0eaf4 |        demo       |   True  |  demo@example.com  |
+| f11306c1d71b4929ae8171c614266c1d |       glance      |   True  |                    |
+| 9c552fb73f264c1c9ebd3d9b4d9fcefd |        heat       |   True  |  heat@example.com  |
+| 86a59aef4ca9404fac6056a886a9fd79 | heat_domain_admin |   True  |                    |
+| 68611a858d4545e18dec54bd481e29b2 |        nova       |   True  |  nova@example.com  |
++----------------------------------+-------------------+---------+--------------------+
+kyw@kyw-Samsung-DeskTop-System:~$
+kyw@kyw-Samsung-DeskTop-System:~$
+kyw@kyw-Samsung-DeskTop-System:~$ keystone --os-auth-url http://10.251.154.97:35357/v2.0 --os-token=stack --os-endpoint=http://10.251.154.97:35357/v2.0/ user-get admin
+WARNING: Bypassing authentication using a token & endpoint (authentication credentials are being ignored).
++----------+----------------------------------+
+| Property |              Value               |
++----------+----------------------------------+
+|  email   |        admin@example.com         |
+| enabled  |               True               |
+|    id    | 238bf85594534020baa8b10c8119d6b1 |
+|   name   |              admin               |
+| tenantId | f128f4fe59714403a024dbcc16d74d5a |
+| username |              admin               |
++----------+----------------------------------+
+kyw@kyw-Samsung-DeskTop-System:~$
+kyw@kyw-Samsung-DeskTop-System:~$
+kyw@kyw-Samsung-DeskTop-System:~$ keystone --os-auth-url http://10.251.154.97:35357/v2.0 --os-token=stack --os-endpoint=http://10.251.154.97:35357/v2.0/ tenant-list
+WARNING: Bypassing authentication using a token & endpoint (authentication credentials are being ignored).
++----------------------------------+--------------------+---------+
+|                id                |        name        | enabled |
++----------------------------------+--------------------+---------+
+| f128f4fe59714403a024dbcc16d74d5a |       admin        |   True  |
+| a9c28346872d466b9a9d8df97c4cba6d |      alt_demo      |   True  |
+| 4bfaf601b411489bb27da0d6f9b79949 |        demo        |   True  |
+| d4dde7fe83de492f9852c62013fbb746 | invisible_to_admin |   True  |
+| 2f17ba20abd143169d4c6a0c10ead5c2 |      service       |   True  |
++----------------------------------+--------------------+---------+
+kyw@kyw-Samsung-DeskTop-System:~$
+kyw@kyw-Samsung-DeskTop-System:~$
+kyw@kyw-Samsung-DeskTop-System:~$ keystone --os-auth-url http://10.251.154.97:35357/v2.0 --os-token=stack --os-endpoint=http://10.251.154.97:35357/v2.0/ service-list
+WARNING: Bypassing authentication using a token & endpoint (authentication credentials are being ignored).
++----------------------------------+----------+----------------+-----------------------------+
+|                id                |   name   |      type      |         description         |
++----------------------------------+----------+----------------+-----------------------------+
+| 4a6cc53738644f54a015bd1fcefdb69d |  cinder  |     volume     |    Cinder Volume Service    |
+| e5096af7f91c4ccdb99032430af522d6 | cinderv2 |    volumev2    |   Cinder Volume Service V2  |
+| 7ce26c0928134bb1b1f9011fe9470ece |   ec2    |      ec2       |   EC2 Compatibility Layer   |
+| b829ca4d0dbd474bbfb68be532deb353 |  glance  |     image      |     Glance Image Service    |
+| 6d0649e2489f4206b127f5c8b06a12d5 |   heat   | cloudformation | Heat CloudFormation Service |
+| ae5e74985ea94f0a8353b666c55710fe |   heat   | orchestration  |  Heat Orchestration Service |
+| 9ac443bef0544b6eb6ccf699cb09d6c8 | keystone |    identity    |  Keystone Identity Service  |
+| 18f40877a37c4387a5e8af90911328bf |   nova   |    compute     |     Nova Compute Service    |
+| 2cc2cfd1d44d4ab090633de2f548dffc |  novav3  |   computev3    |   Nova Compute Service V3   |
+| b04da1139acd4c2aa4ec5fe1289ea9e3 |    s3    |       s3       |              S3             |
++----------------------------------+----------+----------------+-----------------------------+
+kyw@kyw-Samsung-DeskTop-System:~$
+kyw@kyw-Samsung-DeskTop-System:~$
+kyw@kyw-Samsung-DeskTop-System:~$ keystone --os-auth-url http://10.251.154.97:35357/v2.0 --os-token=stack --os-endpoint=http://10.251.154.97:35357/v2.0/ endpoint-list
+WARNING: Bypassing authentication using a token & endpoint (authentication credentials are being ignored).
++----------------------------------+-----------+--------------------------------------------+--------------------------------------------+--------------------------------------------+----------------------------------+
+|                id                |   region  |                 publicurl                  |                internalurl                 |                  adminurl                  |            service_id            |
++----------------------------------+-----------+--------------------------------------------+--------------------------------------------+--------------------------------------------+----------------------------------+
+| 1a478f6b47ff4198a40e5d2857479d95 | RegionOne | http://10.251.154.97:8774/v2/$(tenant_id)s | http://10.251.154.97:8774/v2/$(tenant_id)s | http://10.251.154.97:8774/v2/$(tenant_id)s | 18f40877a37c4387a5e8af90911328bf |
+| 2b627ffabd174156807012729d550632 | RegionOne | http://10.251.154.97:8004/v1/$(tenant_id)s | http://10.251.154.97:8004/v1/$(tenant_id)s | http://10.251.154.97:8004/v1/$(tenant_id)s | ae5e74985ea94f0a8353b666c55710fe |
+| 5f12976daec8411f9af8c8f20f983972 | RegionOne |  http://10.251.154.97:8773/services/Cloud  |  http://10.251.154.97:8773/services/Cloud  |  http://10.251.154.97:8773/services/Admin  | 7ce26c0928134bb1b1f9011fe9470ece |
+| 66e144c2bdf349478d2f64c624b05160 | RegionOne |        http://10.251.154.97:8000/v1        |        http://10.251.154.97:8000/v1        |        http://10.251.154.97:8000/v1        | 6d0649e2489f4206b127f5c8b06a12d5 |
+| 6752fcfcf32d47c383391686f2313c67 | RegionOne |       http://10.251.154.97:5000/v2.0       |       http://10.251.154.97:5000/v2.0       |      http://10.251.154.97:35357/v2.0       | 9ac443bef0544b6eb6ccf699cb09d6c8 |
+| 6bdec1219cd64b32ae16d2b270f4a14d | RegionOne | http://10.251.154.97:8776/v1/$(tenant_id)s | http://10.251.154.97:8776/v1/$(tenant_id)s | http://10.251.154.97:8776/v1/$(tenant_id)s | 4a6cc53738644f54a015bd1fcefdb69d |
+| 93dc7edbb9974b67bf47066054d2e0c2 | RegionOne |         http://10.251.154.97:3333          |         http://10.251.154.97:3333          |         http://10.251.154.97:3333          | b04da1139acd4c2aa4ec5fe1289ea9e3 |
+| 96abfff9cbfd48b79d3a6322e54df090 | RegionOne |         http://10.251.154.97:9292          |         http://10.251.154.97:9292          |         http://10.251.154.97:9292          | b829ca4d0dbd474bbfb68be532deb353 |
+| b6c0d9e428a14a9897625d6c00859f8f | RegionOne |        http://10.251.154.97:8774/v3        |        http://10.251.154.97:8774/v3        |        http://10.251.154.97:8774/v3        | 2cc2cfd1d44d4ab090633de2f548dffc |
+| c9b27f10313b4d8f8fad14c8f7fa38f8 | RegionOne | http://10.251.154.97:8776/v2/$(tenant_id)s | http://10.251.154.97:8776/v2/$(tenant_id)s | http://10.251.154.97:8776/v2/$(tenant_id)s | e5096af7f91c4ccdb99032430af522d6 |
++----------------------------------+-----------+--------------------------------------------+--------------------------------------------+--------------------------------------------+----------------------------------+
+kyw@kyw-Samsung-DeskTop-System:~$
+kyw@kyw-Samsung-DeskTop-System:~$
+</source> 
+
+= cinder  =
+
+<source lang="bash">
+kyw@kyw-Samsung-DeskTop-System:~$ cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 type-list
++--------------------------------------+--------------+
+|                  ID                  |     Name     |
++--------------------------------------+--------------+
+| 046ab82e-8a6f-4c87-b1e3-5d3fba97f814 | volum_type_1 |
++--------------------------------------+--------------+
+kyw@kyw-Samsung-DeskTop-System:~$
+kyw@kyw-Samsung-DeskTop-System:~$ cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 list
++--------------------------------------+--------+--------------+------+-------------+----------+--------------------------------------+
+|                  ID                  | Status | Display Name | Size | Volume Type | Bootable |             Attached to              |
++--------------------------------------+--------+--------------+------+-------------+----------+--------------------------------------+
+| 40b4e7f2-bd6e-4c9f-bf8b-975ef9bb53e0 | in-use | test_volumn  |  1   |     None    |   true   | fcbe329a-d7b0-4fae-9577-fefe42434283 |
+| 470df94a-cf0b-4a5c-b291-cf6c9dc24e8f | in-use | test_volumn  |  1   |     None    |   true   | 2b29431f-dbcd-43f1-bdb0-7dc01192cefe |
+| f1b4cb62-fdae-4acf-9860-7b1ea3259e53 | in-use | test_volumn  |  1   |     None    |   true   | 5b041842-ed7c-4702-8529-8d62a711b984 |
++--------------------------------------+--------+--------------+------+-------------+----------+--------------------------------------+
+</source> 
+
+== volumn creation  ==
+
+<source lang="bash">
+kyw@kyw-Samsung-DeskTop-System:~$ glance --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 image-list
++--------------------------------------+---------------------------------+-------------+------------------+----------+--------+
+| ID                                   | Name                            | Disk Format | Container Format | Size     | Status |
++--------------------------------------+---------------------------------+-------------+------------------+----------+--------+
+| 9ee35808-cdca-4425-92f1-a99ea16d7762 | cirros-0.3.1-x86_64-uec         | ami         | ami              | 25165824 | active |
+| 11dcc0b4-920b-4a3d-ac34-bb41e7e75f6c | cirros-0.3.1-x86_64-uec-kernel  | aki         | aki              | 4955792  | active |
+| 98fe4d8c-eb42-4616-a0a0-5993df0aba16 | cirros-0.3.1-x86_64-uec-ramdisk | ari         | ari              | 3714968  | active |
++--------------------------------------+---------------------------------+-------------+------------------+----------+--------+
+kyw@kyw-Samsung-DeskTop-System:~$ cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 create 2 --image-id 9ee35808-cdca-4425-92f1-a99ea16d7762 --display-name 'cinder_cre_test'
++---------------------+--------------------------------------+
+|       Property      |                Value                 |
++---------------------+--------------------------------------+
+|     attachments     |                  []                  |
+|  availability_zone  |                 nova                 |
+|       bootable      |                false                 |
+|      created_at     |      2014-04-23T00:19:36.067857      |
+| display_description |                 None                 |
+|     display_name    |           cinder_cre_test            |
+|      encrypted      |                False                 |
+|          id         | eb64e130-ba18-43a6-bb89-b87ec993809f |
+|       image_id      | 9ee35808-cdca-4425-92f1-a99ea16d7762 |
+|       metadata      |                  {}                  |
+|         size        |                  2                   |
+|     snapshot_id     |                 None                 |
+|     source_volid    |                 None                 |
+|        status       |               creating               |
+|     volume_type     |                 None                 |
++---------------------+--------------------------------------+
+kyw@kyw-Samsung-DeskTop-System:~$ cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 list
++--------------------------------------+-------------+-----------------+------+-------------+----------+--------------------------------------+
+|                  ID                  |    Status   |   Display Name  | Size | Volume Type | Bootable |             Attached to              |
++--------------------------------------+-------------+-----------------+------+-------------+----------+--------------------------------------+
+| 40b4e7f2-bd6e-4c9f-bf8b-975ef9bb53e0 |    in-use   |   test_volumn   |  1   |     None    |   true   | fcbe329a-d7b0-4fae-9577-fefe42434283 |
+| 470df94a-cf0b-4a5c-b291-cf6c9dc24e8f |    in-use   |   test_volumn   |  1   |     None    |   true   | 2b29431f-dbcd-43f1-bdb0-7dc01192cefe |
+| eb64e130-ba18-43a6-bb89-b87ec993809f | downloading | cinder_cre_test |  2   |     None    |   true   |                                      |
+| f1b4cb62-fdae-4acf-9860-7b1ea3259e53 |    in-use   |   test_volumn   |  1   |     None    |   true   | 5b041842-ed7c-4702-8529-8d62a711b984 |
++--------------------------------------+-------------+-----------------+------+-------------+----------+--------------------------------------+
+kyw@kyw-Samsung-DeskTop-System:~$ cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 list
++--------------------------------------+-----------+-----------------+------+-------------+----------+--------------------------------------+
+|                  ID                  |   Status  |   Display Name  | Size | Volume Type | Bootable |             Attached to              |
++--------------------------------------+-----------+-----------------+------+-------------+----------+--------------------------------------+
+| 40b4e7f2-bd6e-4c9f-bf8b-975ef9bb53e0 |   in-use  |   test_volumn   |  1   |     None    |   true   | fcbe329a-d7b0-4fae-9577-fefe42434283 |
+| 470df94a-cf0b-4a5c-b291-cf6c9dc24e8f |   in-use  |   test_volumn   |  1   |     None    |   true   | 2b29431f-dbcd-43f1-bdb0-7dc01192cefe |
+| eb64e130-ba18-43a6-bb89-b87ec993809f | available | cinder_cre_test |  2   |     None    |   true   |                                      |
+| f1b4cb62-fdae-4acf-9860-7b1ea3259e53 |   in-use  |   test_volumn   |  1   |     None    |   true   | 5b041842-ed7c-4702-8529-8d62a711b984 |
++--------------------------------------+-----------+-----------------+------+-------------+----------+--------------------------------------+
+</source> 
+
+= nova  =
+
+== nova 정보 확인  ==
+
+<source lang="bash">
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0  hypervisor-list
++----+----------------------------+
+| ID | Hypervisor hostname        |
++----+----------------------------+
+| 1  | kyw-Samsung-DeskTop-System |
++----+----------------------------+
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0  hypervisor-show 1
++---------------------------+------------------------------------------------------------------------------------------------------------------------------+
+| Property                  | Value                                                                                                                        |
++---------------------------+------------------------------------------------------------------------------------------------------------------------------+
+| cpu_info_arch             | x86_64                                                                                                                       |
+| cpu_info_features         | ["rdtscp", "pdcm", "xtpr", "tm2", "est", "vmx", "ds_cpl", "monitor", "dtes64", "pbe", "tm", "ht", "ss", "acpi", "ds", "vme"] |
+| cpu_info_model            | Nehalem                                                                                                                      |
+| cpu_info_topology_cores   | 2                                                                                                                            |
+| cpu_info_topology_sockets | 1                                                                                                                            |
+| cpu_info_topology_threads | 2                                                                                                                            |
+| cpu_info_vendor           | Intel                                                                                                                        |
+| current_workload          | 0                                                                                                                            |
+| disk_available_least      | 848                                                                                                                          |
+| free_disk_gb              | 913                                                                                                                          |
+| free_ram_mb               | 3051                                                                                                                         |
+| host_ip                   | 10.251.154.97                                                                                                                |
+| hypervisor_hostname       | kyw-Samsung-DeskTop-System                                                                                                   |
+| hypervisor_type           | QEMU                                                                                                                         |
+| hypervisor_version        | 1005000                                                                                                                      |
+| id                        | 1                                                                                                                            |
+| local_gb                  | 913                                                                                                                          |
+| local_gb_used             | 0                                                                                                                            |
+| memory_mb                 | 3755                                                                                                                         |
+| memory_mb_used            | 704                                                                                                                          |
+| running_vms               | 3                                                                                                                            |
+| service_host              | kyw-Samsung-DeskTop-System                                                                                                   |
+| service_id                | 5                                                                                                                            |
+| vcpus                     | 4                                                                                                                            |
+| vcpus_used                | 3                                                                                                                            |
++---------------------------+------------------------------------------------------------------------------------------------------------------------------+
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 network-list
++--------------------------------------+---------+-------------+
+| ID                                   | Label   | Cidr        |
++--------------------------------------+---------+-------------+
+| 5e581aef-0236-464f-8a72-aa39548c5d83 | private | 10.0.0.0/24 |
++--------------------------------------+---------+-------------+
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 network-show 5e581aef-0236-464f-8a72-aa39548c5d83
++---------------------+--------------------------------------+
+| Property            | Value                                |
++---------------------+--------------------------------------+
+| bridge              | br100                                |
+| bridge_interface    | eth0                                 |
+| broadcast           | 10.0.0.255                           |
+| cidr                | 10.0.0.0/24                          |
+| cidr_v6             | -                                    |
+| created_at          | 2014-04-20T23:38:32.000000           |
+| deleted             | 0                                    |
+| deleted_at          | -                                    |
+| dhcp_start          | 10.0.0.2                             |
+| dns1                | 8.8.4.4                              |
+| dns2                | -                                    |
+| gateway             | 10.0.0.1                             |
+| gateway_v6          | -                                    |
+| host                | kyw-Samsung-DeskTop-System           |
+| id                  | 5e581aef-0236-464f-8a72-aa39548c5d83 |
+| injected            | False                                |
+| label               | private                              |
+| multi_host          | False                                |
+| netmask             | 255.255.255.0                        |
+| netmask_v6          | -                                    |
+| priority            | -                                    |
+| project_id          | -                                    |
+| rxtx_base           | -                                    |
+| updated_at          | 2014-04-20T23:54:33.000000           |
+| vlan                | -                                    |
+| vpn_private_address | -                                    |
+| vpn_public_address  | -                                    |
+| vpn_public_port     | -                                    |
++---------------------+--------------------------------------+
+
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 list
++--------------------------------------+--------+--------+------------+-------------+------------------+
+| ID                                   | Name   | Status | Task State | Power State | Networks         |
++--------------------------------------+--------+--------+------------+-------------+------------------+
+| 2b29431f-dbcd-43f1-bdb0-7dc01192cefe | test_2 | ACTIVE | -          | Running     | private=10.0.0.3 |
+| fcbe329a-d7b0-4fae-9577-fefe42434283 | test_2 | ACTIVE | -          | Running     | private=10.0.0.2 |
+| 5b041842-ed7c-4702-8529-8d62a711b984 | test_3 | ACTIVE | -          | Running     | private=10.0.0.4 |
+</source> 
+
+== nova server creation  ==
+
+<source lang="bash">
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 list
++--------------------------------------+---------------------------------+--------+--------+
+| ID                                   | Name                            | Status | Server |
++--------------------------------------+---------------------------------+--------+--------+
+| 9ee35808-cdca-4425-92f1-a99ea16d7762 | cirros-0.3.1-x86_64-uec         | ACTIVE |        |
+| 11dcc0b4-920b-4a3d-ac34-bb41e7e75f6c | cirros-0.3.1-x86_64-uec-kernel  | ACTIVE |        |
+| 98fe4d8c-eb42-4616-a0a0-5993df0aba16 | cirros-0.3.1-x86_64-uec-ramdisk | ACTIVE |        |
++--------------------------------------+---------------------------------+--------+--------+
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 flavor-list
++-----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+| ID  | Name      | Memory_MB | Disk | Ephemeral | Swap | VCPUs | RXTX_Factor | Is_Public |
++-----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+| 1   | m1.tiny   | 512       | 1    | 0         |      | 1     | 1.0         | True      |
+| 2   | m1.small  | 2048      | 20   | 0         |      | 1     | 1.0         | True      |
+| 3   | m1.medium | 4096      | 40   | 0         |      | 2     | 1.0         | True      |
+| 4   | m1.large  | 8192      | 80   | 0         |      | 4     | 1.0         | True      |
+| 42  | m1.nano   | 64        | 0    | 0         |      | 1     | 1.0         | True      |
+| 451 | m1.heat   | 1024      | 0    | 0         |      | 2     | 1.0         | True      |
+| 5   | m1.xlarge | 16384     | 160  | 0         |      | 8     | 1.0         | True      |
+| 84  | m1.micro  | 128       | 0    | 0         |      | 1     | 1.0         | True      |
++-----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 boot nova_test --flavor m1.micro --boot-volume eb64e130-ba18-43a6-bb89-b87ec993809f
++--------------------------------------+--------------------------------------------------+
+| Property                             | Value                                            |
++--------------------------------------+--------------------------------------------------+
+| OS-DCF:diskConfig                    | MANUAL                                           |
+| OS-EXT-AZ:availability_zone          | nova                                             |
+| OS-EXT-SRV-ATTR:host                 | -                                                |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | -                                                |
+| OS-EXT-SRV-ATTR:instance_name        | instance-00000009                                |
+| OS-EXT-STS:power_state               | 0                                                |
+| OS-EXT-STS:task_state                | scheduling                                       |
+| OS-EXT-STS:vm_state                  | building                                         |
+| OS-SRV-USG:launched_at               | -                                                |
+| OS-SRV-USG:terminated_at             | -                                                |
+| accessIPv4                           |                                                  |
+| accessIPv6                           |                                                  |
+| adminPass                            | DbVbgK8Gw58c                                     |
+| config_drive                         |                                                  |
+| created                              | 2014-04-23T00:22:18Z                             |
+| flavor                               | m1.micro (84)                                    |
+| hostId                               |                                                  |
+| id                                   | c838e090-c8f6-4e89-9e35-120108fb681f             |
+| image                                | Attempt to boot from volume - no image supplied  |
+| key_name                             | -                                                |
+| metadata                             | {}                                               |
+| name                                 | nova_test                                        |
+| os-extended-volumes:volumes_attached | [{"id": "eb64e130-ba18-43a6-bb89-b87ec993809f"}] |
+| progress                             | 0                                                |
+| security_groups                      | default                                          |
+| status                               | BUILD                                            |
+| tenant_id                            | f128f4fe59714403a024dbcc16d74d5a                 |
+| updated                              | 2014-04-23T00:22:19Z                             |
+| user_id                              | 238bf85594534020baa8b10c8119d6b1                 |
++--------------------------------------+--------------------------------------------------+
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 list
++--------------------------------------+-----------+--------+------------+-------------+------------------+
+| ID                                   | Name      | Status | Task State | Power State | Networks         |
++--------------------------------------+-----------+--------+------------+-------------+------------------+
+| c838e090-c8f6-4e89-9e35-120108fb681f | nova_test | BUILD  | networking | NOSTATE     |                  |
+| 2b29431f-dbcd-43f1-bdb0-7dc01192cefe | test_2    | ACTIVE | -          | Running     | private=10.0.0.3 |
+| fcbe329a-d7b0-4fae-9577-fefe42434283 | test_2    | ACTIVE | -          | Running     | private=10.0.0.2 |
+| 5b041842-ed7c-4702-8529-8d62a711b984 | test_3    | ACTIVE | -          | Running     | private=10.0.0.4 |
++--------------------------------------+-----------+--------+------------+-------------+------------------+
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 list
++--------------------------------------+-----------+--------+------------+-------------+------------------+
+| ID                                   | Name      | Status | Task State | Power State | Networks         |
++--------------------------------------+-----------+--------+------------+-------------+------------------+
+| c838e090-c8f6-4e89-9e35-120108fb681f | nova_test | ACTIVE | -          | Running     | private=10.0.0.5 |
+| 2b29431f-dbcd-43f1-bdb0-7dc01192cefe | test_2    | ACTIVE | -          | Running     | private=10.0.0.3 |
+| fcbe329a-d7b0-4fae-9577-fefe42434283 | test_2    | ACTIVE | -          | Running     | private=10.0.0.2 |
+| 5b041842-ed7c-4702-8529-8d62a711b984 | test_3    | ACTIVE | -          | Running     | private=10.0.0.4 |
++--------------------------------------+-----------+--------+------------+-------------+------------------+
+kyw@kyw-Samsung-DeskTop-System:~$ ping 10.0.0.5
+PING 10.0.0.5 (10.0.0.5) 56(84) bytes of data.
+64 bytes from 10.0.0.5: icmp_seq=1 ttl=64 time=0.208 ms
+64 bytes from 10.0.0.5: icmp_seq=2 ttl=64 time=0.244 ms
+^C
+--- 10.0.0.5 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 999ms
+rtt min/avg/max/mdev = 0.208/0.226/0.244/0.018 ms
+</source> 
+
+== nova server control  ==
+
+<source lang="bash">
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 show c838e090-c8f6-4e89-9e35-120108fb681f
++--------------------------------------+----------------------------------------------------------+
+| Property                             | Value                                                    |
++--------------------------------------+----------------------------------------------------------+
+| OS-DCF:diskConfig                    | MANUAL                                                   |
+| OS-EXT-AZ:availability_zone          | nova                                                     |
+| OS-EXT-SRV-ATTR:host                 | kyw-Samsung-DeskTop-System                               |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | kyw-Samsung-DeskTop-System                               |
+| OS-EXT-SRV-ATTR:instance_name        | instance-00000009                                        |
+| OS-EXT-STS:power_state               | 1                                                        |
+| OS-EXT-STS:task_state                | -                                                        |
+| OS-EXT-STS:vm_state                  | active                                                   |
+| OS-SRV-USG:launched_at               | 2014-04-23T00:22:29.000000                               |
+| OS-SRV-USG:terminated_at             | -                                                        |
+| accessIPv4                           |                                                          |
+| accessIPv6                           |                                                          |
+| config_drive                         |                                                          |
+| created                              | 2014-04-23T00:22:18Z                                     |
+| flavor                               | m1.micro (84)                                            |
+| hostId                               | b75c17ae2214fb13dfbb25b761d7368c939a4105c247efae1d024651 |
+| id                                   | c838e090-c8f6-4e89-9e35-120108fb681f                     |
+| image                                | Attempt to boot from volume - no image supplied          |
+| key_name                             | -                                                        |
+| metadata                             | {}                                                       |
+| name                                 | nova_test                                                |
+| os-extended-volumes:volumes_attached | [{"id": "eb64e130-ba18-43a6-bb89-b87ec993809f"}]         |
+| private network                      | 10.0.0.5                                                 |
+| progress                             | 0                                                        |
+| security_groups                      | default                                                  |
+| status                               | ACTIVE                                                   |
+| tenant_id                            | f128f4fe59714403a024dbcc16d74d5a                         |
+| updated                              | 2014-04-23T00:22:29Z                                     |
+| user_id                              | 238bf85594534020baa8b10c8119d6b1                         |
++--------------------------------------+----------------------------------------------------------+
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 stop c838e090-c8f6-4e89-9e35-120108fb681f
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 show c838e090-c8f6-4e89-9e35-120108fb681f
++--------------------------------------+----------------------------------------------------------+
+| Property                             | Value                                                    |
++--------------------------------------+----------------------------------------------------------+
+| OS-DCF:diskConfig                    | MANUAL                                                   |
+| OS-EXT-AZ:availability_zone          | nova                                                     |
+| OS-EXT-SRV-ATTR:host                 | kyw-Samsung-DeskTop-System                               |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | kyw-Samsung-DeskTop-System                               |
+| OS-EXT-SRV-ATTR:instance_name        | instance-00000009                                        |
+| OS-EXT-STS:power_state               | 1                                                        |
+| OS-EXT-STS:task_state                | powering-off                                             |
+| OS-EXT-STS:vm_state                  | active                                                   |
+| OS-SRV-USG:launched_at               | 2014-04-23T00:22:29.000000                               |
+| OS-SRV-USG:terminated_at             | -                                                        |
+| accessIPv4                           |                                                          |
+| accessIPv6                           |                                                          |
+| config_drive                         |                                                          |
+| created                              | 2014-04-23T00:22:18Z                                     |
+| flavor                               | m1.micro (84)                                            |
+| hostId                               | b75c17ae2214fb13dfbb25b761d7368c939a4105c247efae1d024651 |
+| id                                   | c838e090-c8f6-4e89-9e35-120108fb681f                     |
+| image                                | Attempt to boot from volume - no image supplied          |
+| key_name                             | -                                                        |
+| metadata                             | {}                                                       |
+| name                                 | nova_test                                                |
+| os-extended-volumes:volumes_attached | [{"id": "eb64e130-ba18-43a6-bb89-b87ec993809f"}]         |
+| private network                      | 10.0.0.5                                                 |
+| progress                             | 0                                                        |
+| security_groups                      | default                                                  |
+| status                               | ACTIVE                                                   |
+| tenant_id                            | f128f4fe59714403a024dbcc16d74d5a                         |
+| updated                              | 2014-04-23T00:28:03Z                                     |
+| user_id                              | 238bf85594534020baa8b10c8119d6b1                         |
++--------------------------------------+----------------------------------------------------------+
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 start c838e090-c8f6-4e89-9e35-120108fb681f
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 show c838e090-c8f6-4e89-9e35-120108fb681f
++--------------------------------------+----------------------------------------------------------+
+| Property                             | Value                                                    |
++--------------------------------------+----------------------------------------------------------+
+| OS-DCF:diskConfig                    | MANUAL                                                   |
+| OS-EXT-AZ:availability_zone          | nova                                                     |
+| OS-EXT-SRV-ATTR:host                 | kyw-Samsung-DeskTop-System                               |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | kyw-Samsung-DeskTop-System                               |
+| OS-EXT-SRV-ATTR:instance_name        | instance-00000009                                        |
+| OS-EXT-STS:power_state               | 1                                                        |
+| OS-EXT-STS:task_state                | -                                                        |
+| OS-EXT-STS:vm_state                  | active                                                   |
+| OS-SRV-USG:launched_at               | 2014-04-23T00:22:29.000000                               |
+| OS-SRV-USG:terminated_at             | -                                                        |
+| accessIPv4                           |                                                          |
+| accessIPv6                           |                                                          |
+| config_drive                         |                                                          |
+| created                              | 2014-04-23T00:22:18Z                                     |
+| flavor                               | m1.micro (84)                                            |
+| hostId                               | b75c17ae2214fb13dfbb25b761d7368c939a4105c247efae1d024651 |
+| id                                   | c838e090-c8f6-4e89-9e35-120108fb681f                     |
+| image                                | Attempt to boot from volume - no image supplied          |
+| key_name                             | -                                                        |
+| metadata                             | {}                                                       |
+| name                                 | nova_test                                                |
+| os-extended-volumes:volumes_attached | [{"id": "eb64e130-ba18-43a6-bb89-b87ec993809f"}]         |
+| private network                      | 10.0.0.5                                                 |
+| progress                             | 0                                                        |
+| security_groups                      | default                                                  |
+| status                               | ACTIVE                                                   |
+| tenant_id                            | f128f4fe59714403a024dbcc16d74d5a                         |
+| updated                              | 2014-04-23T00:28:09Z                                     |
+| user_id                              | 238bf85594534020baa8b10c8119d6b1                         |
++--------------------------------------+----------------------------------------------------------+
+kyw@kyw-Samsung-DeskTop-System:~$ nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 ssh c838e090-c8f6-4e89-9e35-120108fb681f --login cirros
+The authenticity of host '10.0.0.5 (10.0.0.5)' can't be established.
+RSA key fingerprint is 61:de:f8:97:5e:54:4d:cb:28:4f:26:30:a4:82:1c:21.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added '10.0.0.5' (RSA) to the list of known hosts.
+cirros@10.0.0.5's password:
+$ ls
+$ whoami
+cirros
+$ ls /
+bin         dev         etc         home        init        lib         linuxrc     lost+found  media       mnt         old-root    opt         proc        root        run         sbin        sys         tmp         usr         var
+$ exit
+Connection to 10.0.0.5 closed.
+</source> 
+
+<source lang="bash">
+</source> 
+
+<source lang="bash">
+</source> 
+
+<source lang="bash">
+</source>

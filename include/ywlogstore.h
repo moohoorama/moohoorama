@@ -28,9 +28,23 @@ class ywChunk {
 
 static_assert(sizeof(ywCnkID) == 4, "invalid ywCnkID Size");
 
+class ywCbuffMgr {
+    static const uint32_t CBUFF_MAX = 8;
+
+ public:
+    ywCbuffMgr(int32_t _count):count(_count) {
+    }
+
+ private:
+    int32_t                 count;
+    Byte                   *buffer;
+    ywChunk                *chunk[CBUFF_MAX];
+    ywCnkID                 id[CBUFF_MAX];
+};
+
 class ywLogStore {
  public:
-    static const uint32_t MEM_CHUNK_COUNT = 8;
+    static const uint32_t CBUFF_COUNT = 8;
     static const uint32_t CHUNK_SIZE    = sizeof(ywChunk);
     static const intptr_t DIO_ALIGN     = 512;
 
@@ -113,10 +127,14 @@ class ywLogStore {
     static void *log_flusher(void *arg_ptr);
 
     /*off - cnkid mpa*/
+    int32_t get_cbuff_idx(ywPos pos) {
+        return (pos.get() / CHUNK_SIZE) % CBUFF_COUNT;
+    }
     CnkID get_cnkid(ywPos pos) {
+        return chunk_id[get_cbuff_idx(pos)];
     }
     Byte *get_chunk_ptr(ywPos pos) {
-        return chunk_ptr[pos.get_idx() % MEM_CHUNK_COUNT]->body
+        return chunk_ptr[get_cbuff_idx(pos)]->body
                + pos.get_offset();
     }
     bool set_chunk_idx(int32_t cnk_idx) {
@@ -124,7 +142,7 @@ class ywLogStore {
 
         if (chunk_idx[mem_idx] == -1) {
             chunk_idx[mem_idx] = cnk_idx;
-            reserve_mem_idx = (reserve_mem_idx+1) % MEM_CHUNK_COUNT;
+            reserve_mem_idx = (reserve_mem_idx+1) % CBUFF_COUNT;
             return true;
         }
         return false;
@@ -133,8 +151,8 @@ class ywLogStore {
     int32_t                 fd;
     int32_t                 io;
     Byte                   *chunk_buffer;
-    ywChunk                *chunk_ptr[MEM_CHUNK_COUNT];
-    ywCnkID                 off_to_cnkid_map[MEM_CHUNK_COUNT];
+    ywChunk                *chunk_ptr[CBUFF_COUNT];
+    ywCnkID                 off_to_cnkid_map[CBUFF_COUNT];
 
     ywPos                   append_pos;
     ywPos                   write_pos;

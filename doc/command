@@ -1,0 +1,1227 @@
+= ceilometer =
+<source lang="bash">
+usage: ceilometer [--version] [-d] [-v] [-k] [--cert-file CERT_FILE]
+                  [--key-file KEY_FILE] [--os-cacert <ca-certificate-file>]
+                  [--ca-file OS_CACERT] [--timeout TIMEOUT]
+                  [--os-username OS_USERNAME] [--os-password OS_PASSWORD]
+                  [--os-tenant-id OS_TENANT_ID]
+                  [--os-tenant-name OS_TENANT_NAME]
+                  [--os-auth-url OS_AUTH_URL]
+                  [--os-region-name OS_REGION_NAME]
+                  [--os-auth-token OS_AUTH_TOKEN]
+                  [--ceilometer-url CEILOMETER_URL]
+                  [--ceilometer-api-version CEILOMETER_API_VERSION]
+                  [--os-service-type OS_SERVICE_TYPE]
+                  [--os-endpoint-type OS_ENDPOINT_TYPE]
+                  <subcommand> ...
+
+Command-line interface to the OpenStack Telemetry API.
+
+Positional arguments:
+  <subcommand>
+    alarm-combination-create
+                        Create a new alarm based on state of other alarms.
+    alarm-combination-update
+                        Update an existing alarm based on state of other
+                        alarms.
+    alarm-create        Create a new alarm (Deprecated). Use alarm-threshold-
+                        create instead.
+    alarm-delete        Delete an alarm.
+    alarm-history       Display the change history of an alarm.
+    alarm-list          List the user's alarms.
+    alarm-show          Show an alarm.
+    alarm-state-get     Get the state of an alarm.
+    alarm-state-set     Set the state of an alarm.
+    alarm-threshold-create
+                        Create a new alarm based on computed statistics.
+    alarm-threshold-update
+                        Update an existing alarm based on computed statistics.
+    alarm-update        Update an existing alarm (Deprecated).
+    event-list          List events.
+    event-show          Show a particular event.
+    event-type-list     List event types.
+    meter-list          List the user's meters.
+    query-alarm-history
+                        Query Alarm History.
+    query-alarms        Query Alarms.
+    query-samples       Query samples.
+    resource-list       List the resources.
+    resource-show       Show the resource.
+    sample-create       Create a sample.
+    sample-list         List the samples for a meter.
+    statistics          List the statistics for a meter.
+    trait-description-list
+                        List trait info for an event type.
+    trait-list          List trait all traits with name <trait_name> for Event
+                        Type
+    bash-completion     Prints all of the commands and options to stdout.
+    help                Display help about this program or one of its
+                        subcommands.
+
+Optional arguments:
+  --version             show program's version number and exit
+  -d, --debug           Defaults to env[CEILOMETERCLIENT_DEBUG].
+  -v, --verbose         Print more verbose output.
+  -k, --insecure        Explicitly allow ceilometerclient to perform
+                        "insecure" SSL (https) requests. The server's
+                        certificate will not be verified against any
+                        certificate authorities. This option should be used
+                        with caution.
+  --cert-file CERT_FILE
+                        Path of certificate file to use in SSL connection.
+                        This file can optionally be prepended with the private
+                        key.
+  --key-file KEY_FILE   Path of client key to use in SSL connection. This
+                        option is not necessary if your key is prepended to
+                        your cert file.
+  --os-cacert <ca-certificate-file>
+                        Path of CA TLS certificate(s) used to verifythe remote
+                        server's certificate. Without this option ceilometer
+                        looks for the default system CA certificates.
+  --ca-file OS_CACERT   DEPRECATED! Use --os-cacert.
+  --timeout TIMEOUT     Number of seconds to wait for a response.
+  --os-username OS_USERNAME
+                        Defaults to env[OS_USERNAME].
+  --os-password OS_PASSWORD
+                        Defaults to env[OS_PASSWORD].
+  --os-tenant-id OS_TENANT_ID
+                        Defaults to env[OS_TENANT_ID].
+  --os-tenant-name OS_TENANT_NAME
+                        Defaults to env[OS_TENANT_NAME].
+  --os-auth-url OS_AUTH_URL
+                        Defaults to env[OS_AUTH_URL].
+  --os-region-name OS_REGION_NAME
+                        Defaults to env[OS_REGION_NAME].
+  --os-auth-token OS_AUTH_TOKEN
+                        Defaults to env[OS_AUTH_TOKEN].
+  --ceilometer-url CEILOMETER_URL
+                        Defaults to env[CEILOMETER_URL].
+  --ceilometer-api-version CEILOMETER_API_VERSION
+                        Defaults to env[CEILOMETER_API_VERSION] or 2.
+  --os-service-type OS_SERVICE_TYPE
+                        Defaults to env[OS_SERVICE_TYPE].
+  --os-endpoint-type OS_ENDPOINT_TYPE
+                        Defaults to env[OS_ENDPOINT_TYPE].
+
+See "ceilometer help COMMAND" for help on a specific command.
+</source>
+
+= cinder =
+<source lang="bash">
+usage: cinder [--version] [--debug] [--os-username <auth-user-name>]
+              [--os-password <auth-password>]
+              [--os-tenant-name <auth-tenant-name>]
+              [--os-tenant-id <auth-tenant-id>] [--os-auth-url <auth-url>]
+              [--os-region-name <region-name>] [--service-type <service-type>]
+              [--service-name <service-name>]
+              [--volume-service-name <volume-service-name>]
+              [--endpoint-type <endpoint-type>]
+              [--os-volume-api-version <volume-api-ver>]
+              [--os-cacert <ca-certificate>] [--retries <retries>]
+              <subcommand> ...
+
+Command-line interface to the OpenStack Cinder API.
+
+Positional arguments:
+  <subcommand>
+    absolute-limits     Print a list of absolute limits for a user
+    availability-zone-list
+                        List all the availability zones.
+    backup-create       Creates a backup.
+    backup-delete       Remove a backup.
+    backup-list         List all the backups.
+    backup-restore      Restore a backup.
+    backup-show         Show details about a backup.
+    create              Add a new volume.
+    credentials         Show user credentials returned from auth.
+    delete              Remove volume(s).
+    encryption-type-create
+                        Create a new encryption type for a volume type (Admin
+                        Only).
+    encryption-type-delete
+                        Delete the encryption type for a volume type (Admin
+                        Only).
+    encryption-type-list
+                        List encryption type information for all volume types
+                        (Admin Only).
+    encryption-type-show
+                        Show the encryption type information for a volume type
+                        (Admin Only).
+    endpoints           Discover endpoints that get returned from the
+                        authenticate services.
+    extend              Attempt to extend the size of an existing volume.
+    extra-specs-list    Print a list of current 'volume types and extra specs'
+                        (Admin Only).
+    force-delete        Attempt forced removal of volume(s), regardless of the
+                        state(s).
+    list                List all the volumes.
+    metadata            Set or Delete metadata on a volume.
+    metadata-show       Show metadata of given volume.
+    metadata-update-all
+                        Update all metadata of a volume.
+    migrate             Migrate the volume to the new host.
+    qos-associate       Associate qos specs with specific volume type.
+    qos-create          Create a new qos specs.
+    qos-delete          Delete a specific qos specs.
+    qos-disassociate    Disassociate qos specs from specific volume type.
+    qos-disassociate-all
+                        Disassociate qos specs from all of its associations.
+    qos-get-association
+                        Get all associations of specific qos specs.
+    qos-key             Set or unset specifications for a qos spec.
+    qos-list            Get full list of qos specs.
+    qos-show            Get a specific qos specs.
+    quota-class-show    List the quotas for a quota class.
+    quota-class-update  Update the quotas for a quota class.
+    quota-defaults      List the default quotas for a tenant.
+    quota-delete        Delete the quotas for a tenant.
+    quota-show          List the quotas for a tenant.
+    quota-update        Update the quotas for a tenant.
+    quota-usage         List the quota usage for a tenant.
+    rate-limits         Print a list of rate limits for a user
+    readonly-mode-update
+                        Update volume read-only access mode read_only.
+    rename              Rename a volume.
+    reset-state         Explicitly update the state of a volume.
+    service-disable     Disable the service.
+    service-enable      Enable the service.
+    service-list        List all the services. Filter by host & service
+                        binary.
+    show                Show details about a volume.
+    snapshot-create     Add a new snapshot.
+    snapshot-delete     Remove a snapshot.
+    snapshot-list       List all the snapshots.
+    snapshot-metadata   Set or Delete metadata of a snapshot.
+    snapshot-metadata-show
+                        Show metadata of given snapshot.
+    snapshot-metadata-update-all
+                        Update all metadata of a snapshot.
+    snapshot-rename     Rename a snapshot.
+    snapshot-reset-state
+                        Explicitly update the state of a snapshot.
+    snapshot-show       Show details about a snapshot.
+    transfer-accept     Accepts a volume transfer.
+    transfer-create     Creates a volume transfer.
+    transfer-delete     Undo a transfer.
+    transfer-list       List all the transfers.
+    transfer-show       Show details about a transfer.
+    type-create         Create a new volume type.
+    type-delete         Delete a specific volume type.
+    type-key            Set or unset extra_spec for a volume type.
+    type-list           Print a list of available 'volume types'.
+    upload-to-image     Upload volume to image service as image.
+    bash-completion     Print arguments for bash_completion.
+    help                Display help about this program or one of its
+                        subcommands.
+    list-extensions     List all the os-api extensions that are available.
+
+Optional arguments:
+  --version             show program's version number and exit
+  --debug               Print debugging output
+  --os-username <auth-user-name>
+                        Defaults to env[OS_USERNAME].
+  --os-password <auth-password>
+                        Defaults to env[OS_PASSWORD].
+  --os-tenant-name <auth-tenant-name>
+                        Defaults to env[OS_TENANT_NAME].
+  --os-tenant-id <auth-tenant-id>
+                        Defaults to env[OS_TENANT_ID].
+  --os-auth-url <auth-url>
+                        Defaults to env[OS_AUTH_URL].
+  --os-region-name <region-name>
+                        Defaults to env[OS_REGION_NAME].
+  --service-type <service-type>
+                        Defaults to volume for most actions
+  --service-name <service-name>
+                        Defaults to env[CINDER_SERVICE_NAME]
+  --volume-service-name <volume-service-name>
+                        Defaults to env[CINDER_VOLUME_SERVICE_NAME]
+  --endpoint-type <endpoint-type>
+                        Defaults to env[CINDER_ENDPOINT_TYPE] or publicURL.
+  --os-volume-api-version <volume-api-ver>
+                        Accepts 1 or 2,defaults to env[OS_VOLUME_API_VERSION].
+  --os-cacert <ca-certificate>
+                        Specify a CA bundle file to use in verifying a TLS
+                        (https) server certificate. Defaults to env[OS_CACERT]
+  --retries <retries>   Number of retries.
+
+See "cinder help COMMAND" for help on a specific command.
+</source>
+
+= glance =
+
+<source lang="bash">
+usage: glance [--version] [-d] [-v] [--get-schema] [-k]
+              [--cert-file CERT_FILE] [--key-file KEY_FILE]
+              [--os-cacert <ca-certificate-file>] [--ca-file OS_CACERT]
+              [--timeout TIMEOUT] [--no-ssl-compression] [-f] [--dry-run]
+              [--ssl] [-H ADDRESS] [-p PORT] [--os-username OS_USERNAME]
+              [-I OS_USERNAME] [--os-password OS_PASSWORD] [-K OS_PASSWORD]
+              [--os-tenant-id OS_TENANT_ID] [--os-tenant-name OS_TENANT_NAME]
+              [-T OS_TENANT_NAME] [--os-auth-url OS_AUTH_URL] [-N OS_AUTH_URL]
+              [--os-region-name OS_REGION_NAME] [-R OS_REGION_NAME]
+              [--os-auth-token OS_AUTH_TOKEN] [-A OS_AUTH_TOKEN]
+              [--os-image-url OS_IMAGE_URL] [-U OS_IMAGE_URL]
+              [--os-image-api-version OS_IMAGE_API_VERSION]
+              [--os-service-type OS_SERVICE_TYPE]
+              [--os-endpoint-type OS_ENDPOINT_TYPE] [-S OS_AUTH_STRATEGY]
+              <subcommand> ...
+
+Command-line interface to the OpenStack Images API.
+
+Positional arguments:
+  <subcommand>
+    add                 DEPRECATED! Use image-create instead.
+    clear               DEPRECATED!
+    delete              DEPRECATED! Use image-delete instead.
+    details             DEPRECATED! Use image-list instead.
+    image-create        Create a new image.
+    image-delete        Delete specified image(s).
+    image-download      Download a specific image.
+    image-list          List images you can access.
+    image-members       DEPRECATED! Use member-list instead.
+    image-show          Describe a specific image.
+    image-update        Update a specific image.
+    index               DEPRECATED! Use image-list instead.
+    member-add          DEPRECATED! Use member-create instead.
+    member-create       Share a specific image with a tenant.
+    member-delete       Remove a shared image from a tenant.
+    member-images       DEPRECATED! Use member-list instead.
+    member-list         Describe sharing permissions by image or tenant.
+    members-replace     DEPRECATED!
+    show                DEPRECATED! Use image-show instead.
+    update              DEPRECATED! Use image-update instead.
+    help                Display help about this program or one of its
+                        subcommands.
+
+Optional arguments:
+  --version             show program's version number and exit
+  -d, --debug           Defaults to env[GLANCECLIENT_DEBUG].
+  -v, --verbose         Print more verbose output
+  --get-schema          Ignores cached copy and forces retrieval of schema
+                        that generates portions of the help text. Ignored with
+                        API version 1.
+  -k, --insecure        Explicitly allow glanceclient to perform "insecure
+                        SSL" (https) requests. The server's certificate will
+                        not be verified against any certificate authorities.
+                        This option should be used with caution.
+  --cert-file CERT_FILE
+                        Path of certificate file to use in SSL connection.
+                        This file can optionally be prepended with the private
+                        key.
+  --key-file KEY_FILE   Path of client key to use in SSL connection. This
+                        option is not necessary if your key is prepended to
+                        your cert file.
+  --os-cacert <ca-certificate-file>
+                        Path of CA TLS certificate(s) used to verify the
+                        remote server's certificate. Without this option
+                        glance looks for the default system CA certificates.
+  --ca-file OS_CACERT   DEPRECATED! Use --os-cacert.
+  --timeout TIMEOUT     Number of seconds to wait for a response
+  --no-ssl-compression  Disable SSL compression when using https.
+  -f, --force           Prevent select actions from requesting user
+                        confirmation.
+  --dry-run             DEPRECATED! Only used for deprecated legacy commands.
+  --ssl                 DEPRECATED! Send a fully-formed endpoint using --os-
+                        image-url instead.
+  -H ADDRESS, --host ADDRESS
+                        DEPRECATED! Send a fully-formed endpoint using --os-
+                        image-url instead.
+  -p PORT, --port PORT  DEPRECATED! Send a fully-formed endpoint using --os-
+                        image-url instead.
+  --os-username OS_USERNAME
+                        Defaults to env[OS_USERNAME].
+  -I OS_USERNAME        DEPRECATED! Use --os-username.
+  --os-password OS_PASSWORD
+                        Defaults to env[OS_PASSWORD].
+  -K OS_PASSWORD        DEPRECATED! Use --os-password.
+  --os-tenant-id OS_TENANT_ID
+                        Defaults to env[OS_TENANT_ID].
+  --os-tenant-name OS_TENANT_NAME
+                        Defaults to env[OS_TENANT_NAME].
+  -T OS_TENANT_NAME     DEPRECATED! Use --os-tenant-name.
+  --os-auth-url OS_AUTH_URL
+                        Defaults to env[OS_AUTH_URL].
+  -N OS_AUTH_URL        DEPRECATED! Use --os-auth-url.
+  --os-region-name OS_REGION_NAME
+                        Defaults to env[OS_REGION_NAME].
+  -R OS_REGION_NAME     DEPRECATED! Use --os-region-name.
+  --os-auth-token OS_AUTH_TOKEN
+                        Defaults to env[OS_AUTH_TOKEN].
+  -A OS_AUTH_TOKEN, --auth_token OS_AUTH_TOKEN
+                        DEPRECATED! Use --os-auth-token.
+  --os-image-url OS_IMAGE_URL
+                        Defaults to env[OS_IMAGE_URL].
+  -U OS_IMAGE_URL, --url OS_IMAGE_URL
+                        DEPRECATED! Use --os-image-url.
+  --os-image-api-version OS_IMAGE_API_VERSION
+                        Defaults to env[OS_IMAGE_API_VERSION] or 1.
+  --os-service-type OS_SERVICE_TYPE
+                        Defaults to env[OS_SERVICE_TYPE].
+  --os-endpoint-type OS_ENDPOINT_TYPE
+                        Defaults to env[OS_ENDPOINT_TYPE].
+  -S OS_AUTH_STRATEGY, --os_auth_strategy OS_AUTH_STRATEGY
+                        DEPRECATED! This option is completely ignored.
+
+See "glance help COMMAND" for help on a specific command.
+</source>
+
+= heat =
+<source lang="bash">
+usage: heat [--version] [-d] [-v] [-k] [--cert-file CERT_FILE]
+            [--key-file KEY_FILE] [--ca-file CA_FILE]
+            [--api-timeout API_TIMEOUT] [--os-username OS_USERNAME]
+            [--os-password OS_PASSWORD] [--os-tenant-id OS_TENANT_ID]
+            [--os-tenant-name OS_TENANT_NAME] [--os-auth-url OS_AUTH_URL]
+            [--os-region-name OS_REGION_NAME] [--os-auth-token OS_AUTH_TOKEN]
+            [--os-no-client-auth] [--heat-url HEAT_URL]
+            [--heat-api-version HEAT_API_VERSION]
+            [--os-service-type OS_SERVICE_TYPE]
+            [--os-endpoint-type OS_ENDPOINT_TYPE] [--include-password]
+            <subcommand> ...
+
+Command-line interface to the Heat API.
+
+Positional arguments:
+  <subcommand>
+    action-resume       Resume the stack.
+    action-suspend      Suspend the stack.
+    build-info          Retrieve build information.
+    create              DEPRECATED! Use stack-create instead.
+    delete              DEPRECATED! Use stack-delete instead.
+    describe            DEPRECATED! Use stack-show instead.
+    event               DEPRECATED! Use event-show instead.
+    event-list          List events for a stack.
+    event-show          Describe the event.
+    gettemplate         DEPRECATED! Use template-show instead.
+    list                DEPRECATED! Use stack-list instead.
+    output-list         Show available outputs.
+    output-show         Show a specific stack output.
+    resource            DEPRECATED! Use resource-show instead.
+    resource-list       Show list of resources belonging to a stack.
+    resource-metadata   List resource metadata.
+    resource-show       Describe the resource.
+    resource-signal     Send a signal to a resource.
+    resource-template   Generate a template based on a resource.
+    resource-type-list  List the available resource types.
+    resource-type-show  Show the resource type.
+    stack-abandon       Abandon the stack.
+    stack-adopt         Adopt a stack.
+    stack-create        Create the stack.
+    stack-delete        Delete the stack(s).
+    stack-list          List the user's stacks.
+    stack-preview       Preview the stack.
+    stack-show          Describe the stack.
+    stack-update        Update the stack.
+    template-show       Get the template for the specified stack.
+    template-validate   Validate a template with parameters.
+    update              DEPRECATED! Use stack-update instead.
+    validate            DEPRECATED! Use template-validate instead.
+    bash-completion     Prints all of the commands and options to stdout.
+    help                Display help about this program or one of its
+                        subcommands.
+
+Optional arguments:
+  --version             Shows the client version and exits.
+  -d, --debug           Defaults to env[HEATCLIENT_DEBUG].
+  -v, --verbose         Print more verbose output.
+  -k, --insecure        Explicitly allow the client to perform "insecure" SSL
+                        (https) requests. The server's certificate will not be
+                        verified against any certificate authorities. This
+                        option should be used with caution.
+  --cert-file CERT_FILE
+                        Path of certificate file to use in SSL connection.
+                        This file can optionally be prepended with the private
+                        key.
+  --key-file KEY_FILE   Path of client key to use in SSL connection.This
+                        option is not necessary if your key is prepended to
+                        your cert file.
+  --ca-file CA_FILE     Path of CA SSL certificate(s) used to verify the
+                        remote server's certificate. Without this option the
+                        client looks for the default system CA certificates.
+  --api-timeout API_TIMEOUT
+                        Number of seconds to wait for an API response,
+                        defaults to system socket timeout
+  --os-username OS_USERNAME
+                        Defaults to env[OS_USERNAME].
+  --os-password OS_PASSWORD
+                        Defaults to env[OS_PASSWORD].
+  --os-tenant-id OS_TENANT_ID
+                        Defaults to env[OS_TENANT_ID].
+  --os-tenant-name OS_TENANT_NAME
+                        Defaults to env[OS_TENANT_NAME].
+  --os-auth-url OS_AUTH_URL
+                        Defaults to env[OS_AUTH_URL].
+  --os-region-name OS_REGION_NAME
+                        Defaults to env[OS_REGION_NAME].
+  --os-auth-token OS_AUTH_TOKEN
+                        Defaults to env[OS_AUTH_TOKEN].
+  --os-no-client-auth   Do not contact keystone for a token. Defaults to
+                        env[OS_NO_CLIENT_AUTH].
+  --heat-url HEAT_URL   Defaults to env[HEAT_URL].
+  --heat-api-version HEAT_API_VERSION
+                        Defaults to env[HEAT_API_VERSION] or 1.
+  --os-service-type OS_SERVICE_TYPE
+                        Defaults to env[OS_SERVICE_TYPE].
+  --os-endpoint-type OS_ENDPOINT_TYPE
+                        Defaults to env[OS_ENDPOINT_TYPE].
+  --include-password    Send os-username and os-password to heat.
+
+See "heat help COMMAND" for help on a specific command.
+</source>
+
+= keystone =
+<source lang="bash">
+usage: keystone [--version] [--timeout <seconds>]
+                [--os-username <auth-user-name>]
+                [--os-password <auth-password>]
+                [--os-tenant-name <auth-tenant-name>]
+                [--os-tenant-id <tenant-id>] [--os-auth-url <auth-url>]
+                [--os-region-name <region-name>]
+                [--os-identity-api-version <identity-api-version>]
+                [--os-token <service-token>]
+                [--os-endpoint <service-endpoint>]
+                [--os-cacert <ca-certificate>] [--insecure]
+                [--os-cert <certificate>] [--os-key <key>] [--os-cache]
+                [--force-new-token] [--stale-duration <seconds>]
+                <subcommand> ...
+
+Pending deprecation: Command-line interface to the OpenStack Identity API.
+This CLI is pending deprecation in favor of python-openstackclient. For a
+Python library, continue using python-keystoneclient.
+
+Positional arguments:
+  <subcommand>
+    catalog             List service catalog, possibly filtered by service.
+    ec2-credentials-create
+                        Create EC2-compatible credentials for user per tenant.
+    ec2-credentials-delete
+                        Delete EC2-compatible credentials.
+    ec2-credentials-get
+                        Display EC2-compatible credentials.
+    ec2-credentials-list
+                        List EC2-compatible credentials for a user.
+    endpoint-create     Create a new endpoint associated with a service.
+    endpoint-delete     Delete a service endpoint.
+    endpoint-get        Find endpoint filtered by a specific attribute or
+                        service type.
+    endpoint-list       List configured service endpoints.
+    password-update     Update own password.
+    role-create         Create new role.
+    role-delete         Delete role.
+    role-get            Display role details.
+    role-list           List all roles.
+    service-create      Add service to Service Catalog.
+    service-delete      Delete service from Service Catalog.
+    service-get         Display service from Service Catalog.
+    service-list        List all services in Service Catalog.
+    tenant-create       Create new tenant.
+    tenant-delete       Delete tenant.
+    tenant-get          Display tenant details.
+    tenant-list         List all tenants.
+    tenant-update       Update tenant name, description, enabled status.
+    token-get           Display the current user token.
+    user-create         Create new user
+    user-delete         Delete user.
+    user-get            Display user details.
+    user-list           List users.
+    user-password-update
+                        Update user password.
+    user-role-add       Add role to user.
+    user-role-list      List roles granted to a user.
+    user-role-remove    Remove role from user.
+    user-update         Update user's name, email, and enabled status.
+    discover            Discover Keystone servers, supported API versions and
+                        extensions.
+    bootstrap           Grants a new role to a new user on a new tenant, after
+                        creating each.
+    bash-completion     Prints all of the commands and options to stdout.
+    help                Display help about this program or one of its
+                        subcommands.
+
+Optional arguments:
+  --version             Shows the client version and exits.
+  --timeout <seconds>   Set request timeout (in seconds).
+  --os-username <auth-user-name>
+                        Name used for authentication with the OpenStack
+                        Identity service. Defaults to env[OS_USERNAME].
+  --os-password <auth-password>
+                        Password used for authentication with the OpenStack
+                        Identity service. Defaults to env[OS_PASSWORD].
+  --os-tenant-name <auth-tenant-name>
+                        Tenant to request authorization on. Defaults to
+                        env[OS_TENANT_NAME].
+  --os-tenant-id <tenant-id>
+                        Tenant to request authorization on. Defaults to
+                        env[OS_TENANT_ID].
+  --os-auth-url <auth-url>
+                        Specify the Identity endpoint to use for
+                        authentication. Defaults to env[OS_AUTH_URL].
+  --os-region-name <region-name>
+                        Specify the region to use. Defaults to
+                        env[OS_REGION_NAME].
+  --os-identity-api-version <identity-api-version>
+                        Specify Identity API version to use. Defaults to
+                        env[OS_IDENTITY_API_VERSION] or 2.0.
+  --os-token <service-token>
+                        Specify an existing token to use instead of retrieving
+                        one via authentication (e.g. with username &
+                        password). Defaults to env[OS_SERVICE_TOKEN].
+  --os-endpoint <service-endpoint>
+                        Specify an endpoint to use instead of retrieving one
+                        from the service catalog (via authentication).
+                        Defaults to env[OS_SERVICE_ENDPOINT].
+  --os-cacert <ca-certificate>
+                        Specify a CA bundle file to use in verifying a TLS
+                        (https) server certificate. Defaults to
+                        env[OS_CACERT].
+  --insecure            Explicitly allow keystoneclient to perform "insecure"
+                        TLS (https) requests. The server's certificate will
+                        not be verified against any certificate authorities.
+                        This option should be used with caution.
+  --os-cert <certificate>
+                        Defaults to env[OS_CERT].
+  --os-key <key>        Defaults to env[OS_KEY].
+  --os-cache            Use the auth token cache. Defaults to env[OS_CACHE].
+  --force-new-token     If the keyring is available and in use, token will
+                        always be stored and fetched from the keyring until
+                        the token has expired. Use this option to request a
+                        new token and replace the existing one in the keyring.
+  --stale-duration <seconds>
+                        Stale duration (in seconds) used to determine whether
+                        a token has expired when retrieving it from keyring.
+                        This is useful in mitigating process or network
+                        delays. Default is 30 seconds.
+
+See "keystone help COMMAND" for help on a specific command.
+</source>
+
+= neutron =
+
+<source lang="bash">
+usage: neutron [--version] [-v] [-q] [-h] [--os-auth-strategy <auth-strategy>]
+               [--os-auth-url <auth-url>]
+               [--os-tenant-name <auth-tenant-name>]
+               [--os-tenant-id <auth-tenant-id>]
+               [--os-username <auth-username>] [--os-password <auth-password>]
+               [--os-region-name <auth-region-name>] [--os-token <token>]
+               [--service-type <service-type>]
+               [--endpoint-type <endpoint-type>] [--os-url <url>]
+               [--os-cacert <ca-certificate>] [--insecure]
+
+Command-line interface to the Neutron APIs
+
+optional arguments:
+  --version             show program's version number and exit
+  -v, --verbose, --debug
+                        Increase verbosity of output and show tracebacks on
+                        errors. Can be repeated.
+  -q, --quiet           Suppress output except warnings and errors
+  -h, --help            Show this help message and exit
+  --os-auth-strategy <auth-strategy>
+                        Authentication strategy (Env: OS_AUTH_STRATEGY,
+                        default keystone). For now, any other value will
+                        disable the authentication
+  --os-auth-url <auth-url>
+                        Authentication URL (Env: OS_AUTH_URL)
+  --os-tenant-name <auth-tenant-name>
+                        Authentication tenant name (Env: OS_TENANT_NAME)
+  --os-tenant-id <auth-tenant-id>
+                        Authentication tenant name (Env: OS_TENANT_ID)
+  --os-username <auth-username>
+                        Authentication username (Env: OS_USERNAME)
+  --os-password <auth-password>
+                        Authentication password (Env: OS_PASSWORD)
+  --os-region-name <auth-region-name>
+                        Authentication region name (Env: OS_REGION_NAME)
+  --os-token <token>    Defaults to env[OS_TOKEN]
+  --service-type <service-type>
+                        Defaults to env[OS_NETWORK_SERVICE_TYPE] or network.
+  --endpoint-type <endpoint-type>
+                        Defaults to env[OS_ENDPOINT_TYPE] or publicURL.
+  --os-url <url>        Defaults to env[OS_URL]
+  --os-cacert <ca-certificate>
+                        Specify a CA bundle file to use in verifying a TLS
+                        (https) server certificate. Defaults to env[OS_CACERT]
+  --insecure            Explicitly allow neutronclient to perform "insecure"
+                        SSL (https) requests. The server's certificate will
+                        not be verified against any certificate authorities.
+                        This option should be used with caution.
+
+Commands for API v2.0:
+  agent-delete                   Delete a given agent.
+  agent-list                     List agents.
+  agent-show                     Show information of a given agent.
+  agent-update                   Update a given agent.
+  cisco-credential-create        Creates a credential.
+  cisco-credential-delete        Delete a  given credential.
+  cisco-credential-list          List credentials that belong to a given tenant.
+  cisco-credential-show          Show information of a given credential.
+  cisco-network-profile-create   Creates a network profile.
+  cisco-network-profile-delete   Delete a given network profile.
+  cisco-network-profile-list     List network profiles that belong to a given tenant.
+  cisco-network-profile-show     Show information of a given network profile.
+  cisco-network-profile-update   Update network profile's information.
+  cisco-policy-profile-list      List policy profiles that belong to a given tenant.
+  cisco-policy-profile-show      Show information of a given policy profile.
+  cisco-policy-profile-update    Update policy profile's information.
+  complete                       print bash completion command
+  dhcp-agent-list-hosting-net    List DHCP agents hosting a network.
+  dhcp-agent-network-add         Add a network to a DHCP agent.
+  dhcp-agent-network-remove      Remove a network from a DHCP agent.
+  ext-list                       List all extensions.
+  ext-show                       Show information of a given resource.
+  firewall-create                Create a firewall.
+  firewall-delete                Delete a given firewall.
+  firewall-list                  List firewalls that belong to a given tenant.
+  firewall-policy-create         Create a firewall policy.
+  firewall-policy-delete         Delete a given firewall policy.
+  firewall-policy-insert-rule    Insert a rule into a given firewall policy.
+  firewall-policy-list           List firewall policies that belong to a given tenant.
+  firewall-policy-remove-rule    Remove a rule from a given firewall policy.
+  firewall-policy-show           Show information of a given firewall policy.
+  firewall-policy-update         Update a given firewall policy.
+  firewall-rule-create           Create a firewall rule.
+  firewall-rule-delete           Delete a given firewall rule.
+  firewall-rule-list             List firewall rules that belong to a given tenant.
+  firewall-rule-show             Show information of a given firewall rule.
+  firewall-rule-update           Update a given firewall rule.
+  firewall-show                  Show information of a given firewall.
+  firewall-update                Update a given firewall.
+  floatingip-associate           Create a mapping between a floating ip and a fixed ip.
+  floatingip-create              Create a floating ip for a given tenant.
+  floatingip-delete              Delete a given floating ip.
+  floatingip-disassociate        Remove a mapping from a floating ip to a fixed ip.
+  floatingip-list                List floating ips that belong to a given tenant.
+  floatingip-show                Show information of a given floating ip.
+  gateway-device-create          Create a network gateway device.
+  gateway-device-delete          Delete a given network gateway device.
+  gateway-device-list            List network gateway devices for a given tenant.
+  gateway-device-show            Show information for a given network gateway device.
+  gateway-device-update          Update a network gateway device.
+  help                           print detailed help for another command
+  ipsec-site-connection-create   Create an IPsecSiteConnection.
+  ipsec-site-connection-delete   Delete a given IPsecSiteConnection.
+  ipsec-site-connection-list     List IPsecSiteConnections that belong to a given tenant.
+  ipsec-site-connection-show     Show information of a given IPsecSiteConnection.
+  ipsec-site-connection-update   Update a given IPsecSiteConnection.
+  l3-agent-list-hosting-router   List L3 agents hosting a router.
+  l3-agent-router-add            Add a router to a L3 agent.
+  l3-agent-router-remove         Remove a router from a L3 agent.
+  lb-agent-hosting-pool          Get loadbalancer agent hosting a pool.
+  lb-healthmonitor-associate     Create a mapping between a health monitor and a pool.
+  lb-healthmonitor-create        Create a healthmonitor.
+  lb-healthmonitor-delete        Delete a given healthmonitor.
+  lb-healthmonitor-disassociate  Remove a mapping from a health monitor to a pool.
+  lb-healthmonitor-list          List healthmonitors that belong to a given tenant.
+  lb-healthmonitor-show          Show information of a given healthmonitor.
+  lb-healthmonitor-update        Update a given healthmonitor.
+  lb-member-create               Create a member.
+  lb-member-delete               Delete a given member.
+  lb-member-list                 List members that belong to a given tenant.
+  lb-member-show                 Show information of a given member.
+  lb-member-update               Update a given member.
+  lb-pool-create                 Create a pool.
+  lb-pool-delete                 Delete a given pool.
+  lb-pool-list                   List pools that belong to a given tenant.
+  lb-pool-list-on-agent          List the pools on a loadbalancer agent.
+  lb-pool-show                   Show information of a given pool.
+  lb-pool-stats                  Retrieve stats for a given pool.
+  lb-pool-update                 Update a given pool.
+  lb-vip-create                  Create a vip.
+  lb-vip-delete                  Delete a given vip.
+  lb-vip-list                    List vips that belong to a given tenant.
+  lb-vip-show                    Show information of a given vip.
+  lb-vip-update                  Update a given vip.
+  meter-label-create             Create a metering label for a given tenant.
+  meter-label-delete             Delete a given metering label.
+  meter-label-list               List metering labels that belong to a given tenant.
+  meter-label-rule-create        Create a metering label rule for a given label.
+  meter-label-rule-delete        Delete a given metering label.
+  meter-label-rule-list          List metering labels that belong to a given label.
+  meter-label-rule-show          Show information of a given metering label rule.
+  meter-label-show               Show information of a given metering label.
+  net-create                     Create a network for a given tenant.
+  net-delete                     Delete a given network.
+  net-external-list              List external networks that belong to a given tenant.
+  net-gateway-connect            Add an internal network interface to a router.
+  net-gateway-create             Create a network gateway.
+  net-gateway-delete             Delete a given network gateway.
+  net-gateway-disconnect         Remove a network from a network gateway.
+  net-gateway-list               List network gateways for a given tenant.
+  net-gateway-show               Show information of a given network gateway.
+  net-gateway-update             Update the name for a network gateway.
+  net-list                       List networks that belong to a given tenant.
+  net-list-on-dhcp-agent         List the networks on a DHCP agent.
+  net-show                       Show information of a given network.
+  net-update                     Update network's information.
+  nuage-netpartition-create      Create a netpartition for a given tenant.
+  nuage-netpartition-delete      Delete a given netpartition.
+  nuage-netpartition-list        List netpartitions that belong to a given tenant.
+  nuage-netpartition-show        Show information of a given netpartition.
+  port-create                    Create a port for a given tenant.
+  port-delete                    Delete a given port.
+  port-list                      List ports that belong to a given tenant.
+  port-show                      Show information of a given port.
+  port-update                    Update port's information.
+  queue-create                   Create a queue.
+  queue-delete                   Delete a given queue.
+  queue-list                     List queues that belong to a given tenant.
+  queue-show                     Show information of a given queue.
+  quota-delete                   Delete defined quotas of a given tenant.
+  quota-list                     List quotas of all tenants who have non-default quota values.
+  quota-show                     Show quotas of a given tenant
+  quota-update                   Define tenant's quotas not to use defaults.
+  router-create                  Create a router for a given tenant.
+  router-delete                  Delete a given router.
+  router-gateway-clear           Remove an external network gateway from a router.
+  router-gateway-set             Set the external network gateway for a router.
+  router-interface-add           Add an internal network interface to a router.
+  router-interface-delete        Remove an internal network interface from a router.
+  router-list                    List routers that belong to a given tenant.
+  router-list-on-l3-agent        List the routers on a L3 agent.
+  router-port-list               List ports that belong to a given tenant, with specified router.
+  router-show                    Show information of a given router.
+  router-update                  Update router's information.
+  security-group-create          Create a security group.
+  security-group-delete          Delete a given security group.
+  security-group-list            List security groups that belong to a given tenant.
+  security-group-rule-create     Create a security group rule.
+  security-group-rule-delete     Delete a given security group rule.
+  security-group-rule-list       List security group rules that belong to a given tenant.
+  security-group-rule-show       Show information of a given security group rule.
+  security-group-show            Show information of a given security group.
+  security-group-update          Update a given security group.
+  service-provider-list          List service providers.
+  subnet-create                  Create a subnet for a given tenant.
+  subnet-delete                  Delete a given subnet.
+  subnet-list                    List subnets that belong to a given tenant.
+  subnet-show                    Show information of a given subnet.
+  subnet-update                  Update subnet's information.
+  vpn-ikepolicy-create           Create an IKEPolicy.
+  vpn-ikepolicy-delete           Delete a given IKE Policy.
+  vpn-ikepolicy-list             List IKEPolicies that belong to a tenant.
+  vpn-ikepolicy-show             Show information of a given IKEPolicy.
+  vpn-ikepolicy-update           Update a given IKE Policy.
+  vpn-ipsecpolicy-create         Create an ipsecpolicy.
+  vpn-ipsecpolicy-delete         Delete a given ipsecpolicy.
+  vpn-ipsecpolicy-list           List ipsecpolicies that belongs to a given tenant connection.
+  vpn-ipsecpolicy-show           Show information of a given ipsecpolicy.
+  vpn-ipsecpolicy-update         Update a given ipsec policy.
+  vpn-service-create             Create a VPNService.
+  vpn-service-delete             Delete a given VPNService.
+  vpn-service-list               List VPNService configurations that belong to a given tenant.
+  vpn-service-show               Show information of a given VPNService.
+  vpn-service-update             Update a given VPNService.
+</source>
+
+= nova =
+<source lang="bash">
+usage: nova [--version] [--debug] [--os-cache] [--timings]
+            [--timeout <seconds>] [--os-auth-token OS_AUTH_TOKEN]
+            [--os-username <auth-user-name>] [--os-user-id <auth-user-id>]
+            [--os-password <auth-password>]
+            [--os-tenant-name <auth-tenant-name>]
+            [--os-tenant-id <auth-tenant-id>] [--os-auth-url <auth-url>]
+            [--os-region-name <region-name>] [--os-auth-system <auth-system>]
+            [--service-type <service-type>] [--service-name <service-name>]
+            [--volume-service-name <volume-service-name>]
+            [--endpoint-type <endpoint-type>]
+            [--os-compute-api-version <compute-api-ver>]
+            [--os-cacert <ca-certificate>] [--insecure]
+            [--bypass-url <bypass-url>]
+            <subcommand> ...
+
+Command-line interface to the OpenStack Nova API.
+
+Positional arguments:
+  <subcommand>
+    absolute-limits     Print a list of absolute limits for a user
+    add-fixed-ip        Add new IP address on a network to server.
+    add-floating-ip     DEPRECATED, use floating-ip-associate instead.
+    add-secgroup        Add a Security Group to a server.
+    agent-create        Create new agent build.
+    agent-delete        Delete existing agent build.
+    agent-list          List all builds.
+    agent-modify        Modify existing agent build.
+    aggregate-add-host  Add the host to the specified aggregate.
+    aggregate-create    Create a new aggregate with the specified details.
+    aggregate-delete    Delete the aggregate.
+    aggregate-details   Show details of the specified aggregate.
+    aggregate-list      Print a list of all aggregates.
+    aggregate-remove-host
+                        Remove the specified host from the specified
+                        aggregate.
+    aggregate-set-metadata
+                        Update the metadata associated with the aggregate.
+    aggregate-update    Update the aggregate's name and optionally
+                        availability zone.
+    availability-zone-list
+                        List all the availability zones.
+    backup              Backup a server by creating a 'backup' type snapshot.
+    boot                Boot a new server.
+    clear-password      Clear password for a server.
+    cloudpipe-configure
+                        Update the VPN IP/port of a cloudpipe instance.
+    cloudpipe-create    Create a cloudpipe instance for the given project.
+    cloudpipe-list      Print a list of all cloudpipe instances.
+    console-log         Get console log output of a server.
+    credentials         Show user credentials returned from auth.
+    delete              Immediately shut down and delete specified server(s).
+    diagnostics         Retrieve server diagnostics.
+    dns-create          Create a DNS entry for domain, name and ip.
+    dns-create-private-domain
+                        Create the specified DNS domain.
+    dns-create-public-domain
+                        Create the specified DNS domain.
+    dns-delete          Delete the specified DNS entry.
+    dns-delete-domain   Delete the specified DNS domain.
+    dns-domains         Print a list of available dns domains.
+    dns-list            List current DNS entries for domain and ip or domain
+                        and name.
+    endpoints           Discover endpoints that get returned from the
+                        authenticate services.
+    evacuate            Evacuate server from failed host to specified one.
+    fixed-ip-get        Retrieve info on a fixed ip.
+    fixed-ip-reserve    Reserve a fixed IP.
+    fixed-ip-unreserve  Unreserve a fixed IP.
+    flavor-access-add   Add flavor access for the given tenant.
+    flavor-access-list  Print access information about the given flavor.
+    flavor-access-remove
+                        Remove flavor access for the given tenant.
+    flavor-create       Create a new flavor
+    flavor-delete       Delete a specific flavor
+    flavor-key          Set or unset extra_spec for a flavor.
+    flavor-list         Print a list of available 'flavors' (sizes of
+                        servers).
+    flavor-show         Show details about the given flavor.
+    floating-ip-associate
+                        Associate a floating IP address to a server.
+    floating-ip-bulk-create
+                        Bulk create floating ips by range.
+    floating-ip-bulk-delete
+                        Bulk delete floating ips by range.
+    floating-ip-bulk-list
+                        List all floating ips.
+    floating-ip-create  Allocate a floating IP for the current tenant.
+    floating-ip-delete  De-allocate a floating IP.
+    floating-ip-disassociate
+                        Disassociate a floating IP address from a server.
+    floating-ip-list    List floating ips.
+    floating-ip-pool-list
+                        List all floating ip pools.
+    get-password        Get password for a server.
+    get-rdp-console     Get a rdp console to a server.
+    get-spice-console   Get a spice console to a server.
+    get-vnc-console     Get a vnc console to a server.
+    host-action         Perform a power action on a host.
+    host-describe       Describe a specific host.
+    host-list           List all hosts by service.
+    host-update         Update host settings.
+    hypervisor-list     List hypervisors.
+    hypervisor-servers  List servers belonging to specific hypervisors.
+    hypervisor-show     Display the details of the specified hypervisor.
+    hypervisor-stats    Get hypervisor statistics over all compute nodes.
+    hypervisor-uptime   Display the uptime of the specified hypervisor.
+    image-create        Create a new image by taking a snapshot of a running
+                        server.
+    image-delete        Delete specified image(s).
+    image-list          Print a list of available images to boot from.
+    image-meta          Set or Delete metadata on an image.
+    image-show          Show details about the given image.
+    interface-attach    Attach a network interface to a server.
+    interface-detach    Detach a network interface from a server.
+    interface-list      List interfaces attached to a server.
+    keypair-add         Create a new key pair for use with servers.
+    keypair-delete      Delete keypair given by its name.
+    keypair-list        Print a list of keypairs for a user
+    keypair-show        Show details about the given keypair.
+    list                List active servers.
+    list-secgroup       List Security Group(s) of a server.
+    live-migration      Migrate running server to a new machine.
+    lock                Lock a server.
+    meta                Set or Delete metadata on a server.
+    migrate             Migrate a server. The new host will be selected by the
+                        scheduler.
+    network-associate-host
+                        Associate host with network.
+    network-associate-project
+                        Associate project with network.
+    network-create      Create a network.
+    network-disassociate
+                        Disassociate host and/or project from the given
+                        network.
+    network-list        Print a list of available networks.
+    network-show        Show details about the given network.
+    pause               Pause a server.
+    quota-defaults      List the default quotas for a tenant.
+    quota-delete        Delete quota for a tenant/user so their quota will
+                        Revert back to default.
+    quota-show          List the quotas for a tenant/user.
+    quota-update        Update the quotas for a tenant/user.
+    rate-limits         Print a list of rate limits for a user
+    reboot              Reboot a server.
+    rebuild             Shutdown, re-image, and re-boot a server.
+    refresh-network     Refresh server network information.
+    remove-fixed-ip     Remove an IP address from a server.
+    remove-floating-ip  DEPRECATED, use floating-ip-disassociate instead.
+    remove-secgroup     Remove a Security Group from a server.
+    rename              Rename a server.
+    rescue              Rescue a server.
+    reset-network       Reset network of a server.
+    reset-state         Reset the state of a server.
+    resize              Resize a server.
+    resize-confirm      Confirm a previous resize.
+    resize-revert       Revert a previous resize (and return to the previous
+                        VM).
+    resume              Resume a server.
+    root-password       Change the root password for a server.
+    scrub               Delete data associated with the project.
+    secgroup-add-group-rule
+                        Add a source group rule to a security group.
+    secgroup-add-rule   Add a rule to a security group.
+    secgroup-create     Create a security group.
+    secgroup-delete     Delete a security group.
+    secgroup-delete-group-rule
+                        Delete a source group rule from a security group.
+    secgroup-delete-rule
+                        Delete a rule from a security group.
+    secgroup-list       List security groups for the current tenant.
+    secgroup-list-rules
+                        List rules for a security group.
+    secgroup-update     Update a security group.
+    server-group-create
+                        Create a new server group with the specified details.
+    server-group-delete
+                        Delete a specific server group.
+    server-group-get    Get a specific server group.
+    server-group-list   Print a list of all server groups.
+    service-delete      Delete the service.
+    service-disable     Disable the service.
+    service-enable      Enable the service.
+    service-list        Show a list of all running services. Filter by host &
+                        binary.
+    shelve              Shelve a server.
+    shelve-offload      Remove a shelved server from the compute node.
+    show                Show details about the given server.
+    ssh                 SSH into a server.
+    start               Start a server.
+    stop                Stop a server.
+    suspend             Suspend a server.
+    unlock              Unlock a server.
+    unpause             Unpause a server.
+    unrescue            Unrescue a server.
+    unshelve            Unshelve a server.
+    usage               Show usage data for a single tenant.
+    usage-list          List usage data for all tenants.
+    volume-attach       Attach a volume to a server.
+    volume-create       Add a new volume.
+    volume-delete       Remove volume(s).
+    volume-detach       Detach a volume from a server.
+    volume-list         List all the volumes.
+    volume-show         Show details about a volume.
+    volume-snapshot-create
+                        Add a new snapshot.
+    volume-snapshot-delete
+                        Remove a snapshot.
+    volume-snapshot-list
+                        List all the snapshots.
+    volume-snapshot-show
+                        Show details about a snapshot.
+    volume-type-create  Create a new volume type.
+    volume-type-delete  Delete a specific volume type.
+    volume-type-list    Print a list of available 'volume types'.
+    volume-update       Update volume attachment.
+    x509-create-cert    Create x509 cert for a user in tenant.
+    x509-get-root-cert  Fetch the x509 root cert.
+    bash-completion     Prints all of the commands and options to stdout so
+                        that the nova.bash_completion script doesn't have to
+                        hard code them.
+    help                Display help about this program or one of its
+                        subcommands.
+    instance-action     Show an action.
+    instance-action-list
+                        List actions on a server.
+    force-delete        Force delete a server.
+    restore             Restore a soft-deleted server.
+    net                 Show a network
+    net-create          Create a network
+    net-delete          Delete a network
+    net-list            List networks
+    baremetal-interface-add
+                        Add a network interface to a baremetal node.
+    baremetal-interface-list
+                        List network interfaces associated with a baremetal
+                        node.
+    baremetal-interface-remove
+                        Remove a network interface from a baremetal node.
+    baremetal-node-create
+                        Create a baremetal node.
+    baremetal-node-delete
+                        Remove a baremetal node and any associated interfaces.
+    baremetal-node-list
+                        Print list of available baremetal nodes.
+    baremetal-node-show
+                        Show information about a baremetal node.
+    migration-list      Print a list of migrations.
+    cell-capacities     Get cell capacities for all cells or a given cell.
+    cell-show           Show details of a given cell.
+    host-meta           Set or Delete metadata on all instances of a host.
+    host-servers-migrate
+                        Migrate all instances of the specified host to other
+                        available hosts.
+    host-evacuate       Evacuate all instances from failed host to specified
+                        one.
+    list-extensions     List all the os-api extensions that are available.
+
+Optional arguments:
+  --version             show program's version number and exit
+  --debug               Print debugging output
+  --os-cache            Use the auth token cache. Defaults to False if
+                        env[OS_CACHE] is not set.
+  --timings             Print call timing info
+  --timeout <seconds>   Set HTTP call timeout (in seconds)
+  --os-auth-token OS_AUTH_TOKEN
+                        Defaults to env[OS_AUTH_TOKEN]
+  --os-username <auth-user-name>
+                        Defaults to env[OS_USERNAME].
+  --os-user-id <auth-user-id>
+                        Defaults to env[OS_USER_ID].
+  --os-password <auth-password>
+                        Defaults to env[OS_PASSWORD].
+  --os-tenant-name <auth-tenant-name>
+                        Defaults to env[OS_TENANT_NAME].
+  --os-tenant-id <auth-tenant-id>
+                        Defaults to env[OS_TENANT_ID].
+  --os-auth-url <auth-url>
+                        Defaults to env[OS_AUTH_URL].
+  --os-region-name <region-name>
+                        Defaults to env[OS_REGION_NAME].
+  --os-auth-system <auth-system>
+                        Defaults to env[OS_AUTH_SYSTEM].
+  --service-type <service-type>
+                        Defaults to compute for most actions
+  --service-name <service-name>
+                        Defaults to env[NOVA_SERVICE_NAME]
+  --volume-service-name <volume-service-name>
+                        Defaults to env[NOVA_VOLUME_SERVICE_NAME]
+  --endpoint-type <endpoint-type>
+                        Defaults to env[NOVA_ENDPOINT_TYPE] or publicURL.
+  --os-compute-api-version <compute-api-ver>
+                        Accepts 1.1 or 3, defaults to
+                        env[OS_COMPUTE_API_VERSION].
+  --os-cacert <ca-certificate>
+                        Specify a CA bundle file to use in verifying a TLS
+                        (https) server certificate. Defaults to env[OS_CACERT]
+  --insecure            Explicitly allow novaclient to perform "insecure" SSL
+                        (https) requests. The server's certificate will not be
+                        verified against any certificate authorities. This
+                        option should be used with caution.
+  --bypass-url <bypass-url>
+                        Use this API endpoint instead of the Service Catalog
+
+See "nova help COMMAND" for help on a specific command.
+</source
+
+= swift =
+<source lang="bash">
+Usage: swift [--version] [--help] [--snet] [--verbose]
+             [--debug] [--info] [--quiet] [--auth <auth_url>]
+             [--auth-version <auth_version>] [--user <username>]
+             [--key <api_key>] [--retries <num_retries>]
+             [--os-username <auth-user-name>] [--os-password <auth-password>]
+             [--os-tenant-id <auth-tenant-id>]
+             [--os-tenant-name <auth-tenant-name>]
+             [--os-auth-url <auth-url>] [--os-auth-token <auth-token>]
+             [--os-storage-url <storage-url>] [--os-region-name <region-name>]
+             [--os-service-type <service-type>]
+             [--os-endpoint-type <endpoint-type>]
+             [--os-cacert <ca-certificate>] [--insecure]
+             [--no-ssl-compression]
+             <subcommand> ...
+
+Command-line interface to the OpenStack Swift API.
+
+Positional arguments:
+  <subcommand>
+    delete               Delete a container or objects within a container.
+    download             Download objects from containers.
+    list                 Lists the containers for the account or the objects
+                         for a container.
+    post                 Updates meta information for the account, container,
+                         or object; creates containers if not present.
+    stat                 Displays information for the account, container,
+                         or object.
+    upload               Uploads files or directories to the given container
+    capabilities         List cluster capabilities.
+
+
+Examples:
+  swift -A https://auth.api.rackspacecloud.com/v1.0 -U user -K api_key stat -v
+
+  swift --os-auth-url https://api.example.com/v2.0 --os-tenant-name tenant \
+      --os-username user --os-password password list
+
+  swift --os-auth-token 6ee5eb33efad4e45ab46806eac010566 \
+      --os-storage-url https://10.1.5.2:8080/v1/AUTH_ced809b6a4baea7aeab61a \
+      list
+
+  swift list --lh
+
+Options:
+  --version             show program's version number and exit
+  -h, --help            show this help message and exit
+  -s, --snet            Use SERVICENET internal network.
+  -v, --verbose         Print more info.
+  --debug               Show the curl commands and results of all http queries
+                        regardless of result status.
+  --info                Show the curl commands and results  of all http
+                        queries which return an error.
+  -q, --quiet           Suppress status output.
+  -A AUTH, --auth=AUTH  URL for obtaining an auth token.
+  -V AUTH_VERSION, --auth-version=AUTH_VERSION
+                        Specify a version for authentication. Defaults to 1.0.
+  -U USER, --user=USER  User name for obtaining an auth token.
+  -K KEY, --key=KEY     Key for obtaining an auth token.
+  -R RETRIES, --retries=RETRIES
+                        The number of times to retry a failed connection.
+  --os-username=<auth-user-name>
+                        OpenStack username. Defaults to env[OS_USERNAME].
+  --os-password=<auth-password>
+                        OpenStack password. Defaults to env[OS_PASSWORD].
+  --os-tenant-id=<auth-tenant-id>
+                        OpenStack tenant ID. Defaults to env[OS_TENANT_ID].
+  --os-tenant-name=<auth-tenant-name>
+                        OpenStack tenant name. Defaults to
+                        env[OS_TENANT_NAME].
+  --os-auth-url=<auth-url>
+                        OpenStack auth URL. Defaults to env[OS_AUTH_URL].
+  --os-auth-token=<auth-token>
+                        OpenStack token. Defaults to env[OS_AUTH_TOKEN]. Used
+                        with --os-storage-url to bypass the usual
+                        username/password authentication.
+  --os-storage-url=<storage-url>
+                        OpenStack storage URL. Defaults to
+                        env[OS_STORAGE_URL]. Overrides the storage url
+                        returned during auth. Will bypass authentication when
+                        used with --os-auth-token.
+  --os-region-name=<region-name>
+                        OpenStack region name. Defaults to
+                        env[OS_REGION_NAME].
+  --os-service-type=<service-type>
+                        OpenStack Service type. Defaults to
+                        env[OS_SERVICE_TYPE].
+  --os-endpoint-type=<endpoint-type>
+                        OpenStack Endpoint type. Defaults to
+                        env[OS_ENDPOINT_TYPE].
+  --os-cacert=<ca-certificate>
+                        Specify a CA bundle file to use in verifying a TLS
+                        (https) server certificate. Defaults to
+                        env[OS_CACERT].
+  --insecure            Allow swiftclient to access servers without having to
+                        verify the SSL certificate. Defaults to
+                        env[SWIFTCLIENT_INSECURE] (set to 'true' to enable).
+  --no-ssl-compression  This option is deprecated and not used anymore. SSL
+                        compression should be disabled by default by the
+                        system SSL library.
+</source>

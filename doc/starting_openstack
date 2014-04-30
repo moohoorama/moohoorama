@@ -1,0 +1,477 @@
+= test machine =
+
+* [http://10.251.154.97/]
+* ssh kyw@10.251.154.97
+
+= devstack =
+
+== dev stack 구성 ==
+
+* Python Package 
+** /usr/lib/python2.7/dist-packages
+* openstack src &bins
+** devstack에서 stack.sh 실행하면 설치됨.
+** /opt/stack => devstack/stack.sh DEST로 변경 설치 가능함.
+
+=== keystone in devstack ===
+* devstack/lib/keystone -> 각종 keystone 설정/설치/시작 관련 함수들 존재함
+
+==== install_keystone ====
+
+==== configure_keystone ====
+
+==== init_keystone ====
+==== start_keystone ====
+
+==== create_..._accounts ====
+
+* 다음은 Keystone용 계정 생성 명령들이다.
+
+<pre>
+create_keystone_accounts
+create_nova_accounts
+create_glance_accounts
+create_cinder_accounts
+create_neutron_accounts
+</pre>
+
+= configuration =
+
+== overall ==
+
+{| {{table}}
+| align="center" style="background:#f0f0f0;"|'''Name'''
+| align="center" style="background:#f0f0f0;"|'''Path'''
+| align="center" style="background:#f0f0f0;"|'''Point'''
+|-
+| keystone||/etc/keystone/keystone.conf||admin_token
+|-
+| glance||/etc/glance/glance-registry.conf||rabbit_hosts, rpc_backend, sql_connection, registry, mysql
+|-
+| nova||/etc/nova/nova.conf||libvirt_cpu_mode, libvirt_type, interface, network_bridge, compute_driver, rabbit, glance_api
+|-
+| cinder||/etc/cinder/cinder.conf||rabbit, back, scsi
+|-
+| heat||/etc/heat/heat.conf||rabbit, port
+|}
+
+== configuration ==
+===  /etc/keystone/keystone.conf ===
+<pre>
+[DEFAULT]
+logging_exception_prefix = %(color)s%(asctime)s.%(msecs)03d TRACE %(name)s %(instance)s
+logging_debug_format_suffix = from (pid=%(process)d) %(funcName)s %(pathname)s:%(lineno)d
+logging_default_format_string = %(asctime)s.%(msecs)03d %(color)s%(levelname)s %(name)s [-%(color)s] %(instance)s%(color)s%(message)s
+logging_context_format_string = %(asctime)s.%(msecs)03d %(color)s%(levelname)s %(name)s [%(request_id)s %(user_name)s %(project_name)s%(color)s] %(instance)s%(color)s%(message)s
+admin_token = stack
+admin_bind_host = 10.251.154.97
+admin_endpoint = http://10.251.154.97:%(admin_port)s/
+public_endpoint = http://10.251.154.97:%(public_port)s/
+[assignment]
+driver = keystone.assignment.backends.sql.Assignment
+[auth]
+[cache]
+[catalog]
+driver = keystone.catalog.backends.sql.Catalog
+[credential]
+[database]
+connection = mysql://root:stack@127.0.0.1/keystone?charset=utf8
+[ec2]
+driver = keystone.contrib.ec2.backends.sql.Ec2
+[endpoint_filter]
+[federation]
+[identity]
+driver = keystone.identity.backends.sql.Identity
+[kvs]
+[ldap]
+[matchmaker_ring]
+[memcache]
+[oauth1]
+[os_inherit]
+[paste_deploy]
+config_file = /etc/keystone/keystone-paste.ini
+[policy]
+[revoke]
+[signing]
+[ssl]
+[stats]
+[token]
+driver = keystone.token.backends.sql.Token
+[trust]
+</pre>
+
+
+===  /etc/glance/glance-registry.conf ===
+<pre>
+[DEFAULT]
+use_syslog = False
+sql_connection = mysql://root:stack@127.0.0.1/glance?charset=utf8
+debug = True
+bind_host = 0.0.0.0
+bind_port = 9191
+backlog = 4096
+api_limit_max = 1000
+limit_param_default = 25
+[database]
+[keystone_authtoken]
+signing_dir = /var/cache/glance/registry
+auth_uri = http://10.251.154.97:5000/v2.0
+cafile =
+auth_host = 10.251.154.97
+auth_port = 35357
+auth_protocol = http
+admin_tenant_name = service
+admin_user = glance
+admin_password = stack
+[paste_deploy]
+flavor = keystone
+</pre>
+
+
+===  /etc/nova/nova.conf ===
+<pre>
+[DEFAULT]
+flat_interface = eth0
+flat_network_bridge = br100
+vlan_interface = eth0
+public_interface = br100
+network_manager = nova.network.manager.FlatDHCPManager
+firewall_driver = nova.virt.libvirt.firewall.IptablesFirewallDriver
+compute_driver = libvirt.LibvirtDriver
+default_ephemeral_format = ext4
+use_usb_tablet = False
+libvirt_cpu_mode = none
+libvirt_type = kvm
+glance_api_servers = 10.251.154.97:9292
+rabbit_password = stack
+rabbit_hosts = 10.251.154.97
+rpc_backend = nova.openstack.common.rpc.impl_kombu
+ec2_dmz_host = 10.251.154.97
+vncserver_proxyclient_address = 127.0.0.1
+vncserver_listen = 127.0.0.1
+vnc_enabled = true
+xvpvncproxy_base_url = http://10.251.154.97:6081/console
+novncproxy_base_url = http://10.251.154.97:6080/vnc_auto.html
+logging_exception_prefix = %(color)s%(asctime)s.%(msecs)03d TRACE %(name)s %(instance)s
+logging_debug_format_suffix = from (pid=%(process)d) %(funcName)s %(pathname)s:%(lineno)d
+logging_default_format_string = %(asctime)s.%(msecs)03d %(color)s%(levelname)s %(name)s [-%(color)s] %(instance)s%(color)s%(message)s
+logging_context_format_string = %(asctime)s.%(msecs)03d %(color)s%(levelname)s %(name)s [%(request_id)s %(user_name)s %(project_name)s%(color)s] %(instance)s%(color)s%(message)s
+force_config_drive = always
+instances_path = /opt/stack/data/nova/instances
+lock_path = /opt/stack/data/nova
+state_path = /opt/stack/data/nova
+volume_api_class = nova.volume.cinder.API
+enabled_apis = ec2,osapi_compute,metadata
+instance_name_template = instance-%08x
+sql_connection = mysql://root:stack@127.0.0.1/nova?charset=utf8
+metadata_workers = 4
+ec2_workers = 4
+osapi_compute_workers = 4
+my_ip = 10.251.154.97
+osapi_compute_extension = nova.api.openstack.compute.contrib.standard_extensions
+s3_port = 3333
+s3_host = 10.251.154.97
+default_floating_pool = public
+fixed_range =
+force_dhcp_release = True
+dhcpbridge_flagfile = /etc/nova/nova.conf
+scheduler_driver = nova.scheduler.filter_scheduler.FilterScheduler
+rootwrap_config = /etc/nova/rootwrap.conf
+api_paste_config = /etc/nova/api-paste.ini
+allow_resize_to_same_host = True
+auth_strategy = keystone
+debug = True
+verbose = True
+[conductor]
+workers = 4
+[osapi_v3]
+enabled = True
+[keystone_authtoken]
+signing_dir = /var/cache/nova
+admin_password = stack
+admin_user = nova
+cafile =
+admin_tenant_name = service
+auth_protocol = http
+auth_port = 35357
+auth_host = 10.251.154.97
+[spice]
+enabled = false
+html5proxy_base_url = http://10.251.154.97:6082/spice_auto.html
+[libvirt]
+inject_partition = -2
+[keymgr]
+fixed_key = 51A3C1509A1FF70185B7607E0896ED6FB7AA1121E3A04B5A76C46B8D2E518319
+</pre>
+
+
+===  /etc/cinder/cinder.conf ===
+<pre>
+[DEFAULT]
+logging_exception_prefix = %(color)s%(asctime)s.%(msecs)03d TRACE %(name)s %(instance)s
+logging_debug_format_suffix = from (pid=%(process)d) %(funcName)s %(pathname)s:%(lineno)d
+logging_default_format_string = %(asctime)s.%(msecs)03d %(color)s%(levelname)s %(name)s [-%(color)s] %(instance)s%(color)s%(message)s
+logging_context_format_string = %(asctime)s.%(msecs)03d %(color)s%(levelname)s %(name)s [%(request_id)s %(user_id)s %(project_id)s%(color)s] %(instance)s%(color)s%(message)s
+rabbit_password = stack
+rabbit_hosts = 10.251.154.97
+rpc_backend = cinder.openstack.common.rpc.impl_kombu
+periodic_interval = 60
+lock_path = /opt/stack/data/cinder
+state_path = /opt/stack/data/cinder
+osapi_volume_extension = cinder.api.contrib.standard_extensions
+rootwrap_config = /etc/cinder/rootwrap.conf
+api_paste_config = /etc/cinder/api-paste.ini
+sql_connection = mysql://root:stack@127.0.0.1/cinder?charset=utf8
+iscsi_helper = tgtadm
+my_ip = 10.251.154.97
+volume_name_template = volume-%s
+volume_group = stack-volumes
+verbose = True
+debug = True
+auth_strategy = keystone
+[BRCD_FABRIC_EXAMPLE]
+[database]
+[fc-zone-manager]
+[keymgr]
+[keystone_authtoken]
+auth_uri = http://10.251.154.97:5000/v2.0
+signing_dir = /var/cache/cinder
+admin_password = stack
+admin_user = cinder
+admin_tenant_name = service
+cafile =
+auth_protocol = http
+auth_port = 35357
+auth_host = 10.251.154.97
+[matchmaker_ring]
+[ssl]
+</pre>
+
+
+===  /etc/heat/heat.conf ===
+<pre>
+[DEFAULT]
+stack_domain_admin_password = stack
+stack_domain_admin = heat_domain_admin
+stack_user_domain = 83dfa2ccc3cf4823a47c5f200df4606d
+deferred_auth_method = trusts
+logging_exception_prefix = %(color)s%(asctime)s.%(msecs)03d TRACE %(name)s %(instance)s
+logging_debug_format_suffix = from (pid=%(process)d) %(funcName)s %(pathname)s:%(lineno)d
+logging_default_format_string = %(asctime)s.%(msecs)03d %(color)s%(levelname)s %(name)s [-%(color)s] %(instance)s%(color)s%(message)s
+logging_context_format_string = %(asctime)s.%(msecs)03d %(color)s%(levelname)s %(name)s [%(request_id)s %(user)s %(tenant)s%(color)s] %(instance)s%(color)s%(message)s
+use_syslog = False
+debug = True
+auth_encryption_key = fd3f7a56b263485695cf875ddfa2f862
+heat_watch_server_url = http://10.251.154.97:8003
+heat_waitcondition_server_url = http://10.251.154.97:8000/v1/waitcondition
+heat_metadata_server_url = http://10.251.154.97:8000
+rabbit_password = stack
+rabbit_hosts = 10.251.154.97
+rpc_backend = heat.openstack.common.rpc.impl_kombu
+[auth_password]
+[clients]
+[clients_ceilometer]
+[clients_cinder]
+[clients_heat]
+[clients_keystone]
+[clients_neutron]
+[clients_nova]
+[clients_swift]
+[clients_trove]
+[database]
+connection = mysql://root:stack@127.0.0.1/heat?charset=utf8
+[ec2authtoken]
+auth_uri = http://10.251.154.97:5000/v2.0
+[heat_api]
+bind_port = 8004
+[heat_api_cfn]
+bind_port = 8000
+[heat_api_cloudwatch]
+bind_port = 8003
+[keystone_authtoken]
+signing_dir = /var/cache/heat
+admin_password = stack
+admin_user = heat
+admin_tenant_name = service
+cafile =
+auth_uri = http://10.251.154.97:5000/v2.0
+auth_protocol = http
+auth_port = 35357
+auth_host = 10.251.154.97
+[matchmaker_redis]
+[matchmaker_ring]
+[paste_deploy]
+[revision]
+[rpc_notifier2]
+[ssl]
+</pre>
+
+= demo command =
+
+== [[openstack command desc]] ==
+
+== [[openstack demo and shot]] ==
+== Horizon ==
+
+* [http://10.251.154.97/ http://10.251.154.97/]  admin / stack
+* 일반적인 웹 GUI로 Openstack의 관리를 쉽게 GUI로 할 수 있다.
+
+== cmd 공통사항 ==
+
+* keystone, cinder, nova 등등 openstack의 모든 모듈들은 python의 optarg, cliff 등의 기능을 통해 구현되어 있어서, 거의 동일한 cmd ui를 제공한다.
+* auth url, username, password, tenant등에 자신의 인증 정보를 입력 후 각 모듈에 커맨드를 날리면 수행된다.
+** 이러한 인증은 keystone이 담당하며, 따라서 인증 정보를 구성하기전의 keystone에 접근하기 위한 일종의 마스터키, admin_token이 존재한다.
+
+== Keystone ==
+
+* 중앙 인증 서버로, User, Tenant(User Group), Authentication을 담당한다
+* 다른 서비스들은 configuration으로 Keystone을 인지하여, Keystone을 통해 인증된다.
+
+=== Keystone Command 확인하기 ===
+<pre>
+keystone 
+</pre>
+
+=== Keystone 정보 확인하기 ===
+<pre>
+keystone --os-auth-url http://10.251.154.97:35357/v2.0 --os-token=stack --os-endpoint=http://10.251.154.97:35357/v2.0/ user-list
+keystone --os-auth-url http://10.251.154.97:35357/v2.0 --os-token=stack --os-endpoint=http://10.251.154.97:35357/v2.0/ user-get admin
+keystone --os-auth-url http://10.251.154.97:35357/v2.0 --os-token=stack --os-endpoint=http://10.251.154.97:35357/v2.0/ tenant-list
+keystone --os-auth-url http://10.251.154.97:35357/v2.0 --os-token=stack --os-endpoint=http://10.251.154.97:35357/v2.0/ service-list
+keystone --os-auth-url http://10.251.154.97:35357/v2.0 --os-token=stack --os-endpoint=http://10.251.154.97:35357/v2.0/ endpoint-list
+</pre>
+
+
+== cinder ==
+
+<pre>
+cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 type-list
+cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 list
+</pre>
+
+=== volume creation ===
+
+<pre>
+glance --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 image-list
+cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 create 1 --image-id 9ee35808-cdca-4425-92f1-a99ea16d7762 --display-name 'test_volumn'
+cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 list
+</pre>
+
+== Nova 테스트 ==
+
+=== info ===
+<pre>
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0  hypervisor-list
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0  hypervisor-show 1
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 network-list
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 network-show 5e581aef-0236-464f-8a72-aa39548c5d83
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 list
+</pre>
+
+=== server creation ===
+<pre>
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 image-list
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 flavor-list
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 boot test_2 --flavor m1.nano --boot-volume 222b06e1-661c-40c5-9e0b-031f2ea416cb
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 list
+</pre>
+
+=== control server ===
+<pre>
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 show 7d97e0dd-d010-43be-824b-757932735a4d
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 stop 7d97e0dd-d010-43be-824b-757932735a4d
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 show 7d97e0dd-d010-43be-824b-757932735a4d
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 start 7d97e0dd-d010-43be-824b-757932735a4d
+nova --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 ssh 7d97e0dd-d010-43be-824b-757932735a4d --login cirros
+* cubs win
+</pre>
+
+* compute node, 즉 VM들을 관리해준다. VM을 생성/정지/삭제/콘솔 등 여러가지를 수행한다.
+* 그 외에 Volumn, Image, Network를 관리해주는 커맨드도 존재한다. 이는 원래 Nova + Keystone만 있었다가, Nova의 여러 기능들이 독립적인 모듈로 독립되어갔기 때문이다.
+* 참조 : https://wiki.openstack.org/wiki/ReleaseNotes/Havana
+
+== glance 테스트 ==
+
+<pre>
+glance --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 image-list
+glance --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0 image-download 169b75cf-c591-442c-84a8-7a95c279edb7 > ret
+</pre>
+
+* VM Image관리 서비스이다. 
+
+== cinder ==
+
+<pre>
+cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 type-list
+cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 list
+cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 show 605ece6a-3802-458b-98a8-d3297e22422e
+cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 snapshot-create 605ece6a-3802-458b-98a8-d3297e22422e
+cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 snapshot-list
+cinder --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 snapshot-show 2962d1e8-6043-4ac0-92a1-62d90ce9e40f
+</pre>
+
+* Volumn 관리를 한다. VM의 기반이 되는 VM에 대해 볼 수 있으며, 이 VM에 대한 Snapshot을 생성할 수 있다.
+
+== neutron ==
+
+<pre>
+neutron --os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url http://10.251.154.97:35357/v2.0  help
+</pre>
+
+* vpn, subnet, security, ipsec, router, loadbalancer, l3, gateway, floatingip, firewall, cisco(?), dhcp 등 여러가지 기능을 수행한다.
+
+
+== reference ==
+
+* https://wiki.openstack.org/wiki/ReleaseNotes/Havana
+* Installation Guide : http://docs.openstack.org/icehouse/install-guide/install/apt/content/
+* Administrator Guide : http://docs.openstack.org/admin-guide-cloud/content/ch_preface.html
+
+= env =
+<pre>
+export OS_AUTH_URL=http://10.251.154.97:35357/v2.0
+export OS_PASSWORD=stack
+export OS_USERNAME=admin
+export SERVICE_ENDPOINT=http://10.251.154.97:35357/v2.0/
+export SERVICE_TOKEN=stack
+</pre>
+
+= example =
+
+<pre>
+kyw@kyw-Samsung-DeskTop-System:~/work/virt-test$ cinder--os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 snapshot-create 605ece6a-3802-458b-98a8-d3297e22422e
++---------------------+--------------------------------------+
+|       Property      |                Value                 |
++---------------------+--------------------------------------+
+|      created_at     |      2014-04-17T05:51:48.770528      |
+| display_description |                 None                 |
+|     display_name    |                 None                 |
+|          id         | 2962d1e8-6043-4ac0-92a1-62d90ce9e40f |
+|       metadata      |                  {}                  |
+|         size        |                  1                   |
+|        status       |               creating               |
+|      volume_id      | 605ece6a-3802-458b-98a8-d3297e22422e |
++---------------------+--------------------------------------+
+kyw@kyw-Samsung-DeskTop-System:~/work/virt-test$ cinder--os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 snapshot-list
++--------------------------------------+--------------------------------------+-----------+--------------+------+
+|                  ID                  |              Volume ID               |   Status  | Display Name | Size |
++--------------------------------------+--------------------------------------+-----------+--------------+------+
+| 2962d1e8-6043-4ac0-92a1-62d90ce9e40f | 605ece6a-3802-458b-98a8-d3297e22422e | available |     None     |  1   |
++--------------------------------------+--------------------------------------+-----------+--------------+------+
+kyw@kyw-Samsung-DeskTop-System:~/work/virt-test$ cinder--os-username admin --os-password stack --os-tenant-id f128f4fe59714403a024dbcc16d74d5a --os-auth-url=http://10.251.154.97:35357/v2.0 snapshot-show 2962d1e8-6043-4ac0-92a1-62d90ce9e40f
++--------------------------------------------+--------------------------------------+
+|                  Property                  |                Value                 |
++--------------------------------------------+--------------------------------------+
+|                 created_at                 |      2014-04-17T05:51:48.000000      |
+|            display_description             |                 None                 |
+|                display_name                |                 None                 |
+|                     id                     | 2962d1e8-6043-4ac0-92a1-62d90ce9e40f |
+|                  metadata                  |                  {}                  |
+|  os-extended-snapshot-attributes:progress  |                 100%                 |
+| os-extended-snapshot-attributes:project_id |   085938e8821b4e1386761bf5a3cfb072   |
+|                    size                    |                  1                   |
+|                   status                   |              available               |
+|                 volume_id                  | 605ece6a-3802-458b-98a8-d3297e22422e |
++--------------------------------------------+--------------------------------------+
+kyw@kyw-Samsung-DeskTop-System:~/work/virt-test$
+</pre>

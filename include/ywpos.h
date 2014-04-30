@@ -11,7 +11,7 @@ class ywPos {
     explicit ywPos():val(0) { }
     explicit ywPos(uint64_t _val):val(_val) { }
     bool  is_null() { return val == 0;}
-    uint64_t get()  { return get_idx;}
+    uint64_t get()  { return val;}
     void set_null() { set(0); }
     void set(uint64_t _val) { val = _val; }
 
