@@ -151,8 +151,8 @@ class ywLogStore {
 
  private:
     void init(const char * fn, int32_t _io);
-    bool create_flush_thread();
     void init_and_read_master();
+    bool create_flush_thread();
 
     ywPos create_chunk(int32_t type) {
         ywCnkID cnk_id = cnk_mgr.alloc_chunk(type);
@@ -161,6 +161,14 @@ class ywLogStore {
     }
 
     static void *log_flusher(void *arg_ptr);
+
+    int32_t get_idx(ywPos pos) {
+        return pos / CHUNK_SIZE;
+    }
+    int32_t get_offset(ywPos pos) {
+        return pos % CHUNK_SIZE;
+    }
+
 
     /* lpos to chunk ptr */
     Byte *get_chunk_ptr(ywPos pos) {

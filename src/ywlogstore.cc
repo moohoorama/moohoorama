@@ -58,22 +58,6 @@ class ywLS_writer {
     bool        done;
 };
 
-void ywLogStore::init_and_read_master() {
-    ywPos pos;
-
-    assert(!(cnk_mgr.alloc_chunk(MASTER_CNK).is_null()));
-    pos = create_chunk(LOG_CNK);
-    assert(pos == 1 * CHUNK_SIZE);
-    append_pos = pos;
-    write_pos  = pos;
-
-    ywar_print  print_ar;
-    cnk_mgr.dump(&print_ar);
-
-    ywLS_writer ar(this, 0);
-    cnk_mgr.dump(&ar);
-}
-
 void ywLogStore::init(const char * fn, int32_t _io) {
     uint32_t  flag = O_RDWR | O_CREAT | O_LARGEFILE;
     uint32_t  i;
@@ -93,13 +77,55 @@ void ywLogStore::init(const char * fn, int32_t _io) {
     assert(create_flush_thread());
 }
 
+void ywLogStore::init_and_read_master() {
+    ywPos pos;
+
+    assert(!(cnk_mgr.alloc_chunk(MASTER_CNK).is_null()));
+    pos = create_chunk(LOG_CNK);
+    assert(pos == 1 * CHUNK_SIZE);
+    append_pos = pos;
+    write_pos  = pos;
+
+    ywar_print  print_ar;
+    cnk_mgr.dump(&print_ar);
+
+    ywLS_writer ar(this, 0);
+    cnk_mgr.dump(&ar);
+}
+
+bool ywLogStore::create_flush_thread() {
+    pthread_attr_t          attr;
+    pthread_t               pt;
+    assert(0 == pthread_attr_init(&attr) );
+    assert(0 == pthread_create(&pt, &attr, log_flusher, this));
+    return true;
+}
+
+void *ywLogStore::log_flusher(void *arg_ptr) {
+    ywLogStore *log = reinterpret_cast<ywLogStore*>(arg_ptr);
+
+    log->running = true;
+    while (!log->done) {
+        if (!log->reserve_space()) {
+            if (!log->flush()) {
+                usleep(100);
+            }
+        }
+    }
+    log->running = false;
+
+    return NULL;
+}
+
 bool ywLogStore::reserve_space() {
+    if (
     if (chunk_idx[reserve_mem_idx] == -1) {
         assert(set_chunk_idx(cnk_mgr.alloc_chunk(LOG_CNK)));
     }
 
     return true;
 }
+
 bool ywLogStore::flush() {
     struct    iovec iov[MEM_CHUNK_COUNT];
     int32_t   old_idx[MEM_CHUNK_COUNT];
@@ -152,31 +178,6 @@ void ywLogStore::wait_flush() {
             usleep(100);
         }
     }
-}
-
-bool ywLogStore::create_flush_thread() {
-    pthread_attr_t          attr;
-    pthread_t               pt;
-    assert(0 == pthread_attr_init(&attr) );
-
-    assert(0 == pthread_create(&pt, &attr, log_flusher, this));
-    return true;
-}
-
-void *ywLogStore::log_flusher(void *arg_ptr) {
-    ywLogStore *log = reinterpret_cast<ywLogStore*>(arg_ptr);
-
-    log->running = true;
-    while (!log->done) {
-        if (!log->reserve_space()) {
-            if (!log->flush()) {
-                usleep(100);
-            }
-        }
-    }
-    log->running = false;
-
-    return NULL;
 }
 
 class logStoreConcTest {
