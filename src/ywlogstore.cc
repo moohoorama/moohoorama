@@ -3,6 +3,25 @@
 #include <ywarchive.h>
 #include <gtest/gtest.h>
 
+void ywCbuffMgr::init() {
+    Byte     *aligned;
+    uint32_t  i;
+
+    buffer = reinterpret_cast<Byte*>(malloc(count*CHUNK_SIZE + DIO_ALIGN));
+    aligned = reinterpret_cast<Byte*>(
+        align(reinterpret_cast<intptr_t>(buffer), DIO_ALIGN));
+
+    for (i = 0; i < count; ++i) {
+        chunk[i] = reinterpret_cast<ywChunk*>(aligned + i*CHUNK_SIZE);
+        cnk_id[i].set_null();
+    }
+}
+
+void ywCbuffMgr::dest() {
+    free(buffer);
+}
+
+
 class ywLS_writer {
  public:
     explicit ywLS_writer(ywLogStore *_ls, int32_t _chunk_idx):ls(_ls),
@@ -40,15 +59,13 @@ class ywLS_writer {
 };
 
 void ywLogStore::init_and_read_master() {
-    int32_t init_cnk;
+    ywPos pos;
 
-    assert(cnk_mgr.alloc_chunk(MASTER_CNK) == 0);
-    init_cnk = cnk_mgr.alloc_chunk(LOG_CNK);
-    assert(init_cnk == 1);
-
-    append_pos.set(init_cnk, 0);
-    write_pos.set(init_cnk, 0);
-    assert(set_chunk_idx(init_cnk));
+    assert(!(cnk_mgr.alloc_chunk(MASTER_CNK).is_null()));
+    pos = create_chunk(LOG_CNK);
+    assert(pos == 1 * CHUNK_SIZE);
+    append_pos = pos;
+    write_pos  = pos;
 
     ywar_print  print_ar;
     cnk_mgr.dump(&print_ar);
@@ -60,23 +77,11 @@ void ywLogStore::init_and_read_master() {
 void ywLogStore::init(const char * fn, int32_t _io) {
     uint32_t  flag = O_RDWR | O_CREAT | O_LARGEFILE;
     uint32_t  i;
-    Byte     *aligned;
-
-    chunk_buffer = reinterpret_cast<Byte*>(malloc(
-            MEM_CHUNK_COUNT*CHUNK_SIZE+DIO_ALIGN));
-    aligned = reinterpret_cast<Byte*>(
-        align(reinterpret_cast<intptr_t>(chunk_buffer), DIO_ALIGN));
-
-    for (i = 0; i < MEM_CHUNK_COUNT; ++i) {
-        chunk_ptr[i] = reinterpret_cast<ywChunk*>(aligned + i*CHUNK_SIZE);
-        chunk_idx[i] = -1;
-    }
 
     append_pos.set_null();
     write_pos.set_null();
 
     if (io == DIRECT_IO) flag |= O_DIRECT;
-
     fd = open(fn, flag, S_IRWXU);
     if (fd == -1) {
         perror("file open error:");

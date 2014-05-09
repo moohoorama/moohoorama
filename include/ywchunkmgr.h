@@ -20,6 +20,9 @@ class ywCnkID { /*ChunkID*/
     bool is_null() {
         return type == NULL_CNK;
     }
+    void set_null() {
+        type = NULL_CNK;
+    }
 
     uint32_t get_int() {
         return *(reinterpret_cast<uint32_t*>(this));
@@ -36,7 +39,16 @@ class ywChunkMgr {
     explicit ywChunkMgr():map_size(0), chunk_hwm(0) {
     }
 
-    uint32_t alloc_chunk(int32_t type);
+    ywCnkID alloc_chunk(int32_t type) {
+        ywLockGuard guard;
+        ywCnkID     cnk_id;
+
+        if (guard.WLock(&map_lock)) {
+            cnk_id = alloc_free_chunk(type);
+        }
+
+        return cnk_id;
+    }
     ywCnkID  get_cnk_id(int32_t idx) {
         return chunk_map[idx];
     }
