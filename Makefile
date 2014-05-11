@@ -4,6 +4,7 @@ STD= -pedantic
 WARN=-Wall -Werror -frtti
 #-fno-rtti
 OPT=$(OPTIMIZATION) -I./include/ -rdynamic -std=c++0x
+OPT+= -I./thirdparty/gtest-1.7.0/include/
 DEFINE=-DMAX_THREAD_COUNT=32 -DCACHE_LINE_SIZE=64
 #-DDEBUG -DREPORT
 
@@ -57,9 +58,16 @@ dep:
 	$(Y_CXX) -MM *.c > Makefile.dep
 .PHONY: dep
 
-.cc.o:
+.cc.o: gtest
 	cpplint.py $<
 	$(Y_CXX) -o $@ -c $<
+
+gtest:
+	#wget https://googletest.googlecode.com/files/gtest-1.7.0.zip
+	cd thirdparty/gtest-1.7.0
+	cmake .
+	make
+
 
 $(BIN): $(LIBS)
 	cpplint.py include/*.h
