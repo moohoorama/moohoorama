@@ -61,7 +61,7 @@ class ywLogStore {
         done = true;
         while (running) { usleep(100); }
         if (fd != -1)   { close(fd); }
-        printf("wait_count : %" PRId64 "\n", wait_count.get());
+        printf("wait_count : %" PRId64 "\n", wait_count.sum());
     }
 
     template<typename T>

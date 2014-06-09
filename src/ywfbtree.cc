@@ -337,15 +337,15 @@ void fb_report(void *_fbt) {
     fbt_t             *fbt = fb_get_handle(_fbt);
     float              alloc_ratio = 0.0f;
     float              use_ratio = 0.0f;
-    int64_t            free_count = fbt->free_node_count.get();
-    int64_t            alloc_count = fbt->node_count.get();
+    int64_t            free_count = fbt->free_node_count.sum();
+    int64_t            alloc_count = fbt->node_count.sum();
     int64_t            total_count = free_count + alloc_count;
     int64_t            ikey_count = alloc_count - 1;
     ywRcuGuard         rcuGuard(&fbt->rcu);
 
     if (total_count) {
         alloc_ratio = alloc_count*100.0f / total_count;
-        use_ratio = (ikey_count + fbt->key_count.get())*100.0/
+        use_ratio = (ikey_count + fbt->key_count.sum())*100.0/
             (total_count*FB_SLOT_MAX);
     }
 
@@ -353,7 +353,7 @@ void fb_report(void *_fbt) {
            reinterpret_cast<intptr_t>(fbt));
     printf("level            : %" PRId32 "\n", fbt->root_ptr->level);
     printf("ikey_count       : %" PRId64 "\n", ikey_count);
-    printf("key_count        : %" PRId64 "\n", fbt->key_count.get());
+    printf("key_count        : %" PRId64 "\n", fbt->key_count.sum());
     printf("free_node_count  : %" PRId64 "\n", free_count);
     printf("alloc_count      : %" PRId64 "\n", alloc_count);
     printf("total_node_count : %" PRId64 "\n", free_count + alloc_count);

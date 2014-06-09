@@ -50,7 +50,7 @@ void accumulator_test() {
     }
     tpool->wait_to_idle();
 
-    EXPECT_EQ(TEST_COUNT * processor_count, acc.get());
+    EXPECT_EQ(TEST_COUNT * processor_count, acc.sum());
 }
 
 void atomic_stat_task(void *arg) {
@@ -75,7 +75,7 @@ void atomic_stat_test() {
     }
     tpool->wait_to_idle();
 
-    EXPECT_EQ(TEST_COUNT * processor_count, acc.get());
+    EXPECT_EQ(TEST_COUNT * processor_count, acc.sum());
 }
 
 void dirty_stat_task(void *arg) {
