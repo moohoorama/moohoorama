@@ -18,6 +18,7 @@
 #include <sys/uio.h>
 #include <ywchunkmgr.h>
 #include <ywpos.h>
+#include <ywbuffcache.h>
 
 class ywChunk {
     static const size_t  CHUNK_SIZE = 16*MB;
@@ -26,64 +27,7 @@ class ywChunk {
     Byte  body[CHUNK_SIZE];
 };
 
-static_assert(sizeof(ywCnkID) == 4, "invalid ywCnkID Size");
-
-class ywCbuffMgr {
-    static const uint32_t CBUFF_MAX  = 256;
-    static const uint32_t CHUNK_SIZE = sizeof(ywChunk);
-
- public:
-    ywCbuffMgr(int32_t _count):count(_count) {
-        init();
-    }
-    ~ywCbuffMgr() {
-        dest();
-    }
-
-    bool alloc(ywCnkID newID) {
-        int32_t cbuff_id = get_cbuff_id(newID);
-
-        if (cnk_id[cbuff_id].is_null()) {
-            return true;
-        }
-
-        cnk_id[cbuff_id] = newID;
-
-        return true;
-    }
-    bool free(ywCnkID id) {
-        int32_t cbuff_id = get_cbuff_id(newID);
-
-        if (cnk_id[cbuff_id] == id) {
-            cnk_id[cbuff_id].set_null();
-            return true;
-        }
-
-        return false;
-    }
-
-    ywChunk *get_chunk(ywCnkID id) {
-        int32_t cbuff_id = get_cbuff_id(id);
-        if (cnk_id[cbuff_id] == id) {
-            return chunk[cbuff_id];
-        }
-
-        return NULL;
-    }
-
- private:
-    void init();
-    void dest();
-
-    int32_t get_cbuff_id(ywCnkID id) {
-        return id.idx % count;
-    }
-
-    int32_t                 count;
-    Byte                   *buffer;
-    ywChunk                *chunk[CBUFF_MAX];
-    ywCnkID                 cnk_id[CBUFF_MAX];
-};
+static_assert(sizeof(ywCnkInfo) == 4, "invalid ywCnkInfo Size");
 
 class ywLogStore {
  public:
@@ -101,9 +45,15 @@ class ywLogStore {
     static const uint32_t INFO_CNK   = 3;
     static const uint32_t SORTED_CNK = 4;
 
+    static const ywCnkID  MASTER_CNK_ID = 0;
+    static const int32_t  MAX_PREPARE_LOG_CNK_CNT = 16;
+    static const ssize_t  FLUSH_UNIT = 256*KB;
+    static const uint32_t FLUSH_COUNT = 32;
+
  public:
     explicit ywLogStore(const char * fn, int32_t _io):fd(-1),
-    io(_io), done(false), running(false) {
+    io(_io), buff_cache(DIO_ALIGN, MAX_PREPARE_LOG_CNK_CNT),
+    done(false), running(false) {
         init(fn, _io);
     }
 
@@ -115,14 +65,14 @@ class ywLogStore {
     }
 
     template<typename T>
-    auto append(T value) {
+    ywPos append(T value) {
         return append(&value);
     }
 
     template<typename T>
     ywPos append(T *value) {
-        ywPos     pos = append_pos.alloc<CHUNK_SIZE>(value->get_size());
-        Byte     *ptr = get_chunk_ptr(pos);
+        ywPos     pos = append_pos.go_forward<CHUNK_SIZE>(value->get_size());
+        Byte     *ptr = _get_chunk_ptr(pos);
 
         value->write(ptr);
 
@@ -138,8 +88,6 @@ class ywLogStore {
         fsync(fd);
     }
 
-    bool reserve_space();
-    bool flush();
     void wait_flush();
 
     bool read(ssize_t offset, int32_t size, Byte * buf) {
@@ -153,39 +101,73 @@ class ywLogStore {
     void init(const char * fn, int32_t _io);
     void init_and_read_master();
     bool create_flush_thread();
+    void reserve_space();
+    void write_master_chunk();
+    bool flush();
 
     ywPos create_chunk(int32_t type) {
-        ywCnkID cnk_id = cnk_mgr.alloc_chunk(type);
-        while(!cbuff_mgr.alloc(cnk_id));
-        return ywPos(cnk_id.idx * CHUNK_SIZE);
+        ywPos      pos;
+        ywCnkID    cnk_id;
+        ywBCID     bcid;
+        ywCnkInfo *info;
+        ywChunk   *body;
+
+        pos.set_null();
+
+        bcid = buff_cache.alloc_cache();
+        if (buff_cache.is_null(bcid)) {
+            return pos;
+        }
+
+        cnk_id = cnk_mgr.alloc_chunk(type); /* unable rollback */
+        if (cnk_mgr.is_null(cnk_id)) {
+            assert(buff_cache.dealloc_cache(bcid));
+            return pos;
+        }
+
+        info = buff_cache.get_info(bcid);
+        body = buff_cache.get_body(bcid);
+
+        *info = cnk_mgr.get_cnk_info(cnk_id);
+        memset(body, 0, sizeof(*body));
+
+        while (!buff_cache.ht_regist(bcid, cnk_id)) { }
+
+        if (type == LOG_CNK) {
+            ++prepare_log_cnk_cnt;
+        }
+
+        return ywPos(cnk_id * CHUNK_SIZE);
     }
 
     static void *log_flusher(void *arg_ptr);
 
-    int32_t get_idx(ywPos pos) {
-        return pos / CHUNK_SIZE;
+    ywCnkID get_cnk_id(ywPos pos) {
+        return pos.get() / CHUNK_SIZE;
     }
     int32_t get_offset(ywPos pos) {
-        return pos % CHUNK_SIZE;
+        return pos.get() % CHUNK_SIZE;
     }
 
-
     /* lpos to chunk ptr */
-    Byte *get_chunk_ptr(ywPos pos) {
-        int32_t   idx    = pos / CHUNK_SIZE;
-        int32_t   offset = pos % CHUNK_SIZE;
+    Byte *_get_chunk_ptr(ywPos pos) {
+        ywCnkID   id     = get_cnk_id(pos);
+        int32_t   offset = get_offset(pos);
         uint32_t  _wait_count = 0;
-        ywCnkID   id = cnk_mgr.get_cnk_id(idx);
-        ywChunk  *cnk;
+        ywBCID    bcid;
 
-        cnk = cbuff_mgr.get_chunk(id);
-        while (cnk == NULL) {
+        bcid = buff_cache.ht_find(id);
+        while (buff_cache.is_null(bcid)) {
             ++_wait_count;
-            cnk = cbuff_mgr.get_chunk(id);
+            usleep(1);
+            bcid = buff_cache.ht_find(id);
         }
+
         wait_count.mutate(_wait_count);
 
-        return &cnk->body[offset];
+        ywChunk  *chunk = buff_cache.get_body(bcid);
+
+        return &chunk->body[offset];
     }
 
     int32_t                 fd;
@@ -193,10 +175,11 @@ class ywLogStore {
 
     ywPos                   append_pos;
     ywPos                   write_pos;
-    int32_t                 reserve_mem_idx;
+    int32_t                 prepare_log_cnk_cnt;
 
-    ywCbuffMgr              cbuff_mgr;
     ywChunkMgr              cnk_mgr;
+    ywBuffCache<ywCnkID, ywCnkInfo, ywChunk>
+                            buff_cache;
 
     ywAccumulator<int64_t>  wait_count;
     bool                    done;

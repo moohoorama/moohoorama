@@ -2,7 +2,7 @@
 #include "gridtable.h"
 
 int main(int argc, char **argv) {
-    GridTable gt;
+    GridTable<HtmlRenderer> gt;
 
     gt.print();
     gt.set(0,0,"abc");

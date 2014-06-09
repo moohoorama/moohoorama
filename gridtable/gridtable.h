@@ -8,6 +8,68 @@
 #include <malloc.h>
 #include <string.h>
 
+class StdoutRenderer {
+ public:
+    static bool allow_null() {
+        return true;
+    }
+    void begin_line() {
+    }
+    void end_line() {
+        printf("\n");
+    }
+
+    void begin_table() {
+        printf("===================================\n");
+    }
+    void column(ssize_t len, char * buf) {
+        printf(buf);
+    }
+    void end_table() {
+        printf("\n");
+    }
+
+    void special(ssize_t width, ssize_t type) {
+        char    code[]={'-','='};
+        ssize_t x;
+
+        for (x = 0; x <= width; ++x) {
+            putchar(code[type]);
+        }
+    }
+};
+
+class HtmlRenderer {
+ public:
+    static bool allow_null() {
+        return true;
+    }
+    void begin_line() {
+        printf("    <tr>\n");
+    }
+    void end_line() {
+        printf("    </tr>\n");
+    }
+
+    void begin_table() {
+        printf("<table border='1' cellpadding='0' cellspacing='0'>\n");
+    }
+    void column(ssize_t len, char * buf) {
+        printf("        <td>\n");
+        printf(buf);
+        printf("        </td>\n");
+    }
+    void end_table() {
+        printf("</table>\n");
+    }
+
+    void special(ssize_t width, ssize_t type) {
+        printf("<hr/>");
+    }
+};
+
+
+template <class Renderer>
 class GridTable {
     static const ssize_t  WIDTH_LIMIT = 80;
     static const ssize_t  GRID_X    = 128;
@@ -76,29 +138,33 @@ class GridTable {
         assert(map_off[x][y] <= buf_used);
         return buf_ptr + map_off[x][y];
     }
-    void  print() {
+    void print() {
+        assert(Renderer::allow_null() == true);
+
+        print(NULL);
+    }
+    void print(Renderer *r) {
         ssize_t  x;
         ssize_t  y;
 
         calc_widths();
 
+        r->begin_table();
         for (y = 0; y <= max_y; ++y) {
+            r->begin_line();
             switch (special[y]) {
                 case SPECIAL_NORMAL:
                     for (x = 0; x <= max_x; ++x) {
-                        print_column_with_padding(get(x,y), widths[x]);
+                        print_column_with_padding(r, get(x,y), widths[x]);
                     }
                     break;
-                case SPECIAL_SINGLE_BAR:
-                    print_bar('-');
-                    break;
-                case SPECIAL_DOUBLE_BAR:
-                    print_bar('=');
+                default:
+                    r->special(widths_max, special[y]);
                     break;
             }
-            putchar('\n');
+            r->end_line();
         }
-        putchar('\n');
+        r->end_table();
     }
 
  private:
@@ -156,28 +222,25 @@ class GridTable {
         }
     }
 
-    void  print_bar(char code) {
-        ssize_t x;
-
-        for (x = 0; x <= widths_max; ++x) {
-            putchar(code);
-        }
-    }
-    void  print_column_with_padding(char *str, int width) {
+    void  print_column_with_padding(Renderer *r, char *str, int width) {
         ssize_t  len = strlen(str);
+        char     buf[WIDTH_LIMIT+1];
+        ssize_t  ren_len = 0;
         int32_t  i;
 
         for (i = 0; i < width; ++i) {
             if (len <= i) {
-                putchar(' ');
+                buf[ren_len++] = ' ';
             } else {
                 if ((len > width) && (width - i < 3)) {
-                    putchar('.');
+                    buf[ren_len++] = '.';
                 } else {
-                    putchar(str[i]);
+                    buf[ren_len++] = str[i];
                 }
             }
         }
+        buf[ren_len] = '\0';
+        r->column(ren_len, buf);
     }
 
     const char     *empty_string(){return "";}
@@ -198,5 +261,7 @@ class GridTable {
     ssize_t    map_off[GRID_X][GRID_Y];
     char       map_bmp[GRID_X][GRID_Y/8];
 };
+
+typedef GridTable<StdoutRenderer> GridTable_std;
 
 #endif  // GRIDTABLE_H_
