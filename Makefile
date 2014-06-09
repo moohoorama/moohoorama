@@ -1,10 +1,10 @@
-OPTIMIZATION?=-O3
+OPTIMIZATION?=-O0
 #STD=-std=c99 -pedantic
 STD= -pedantic
 WARN=-Wall -Werror -frtti
 #-fno-rtti
 OPT=$(OPTIMIZATION) -I./include/ -rdynamic -std=c++0x
-OPT+= -I./thirdparty/gtest-1.7.0/include/
+OPT+= -I./thirdparty/gtest-1.7.0/include/ -L./
 DEFINE=-DMAX_THREAD_COUNT=32 -DCACHE_LINE_SIZE=64
 #-DDEBUG -DREPORT
 

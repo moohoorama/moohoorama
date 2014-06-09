@@ -98,19 +98,20 @@ bool ywLogStore::flush() {
             break;
         }
 
+        ywBCID    bcid   = buff_cache.ht_find(id);
+
+        if (buff_cache.is_null(bcid)) {
+            break;
+        }
+
         id     = get_cnk_id(write_pos);
         offset = get_offset(write_pos);
 
-        ywBCID    bcid   = buff_cache.ht_find(id);
-        ywChunk  *cnk;
-        Byte     *ptr;
-
-        assert(!buff_cache.is_null(bcid));
         assert(offset % FLUSH_UNIT == 0);
         assert(offset + FLUSH_UNIT <= CHUNK_SIZE);
 
-        cnk = buff_cache.get_body(bcid);
-        ptr = &cnk->body[offset];
+        ywChunk  *cnk = buff_cache.get_body(bcid);
+        Byte     *ptr = &cnk->body[offset];
 
         /* continuous? */
         if (last_ptr == ptr) {
@@ -144,7 +145,10 @@ bool ywLogStore::flush() {
     }
 
     for (i = 0; i < free_cnk_cnt; ++i) {
+        printf("@@@@@@@@@@@ set_victim : %d\n", free_cnk_id[i]);
+        assert(free_cnk_id[i] < get_cnk_id(write_pos));
         buff_cache.set_victim(free_cnk_id[i]);
+        --prepare_log_cnk_cnt;
     }
 
     return true;

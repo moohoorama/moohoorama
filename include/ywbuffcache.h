@@ -33,7 +33,12 @@ class ywBuffCache {
     };
 
  public:
-    ywBuffCache(intptr_t align_val, int32_t count):_count(count) {
+    ywBuffCache(intptr_t align_val, ywBCID count, ywHTID ht_size):
+        _count(count), _ht_size(ht_size) {
+        _init(align_val);
+    }
+    ywBuffCache(intptr_t align_val, ywBCID count):_count(count) {
+        _ht_size = count;
         _init(align_val);
     }
     ~ywBuffCache() {
@@ -53,12 +58,11 @@ class ywBuffCache {
         } else {
             bcid = 0;
             do {
-                if (bcid < _count) {
-                    ++bcid;
-                } else {
+                ++bcid;
+                if (bcid >= _count) {
                     bcid = 0;
                 }
-            } while (_info[bcid].status == STATUS_UNUSED);
+            } while (_info[bcid].status != STATUS_UNUSED);
         }
 
         new (&(_info[bcid].sub_info)) ConInfo();
@@ -194,7 +198,8 @@ class ywBuffCache {
 
         /* initialize */
         _hwm = 0;
-        memset(_ht, 0, _ht_size*sizeof(*_ht));
+        memset(_ht, NULL_HTID, _ht_size*sizeof(*_ht));
+        assert(_ht[0] == NULL_HTID);
     }
     void _dest() {
         if (_count) {
