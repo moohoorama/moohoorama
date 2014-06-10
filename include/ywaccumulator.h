@@ -17,7 +17,7 @@ class ywAccumulator{
     static const int32_t CHUNK_SIZE  = SLOT_COUNT*MAX_THREAD_COUNT/sizeof(T);
 
  public:
-    ywAccumulator() {
+    explicit ywAccumulator(T _default_data = 0):default_data(_default_data) {
         assert(ywWorkerPool::get_instance()->get_max_thread_id()
                <= MAX_THREAD_COUNT);
         assert(MAX_THREAD_COUNT >= 2);
@@ -60,7 +60,7 @@ class ywAccumulator{
         int32_t i;
 
         for (i = 0; i < MAX_THREAD_COUNT; ++i) {
-            *data[i] = 0;
+            *data[i] = default_data;
         }
     }
 
@@ -77,6 +77,8 @@ class ywAccumulator{
     T min() {
         int32_t i;
         T       val = *data[0];
+
+        assert(default_data != 0);
 
         for (i = 0; i < MAX_THREAD_COUNT; ++i) {
             if (*data[i] < val) {
@@ -189,6 +191,7 @@ class ywAccumulator{
     }
 
     T                                  *data[MAX_THREAD_COUNT];
+    T                                   default_data;
     static ywSpinLock                   g_acc_lock;
     static T                           *root[CHUNK_COUNT];
     static int32_t                      global_idx;

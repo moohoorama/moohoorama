@@ -36,7 +36,7 @@ class ywCnkInfo { /*ChunkInfo*/
 };
 
 class ywChunkMgr {
-    static const uint32_t CHUNK_MAP_MAX = 1024;
+    static const uint32_t CHUNK_MAP_MAX = 65536;
     static const ywCnkID  NULL_CNKID    = -1;
 
  public:

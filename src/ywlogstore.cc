@@ -98,14 +98,16 @@ bool ywLogStore::flush() {
             break;
         }
 
-        ywBCID    bcid   = buff_cache.ht_find(id);
+        id     = get_cnk_id(write_pos);
+        offset = get_offset(write_pos);
 
+        ywBCID    bcid   = buff_cache.ht_find(id);
         if (buff_cache.is_null(bcid)) {
             break;
         }
-
-        id     = get_cnk_id(write_pos);
-        offset = get_offset(write_pos);
+        if (appender_view_pos.min() <= id) {
+            break;
+        }
 
         assert(offset % FLUSH_UNIT == 0);
         assert(offset + FLUSH_UNIT <= CHUNK_SIZE);
@@ -114,7 +116,7 @@ bool ywLogStore::flush() {
         Byte     *ptr = &cnk->body[offset];
 
         /* continuous? */
-        if (last_ptr == ptr) {
+        if (last_ptr == ptr && offset != 0) {
             iov[cnt-1].iov_len += FLUSH_UNIT; /* attach */
             assert(iov[cnt-1].iov_len <= CHUNK_SIZE);
         } else {
@@ -145,7 +147,6 @@ bool ywLogStore::flush() {
     }
 
     for (i = 0; i < free_cnk_cnt; ++i) {
-        printf("@@@@@@@@@@@ set_victim : %d\n", free_cnk_id[i]);
         assert(free_cnk_id[i] < get_cnk_id(write_pos));
         buff_cache.set_victim(free_cnk_id[i]);
         --prepare_log_cnk_cnt;
@@ -156,15 +157,16 @@ bool ywLogStore::flush() {
 
 void ywLogStore::wait_flush() {
     if (io != NO_IO) {
-        while (write_pos.get() < append_pos.get()) {
-            usleep(100);
+        while (write_pos.get() + FLUSH_UNIT <= append_pos.get()) {
+            usleep(10);
         }
     }
 }
 
 class logStoreConcTest {
  public:
-    static const int32_t TEST_COUNT = 16*KB;
+    static const int32_t TEST_COUNT = 512*KB;
+    static const int32_t TEST_SIZE  = 512;
 
     void run();
 
@@ -174,10 +176,10 @@ class logStoreConcTest {
 
 void logStoreConcTest::run() {
     int32_t           i;
-    Byte              buf[64*KB];
+    Byte              buf[TEST_SIZE];
 
     for (i = 0; i < TEST_COUNT; ++i) {
-        ywBarray   test(64*KB, buf);
+        ywBarray   test(TEST_SIZE, buf);
 //        ywLong test(i);
         ls->append(&test);
     }
@@ -205,7 +207,8 @@ void logstore_basic_test(int32_t io_type, int32_t thread_count) {
         tc[i].ls        = &ls;
         assert(tpool->add_task(ls_stress_task, &tc[i]));
     }
-    perf.start(logStoreConcTest::TEST_COUNT*thread_count*64/1024);
+    perf.start(logStoreConcTest::TEST_COUNT*thread_count*
+               logStoreConcTest::TEST_SIZE/1024/1024);
     tpool->wait_to_idle();
 
     printf("append : %" PRId64 "(%" PRId64 "MB)\n",

@@ -50,10 +50,12 @@ class ywLogStore {
     static const ssize_t  FLUSH_UNIT = 256*KB;
     static const uint32_t FLUSH_COUNT = 32;
 
+    static const int64_t  VIEW_DEFAULT = INT64_MAX;
+
  public:
     explicit ywLogStore(const char * fn, int32_t _io):fd(-1),
     io(_io), buff_cache(DIO_ALIGN, MAX_PREPARE_LOG_CNK_CNT),
-    done(false), running(false) {
+    appender_view_pos(VIEW_DEFAULT), done(false), running(false) {
         init(fn, _io);
     }
 
@@ -71,11 +73,14 @@ class ywLogStore {
 
     template<typename T>
     ywPos append(T *value) {
+        appender_view_pos.set(get_cnk_id(append_pos));
         ywPos     pos = append_pos.go_forward<CHUNK_SIZE>(value->get_size());
         Byte     *ptr = _get_chunk_ptr(pos);
 
-        value->write(ptr);
+        assert(appender_view_pos.min() <= get_cnk_id(pos));
 
+        value->write(ptr);
+        appender_view_pos.set(VIEW_DEFAULT);
         return pos;
     }
 
@@ -131,7 +136,9 @@ class ywLogStore {
         *info = cnk_mgr.get_cnk_info(cnk_id);
         memset(body, 0, sizeof(*body));
 
-        while (!buff_cache.ht_regist(bcid, cnk_id)) { }
+        while (!buff_cache.ht_regist(bcid, cnk_id)) { 
+            usleep(1);
+        }
 
         if (type == LOG_CNK) {
             ++prepare_log_cnk_cnt;
@@ -182,6 +189,7 @@ class ywLogStore {
                             buff_cache;
 
     ywAccumulator<int64_t>  wait_count;
+    ywAccumulator<int64_t>  appender_view_pos;
     bool                    done;
     bool                    running;
 };
