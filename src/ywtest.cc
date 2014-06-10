@@ -26,12 +26,72 @@
 #include <ywfsnode.h>
 #include <ywlogstore.h>
 #include <ywini.h>
+#include <ywsymbol.h>
 
 #include <map>
 #include <vector>
 #include <algorithm>
 
+ywSymbol default_symbol("ywtest.map");
+
+ywSymbol *get_default_symbol() {
+    return &default_symbol;
+}
+
 TEST(INIReader, basic) { ini_test(); }
+
+TEST(SymbolTable, basic) { symbol_basic_test(); }
+
+ywSpinLock global_spin_lock;
+
+void add_routine(void * arg) {
+    int *var = reinterpret_cast<int*>(arg);
+    int  i;
+
+    for (i = 0; i < 65536; ++i) {
+        __sync_fetch_and_add(var, 1);
+    }
+}
+
+void spin_routine(void * arg) {
+    int *var = reinterpret_cast<int*>(arg);
+    int  i;
+
+    for (i = 0; i < 65536; ++i) {
+        while (!global_spin_lock.WLock()) {
+        }
+        (*var)++;
+        global_spin_lock.release();
+    }
+}
+
+TEST(Spinlock, Basic) {
+    ywSpinLock spin_lock;
+
+    ASSERT_TRUE(spin_lock.tryWLock());
+    ASSERT_FALSE(spin_lock.tryWLock());
+    ASSERT_FALSE(spin_lock.tryRLock());
+    spin_lock.release();
+
+    ASSERT_TRUE(spin_lock.tryRLock());
+    ASSERT_TRUE(spin_lock.tryRLock());
+    ASSERT_FALSE(spin_lock.tryWLock());
+    spin_lock.release();
+}
+TEST(Spinlock, Count) {
+    const int  THREAD_COUNT = 16;
+    int        count = 0;
+    int        i;
+
+    for (i = 0; i< THREAD_COUNT; ++i) {
+        ASSERT_TRUE(ywWorkerPool::get_instance()->add_task(
+                spin_routine, reinterpret_cast<void*>(&count)));
+    }
+    ywWorkerPool::get_instance()->wait_to_idle();
+
+    ASSERT_EQ(THREAD_COUNT * 65536, count);
+    ywWaitEvent::print();
+}
 
 TEST(LogStore, no_io_concurrency1)  { logstore_basic_test(2, 1); }
 TEST(LogStore, no_io_concurrency2)  { logstore_basic_test(2, 2); }
@@ -56,6 +116,8 @@ TEST(Btree, conc_insert1) { btree_conc_insert(1); }
 TEST(Btree, conc_insert2) { btree_conc_insert(2); }
 TEST(Btree, conc_insert4) { btree_conc_insert(4); }
 TEST(Btree, conc_insert8) { btree_conc_insert(8); }
+
+
 
 TEST(RCURef, Basic) {
     rcu_ref_test();
@@ -283,56 +345,6 @@ TEST(Dump, Basic) {
     char test[]="ABCDEF";
     printHex(sizeof(test), test);
     dump_stack();
-}
-
-ywSpinLock global_spin_lock;
-
-void add_routine(void * arg) {
-    int *var = reinterpret_cast<int*>(arg);
-    int  i;
-
-    for (i = 0; i < 65536; ++i) {
-        __sync_fetch_and_add(var, 1);
-    }
-}
-
-void spin_routine(void * arg) {
-    int *var = reinterpret_cast<int*>(arg);
-    int  i;
-
-    for (i = 0; i < 65536; ++i) {
-        while (!global_spin_lock.WLock()) {
-        }
-        (*var)++;
-        global_spin_lock.release();
-    }
-}
-
-TEST(Spinlock, Basic) {
-    ywSpinLock spin_lock;
-
-    ASSERT_TRUE(spin_lock.tryWLock());
-    ASSERT_FALSE(spin_lock.tryWLock());
-    ASSERT_FALSE(spin_lock.tryRLock());
-    spin_lock.release();
-
-    ASSERT_TRUE(spin_lock.tryRLock());
-    ASSERT_TRUE(spin_lock.tryRLock());
-    ASSERT_FALSE(spin_lock.tryWLock());
-    spin_lock.release();
-}
-TEST(Spinlock, Count) {
-    const int  THREAD_COUNT = 4;
-    int        count = 0;
-    int        i;
-
-    for (i = 0; i< THREAD_COUNT; ++i) {
-        ASSERT_TRUE(ywWorkerPool::get_instance()->add_task(
-                spin_routine, reinterpret_cast<void*>(&count)));
-    }
-    ywWorkerPool::get_instance()->wait_to_idle();
-
-    ASSERT_EQ(THREAD_COUNT * 65536, count);
 }
 
 TEST(Atomic, Count) {

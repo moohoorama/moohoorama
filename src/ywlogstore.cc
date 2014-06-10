@@ -61,7 +61,7 @@ void *ywLogStore::log_flusher(void *arg_ptr) {
     while (!log->done) {
         log->reserve_space();
         if (!log->flush()) {
-            usleep(100);
+            ywWaitEvent::u_sleep(100, get_pc());
         }
     }
     log->running = false;
@@ -158,28 +158,33 @@ bool ywLogStore::flush() {
 void ywLogStore::wait_flush() {
     if (io != NO_IO) {
         while (write_pos.get() + FLUSH_UNIT <= append_pos.get()) {
-            usleep(10);
+            ywWaitEvent::u_sleep(10, get_pc());
         }
     }
 }
 
 class logStoreConcTest {
  public:
-    static const int32_t TEST_COUNT = 512*KB;
-    static const int32_t TEST_SIZE  = 512;
+    static const int64_t TOTAL_TEST_SIZE = 8*GB;
+    static const int64_t TEST_SIZE  = 512;
 
+    void calc(int32_t thread_count) {
+        test_count = TOTAL_TEST_SIZE / thread_count / TEST_SIZE;
+        printf("test_count : %d\n", test_count);
+    }
     void run();
 
     ywLogStore *ls;
     int32_t     operation;
+    int32_t     test_count;
 };
 
 void logStoreConcTest::run() {
-    int32_t           i;
+    int64_t           i;
     Byte              buf[TEST_SIZE];
+    ywBarray          test(TEST_SIZE, buf);
 
-    for (i = 0; i < TEST_COUNT; ++i) {
-        ywBarray   test(TEST_SIZE, buf);
+    for (i = 0; i < test_count; ++i) {
 //        ywLong test(i);
         ls->append(&test);
     }
@@ -197,24 +202,23 @@ void logstore_basic_test(int32_t io_type, int32_t thread_count) {
     ywWorkerPool     *tpool = ywWorkerPool::get_instance();
     logStoreConcTest  tc[MAX_THREAD_COUNT];
     ywLogStore        ls("test.txt", io_type);
-//    Byte              buf[64*KB];
-//    size_t            i;
     int32_t           i;
     ywPerfChecker     perf;
 
     for (i = 0; i < thread_count; ++i) {
-        tc[i].operation = i;
-        tc[i].ls        = &ls;
+        tc[i].operation  = i;
+        tc[i].ls         = &ls;
+        tc[i].calc(thread_count);
         assert(tpool->add_task(ls_stress_task, &tc[i]));
     }
-    perf.start(logStoreConcTest::TEST_COUNT*thread_count*
-               logStoreConcTest::TEST_SIZE/1024/1024);
+
+    perf.start(logStoreConcTest::TOTAL_TEST_SIZE/1024/1024);
     tpool->wait_to_idle();
 
     printf("append : %" PRId64 "(%" PRId64 "MB)\n",
            ls.get_append_pos(),
            ls.get_append_pos()/1024/1024);
-    printf("flushd : %" PRId64 "(%" PRId64 "MB)\n",
+    printf("writed : %" PRId64 "(%" PRId64 "MB)\n",
            ls.get_write_pos(),
            ls.get_write_pos()/1024/1024);
     ls.wait_flush();
@@ -222,5 +226,7 @@ void logstore_basic_test(int32_t io_type, int32_t thread_count) {
            ls.get_write_pos(),
            ls.get_write_pos()/1024/1024);
     perf.finish("MPS");
+
+    ywWaitEvent::print();
 //    ls.sync();
 }

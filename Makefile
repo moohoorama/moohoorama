@@ -1,4 +1,4 @@
-OPTIMIZATION?=-O0
+OPTIMIZATION?=-O3
 #STD=-std=c99 -pedantic
 STD= -pedantic
 WARN=-Wall -Werror -frtti
@@ -72,6 +72,7 @@ gtest:
 $(BIN): $(LIBS)
 	cpplint.py include/*.h
 	$(Y_CXX) -o $@ $^ $(ARC) $(FINAL_LIBS)
+	nm $@ -f bsd -n -g -l -C  > $@.map
 
 test: $(BIN) all
 	@(./runtest)

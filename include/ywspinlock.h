@@ -3,16 +3,19 @@
 #ifndef INCLUDE_YWSPINLOCK_H_
 #define INCLUDE_YWSPINLOCK_H_
 
+//   #define __CHECK_WLOCK_TID__
+//
 #include <ywcommon.h>
 #include <ywworker.h>
+#include <ywutil.h>
 
-//   #define __CHECK_WLOCK_TID__
 
 class ywSpinLock {
  public:
     static const int16_t NONE  = 0;
     static const int16_t WLOCK = -1234;
     static const uint32_t DEFAULT_TIMEOUT = 1000000;
+    static const uint32_t DEFAULT_SPIN    = 1000;
 
     inline bool tryRLock() {
         int32_t prev = status;
@@ -55,11 +58,15 @@ class ywSpinLock {
 
     inline bool RLock(uint32_t timeout = DEFAULT_TIMEOUT) {
         uint32_t i;
+        uint32_t j;
 
         for (i = 0; i < timeout; ++i) {
-            if (tryRLock()) {
-                return true;
+            for (j = 0 ; j < DEFAULT_SPIN; ++j) {
+                if (tryRLock()) {
+                    return true;
+                }
             }
+            sleep(get_pc());
         }
         miss_count++;
 
@@ -68,11 +75,15 @@ class ywSpinLock {
 
     bool WLock(uint32_t timeout = DEFAULT_TIMEOUT) {
         uint32_t i;
+        uint32_t j;
 
         for (i = 0; i < timeout; ++i) {
-            if (tryWLock()) {
-                return true;
+            for (j = 0 ; j < DEFAULT_SPIN; ++j) {
+                if (tryWLock()) {
+                    return true;
+                }
             }
+            sleep(get_pc());
         }
         miss_count++;
 
@@ -97,6 +108,8 @@ class ywSpinLock {
     }
 
  private:
+    void sleep(void * call);
+
     volatile int16_t status;
     uint16_t miss_count;
 #ifdef __CHECK_WLOCK_TID__
@@ -110,7 +123,7 @@ class ywLockGuard {
     ywLockGuard():rlock_idx(0), wlock_idx(0) {
     }
 
-    bool WLock(ywSpinLock *lock) {
+    inline bool WLock(ywSpinLock *lock) {
         if (wlock_idx >= GUARD_SIZE) return false;
 
         if (wlock_idx > 0) {
@@ -129,7 +142,7 @@ class ywLockGuard {
         return false;
     }
 
-    bool RLock(ywSpinLock *lock) {
+    inline bool RLock(ywSpinLock *lock) {
         if (rlock_idx >= GUARD_SIZE) return false;
 
         if (wlock_idx > 0) {

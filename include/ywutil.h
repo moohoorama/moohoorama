@@ -52,5 +52,6 @@ inline size_t get_stack_size() {
     return limit.rlim_cur;
 }
 
+__attribute__((noinline)) void *get_pc();
 
 #endif  // INCLUDE_YWUTIL_H_

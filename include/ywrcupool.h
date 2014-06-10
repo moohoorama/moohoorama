@@ -3,6 +3,10 @@
 #ifndef INCLUDE_YWRCUPOOL_H_
 #define INCLUDE_YWRCUPOOL_H_
 
+/*******************************************
+ * RCU Algorithm based Mempool
+ *******************************************/
+
 #include <ywcommon.h>
 #include <ywrcuref.h>
 #include <ywmempool.h>

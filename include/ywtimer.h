@@ -5,6 +5,10 @@
 
 #include <ywcommon.h>
 #include <sys/time.h>
+#include <ywaccumulator.h>
+#include <ywsymbol.h>
+
+#include <map>
 
 typedef void (*ywTimerFunc)(void *_arg);
 
@@ -87,6 +91,69 @@ class ywPerfChecker {
     uint64_t begin;
     uint64_t end;
     uint64_t count;
+};
+
+class ywWaitEvent {
+    typedef intptr_t FUNC_PTR;
+
+    static const FUNC_PTR DEFAULT_PTR = 0;
+
+ public:
+    static void u_sleep(int32_t usec, void * addr_ptr) {
+        u_sleep(usec, reinterpret_cast<FUNC_PTR>(addr_ptr));
+    }
+    static void u_sleep(int32_t usec, FUNC_PTR addr) {
+        wait_event.set(addr);
+        usleep(usec);
+        wait_event.set(DEFAULT_PTR);
+        wait(addr);
+    }
+
+    static void wait(void * addr_ptr) {
+        wait(reinterpret_cast<FUNC_PTR>(addr_ptr));
+    }
+    static void wait(FUNC_PTR addr) {
+        assert(addr >= 1024);
+        if (addr == last_sleep_loc.get_local()) {
+            acc_sleep_time.mutate(1);
+        } else {
+            wait_sum[last_sleep_loc.get_local()] += acc_sleep_time.get_local();
+            acc_sleep_time.set(1);
+        }
+        last_sleep_loc.set(addr);
+    }
+    static void print() {
+        int32_t count;
+        int32_t i;
+
+        printf("==================\n");
+        count = wait_event.get_count();
+        for (i = 0; i < count; ++i) {
+            if (wait_event.get(i)) {
+                printf("%s\n", find(wait_event.get(i)));
+            }
+        }
+
+        printf("==================\n");
+        for (std::map<FUNC_PTR, ssize_t>::iterator itr = wait_sum.begin();
+             itr != wait_sum.end();
+             ++itr) {
+            printf("%10" PRIdPTR " %10" PRIXPTR "(%s)\n",
+                   itr->second,
+                   itr->first,
+                   find(itr->first));
+        }
+        printf("==================\n");
+    }
+
+    static const char *find(intptr_t val) {
+        return get_default_symbol()->find(val);
+    }
+
+    static ywAccumulator<FUNC_PTR>     wait_event;
+    static ywAccumulator<FUNC_PTR>     last_sleep_loc;
+    static ywAccumulator<FUNC_PTR>     acc_sleep_time;
+    static std::map<FUNC_PTR, ssize_t> wait_sum;
 };
 
 #endif  // INCLUDE_YWTIMER_H_

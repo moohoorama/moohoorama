@@ -102,7 +102,7 @@ class ywWorkerPool{
         int32_t ret = 0;
 
         __sync_synchronize();
-        for (i = 0; i < thread_count; ++i) {
+        for (i = 0; i < MAX_THREAD_COUNT; ++i) {
             ret += (running[i] == true);
         }
 
@@ -113,15 +113,8 @@ class ywWorkerPool{
         block = _new;
     }
 
-    inline void wait_to_idle() {
-        block_add_task(true);
-        while (!is_idle()) {
-            usleep(SLEEP_INTERVAL);
-        }
-        assert(queue_end == queue_begin);
+    void wait_to_idle();
 
-        block_add_task(false);
-    }
     inline bool is_idle() {
         if (queue_end == queue_begin) {
             if (get_running_thread_count() == 0) {

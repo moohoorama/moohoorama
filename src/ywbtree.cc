@@ -110,4 +110,6 @@ void btree_conc_insert(int32_t thread_count) {
         assert(tpool->add_task(bt_stress_task, &tc[i]));
     }
     tpool->wait_to_idle();
+
+    ywWaitEvent::print();
 }

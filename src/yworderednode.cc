@@ -3,6 +3,7 @@
 #include <yworderednode.h>
 #include <ywworker.h>
 #include <ywtypes.h>
+#include <ywtimer.h>
 
 typedef int32_t testVar;
 
@@ -220,6 +221,7 @@ void ywOrderStressTestClass::run() {
             for (val = 0; val < 256; val += 2) {
                 do {
                     try_count++;
+                    ywWaitEvent::wait(get_pc());
                 } while (!node->search_body(ywInt(val), &ret));
 
                 if (ret.compare(ywInt(val))) {

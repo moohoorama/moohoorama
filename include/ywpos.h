@@ -48,7 +48,7 @@ class ywPos {
     template<size_t ALIGN>
     bool _cas_next_align(uint64_t prev) {
         static_assert((ALIGN & (~ALIGN)) == 0, "in_valid align size");
-        uint64_t next = ((prev + (ALIGN-1)) & ~(ALIGN-1)) + ALIGN;
+        uint64_t next = ((prev + (ALIGN-1)) & ~(ALIGN-1));
         return cas(&_val, prev, next);
     }
 

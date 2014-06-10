@@ -11,6 +11,10 @@
 
 #define BUF_SIZE 8192
 
+void *get_pc() {
+        return __builtin_return_address(0);
+}
+
 void sig_handler(int signo) {
     printf("I Received SIGINT(%d)\n", SIGINT);
 
@@ -21,8 +25,11 @@ void sig_handler(int signo) {
 }
 
 void ywuGlobalInit() {
+    /*
     signal(SIGBUS, sig_handler);
     signal(SIGSEGV, sig_handler);
+    */
+//    signal(SIGINT, sig_handler);
 //    signal(SIGINT, SIG_IGN);
 }
 

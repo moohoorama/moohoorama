@@ -5,6 +5,11 @@
 
 ywTimer ywTimer::gInstance;
 
+ywAccumulator<intptr_t>     ywWaitEvent::wait_event;
+ywAccumulator<intptr_t>     ywWaitEvent::last_sleep_loc;
+ywAccumulator<intptr_t>     ywWaitEvent::acc_sleep_time;
+std::map<intptr_t, ssize_t> ywWaitEvent::wait_sum;
+
 void *ywTimer::run(void *arg) {
     ywTimer *timer = ywTimer::get_instance();
     timer->global_timer();
@@ -23,7 +28,7 @@ void ywTimer::global_timer() {
             }
         }
         ++idx;
-        usleep(MIN_INTERVAL_USEC);
+        ywWaitEvent::u_sleep(MIN_INTERVAL_USEC, get_pc());
     }
 }
 

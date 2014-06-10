@@ -61,7 +61,9 @@ class ywLogStore {
 
     ~ywLogStore() {
         done = true;
-        while (running) { usleep(100); }
+        while (running) {
+            ywWaitEvent::u_sleep(100, get_pc());
+        }
         if (fd != -1)   { close(fd); }
         printf("wait_count : %" PRId64 "\n", wait_count.sum());
     }
@@ -76,8 +78,10 @@ class ywLogStore {
         appender_view_pos.set(get_cnk_id(append_pos));
         ywPos     pos = append_pos.go_forward<CHUNK_SIZE>(value->get_size());
         Byte     *ptr = _get_chunk_ptr(pos);
+        __sync_synchronize();
+        int64_t   min = appender_view_pos.min();
 
-        assert(appender_view_pos.min() <= get_cnk_id(pos));
+        assert(min <= get_cnk_id(pos));
 
         value->write(ptr);
         appender_view_pos.set(VIEW_DEFAULT);
@@ -136,8 +140,8 @@ class ywLogStore {
         *info = cnk_mgr.get_cnk_info(cnk_id);
         memset(body, 0, sizeof(*body));
 
-        while (!buff_cache.ht_regist(bcid, cnk_id)) { 
-            usleep(1);
+        while (!buff_cache.ht_regist(bcid, cnk_id)) {
+            ywWaitEvent::u_sleep(100, get_pc());
         }
 
         if (type == LOG_CNK) {
@@ -166,7 +170,7 @@ class ywLogStore {
         bcid = buff_cache.ht_find(id);
         while (buff_cache.is_null(bcid)) {
             ++_wait_count;
-            usleep(1);
+            ywWaitEvent::u_sleep(10, get_pc());
             bcid = buff_cache.ht_find(id);
         }
 

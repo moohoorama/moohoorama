@@ -48,6 +48,7 @@ class ywBTree {
             if (!lock_stack.push(ywSeqLockGuard(seq))) return false;
 
             while (!lock_stack.get_last_ptr()->lock()) {
+                ywWaitEvent::u_sleep(10, 1);
             }
             return true;
         }

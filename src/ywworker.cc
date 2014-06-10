@@ -1,6 +1,7 @@
 /* Copyright [2014] moohoorama@gmail.com Kim.Youn-woo */
 
 #include <ywworker.h>
+#include <ywtimer.h>
 #include <gtest/gtest.h>
 
 __thread ywTID        ywWorkerPool::local_tid = -1;
@@ -35,6 +36,15 @@ void ywWorkerPool::init() {
     block = false;
 }
 
+void ywWorkerPool::wait_to_idle() {
+    block_add_task(true);
+    while (!is_idle()) {
+        ywWaitEvent::u_sleep(SLEEP_INTERVAL, get_pc());
+    }
+    assert(queue_end == queue_begin);
+
+    block_add_task(false);
+}
 
 void *ywWorkerPool::work(void * /*arg_ptr*/) {
     ywWorkerPool *tpool = ywWorkerPool::get_instance();
@@ -52,7 +62,7 @@ void *ywWorkerPool::work(void * /*arg_ptr*/) {
             sleep_level = 1;
             tpool->running[tid] = false;
         } else {
-            usleep(SLEEP_INTERVAL * sleep_level);
+            ywWaitEvent::u_sleep(SLEEP_INTERVAL * sleep_level, get_pc());
             if (sleep_level < 64) {
                 sleep_level*=2;
             }

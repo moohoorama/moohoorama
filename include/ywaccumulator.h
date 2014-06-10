@@ -55,6 +55,17 @@ class ywAccumulator{
         }
     }
 
+    int32_t get_count() {
+        return MAX_THREAD_COUNT;
+    }
+
+    T get(int32_t i) {
+        return *(volatile T*)data[i];
+    }
+
+    T get_local() {
+        return *data[ywWorkerPool::get_thread_id()];
+    }
 
     void reset() {
         int32_t i;
@@ -76,13 +87,15 @@ class ywAccumulator{
 
     T min() {
         int32_t i;
-        T       val = *data[0];
+        T       val = get(0);
+        T       cur;
 
         assert(default_data != 0);
 
         for (i = 0; i < MAX_THREAD_COUNT; ++i) {
-            if (*data[i] < val) {
-                val = *data[i];
+            cur = get(i);
+            if (cur < val) {
+                val = cur;
             }
         }
         return val;
@@ -90,11 +103,15 @@ class ywAccumulator{
 
     T max() {
         int32_t i;
-        T       val = data[0];
+        T       val = get(0);
+        T       cur;
+
+        assert(default_data != 0);
 
         for (i = 0; i < MAX_THREAD_COUNT; ++i) {
-            if (*data[i] > val) {
-                val = *data[i];
+            cur = get(i);
+            if (cur > val) {
+                val = cur;
             }
         }
         return val;
