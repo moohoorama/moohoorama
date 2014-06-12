@@ -6,11 +6,23 @@
 #include <ywcommon.h>
 #include <ywtypes.h>
 
-class ywar_types {
+/*
+template<typename T>
+typedef bool (*type_func)(T 
 
+class ywar_type {
+    static const ssize_t ID_MAX = 256;
+ public:
+     ywar_type(ssize_t id, const char *name) {
+         types[id] = this;
+     };
+
+     bool call(ssize_t id, 
+ private:
+
+    static ywar_type *types[ID_MAX];
 };
-
-
+*/
 
 class ywar_print {
  public:

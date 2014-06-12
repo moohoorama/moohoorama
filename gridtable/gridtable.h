@@ -23,7 +23,7 @@ class StdoutRenderer {
         printf("===================================\n");
     }
     void column(ssize_t len, char * buf) {
-        printf(buf);
+        printf("%s", buf);
     }
     void end_table() {
         printf("\n");
@@ -56,7 +56,7 @@ class HtmlRenderer {
     }
     void column(ssize_t len, char * buf) {
         printf("        <td>\n");
-        printf(buf);
+        printf("%s", buf);
         printf("        </td>\n");
     }
     void end_table() {

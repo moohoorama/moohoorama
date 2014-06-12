@@ -31,7 +31,7 @@ static_assert(sizeof(ywCnkInfo) == 4, "invalid ywCnkInfo Size");
 
 class ywLogStore {
  public:
-    static const uint32_t CHUNK_SIZE    = sizeof(ywChunk);
+    static const ssize_t  CHUNK_SIZE    = sizeof(ywChunk);
     static const intptr_t DIO_ALIGN     = 512;
 
     /* IO Type */
