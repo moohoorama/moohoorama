@@ -32,7 +32,7 @@ class ywInt {
     int32_t   get_size() {
         return sizeof(val);
     }
-    void     dump() {
+    void     print() {
         printf("%8d ", val);
     }
 
@@ -65,7 +65,7 @@ class ywLong {
     int32_t   get_size() {
         return sizeof(val);
     }
-    void     dump() {
+    void     print() {
         printf("%8" PRId64 " ", val);
     }
 
@@ -103,7 +103,7 @@ class ywPtr {
     int32_t   get_size() {
         return sizeof(ptr);
     }
-    void     dump() {
+    void     print() {
         printf("0x%08" PRIxPTR " ", get_intptr());
     }
 

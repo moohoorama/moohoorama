@@ -44,11 +44,11 @@ class ywBTree {
             return node_stack.pop(node);
         }
 
-        bool lock(volatile uint32_t *seq) {
+        inline bool lock(volatile uint32_t *seq) {
             if (!lock_stack.push(ywSeqLockGuard(seq))) return false;
 
             while (!lock_stack.get_last_ptr()->lock()) {
-                ywWaitEvent::u_sleep(10, 1);
+                ywWaitEvent::u_sleep(10, get_pc());
             }
             return true;
         }

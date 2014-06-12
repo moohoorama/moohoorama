@@ -31,6 +31,27 @@ class ywCnkInfo { /*ChunkInfo*/
     uint32_t get_int() {
         return *(reinterpret_cast<uint32_t*>(this));
     }
+
+    uint32_t *get_ptr() {
+        return reinterpret_cast<uint32_t*>(this);
+    }
+
+    void read(Byte *src) {
+        memcpy(this, src, sizeof(*this));
+    }
+
+    void write(Byte *src) {
+        memcpy(src, this, sizeof(*this));
+    }
+
+    int32_t get_size() {
+        return sizeof(*this);
+    }
+    void print() {
+        printf("type[%2" PRIu32 "] loc[%8" PRIu32 "]",
+               type, p_loc);
+    }
+
     uint32_t type:8;
     ywCnkLoc p_loc:24;   /*physical location*/
 };
@@ -40,6 +61,8 @@ class ywChunkMgr {
     static const ywCnkID  NULL_CNKID    = -1;
 
  public:
+    static const ywCnkID  MASTER_CNK_ID = 0;
+
     explicit ywChunkMgr():last_id(0), used_cnk_loc(0) {
     }
 
@@ -75,17 +98,26 @@ class ywChunkMgr {
     bool dump(T *ar) {
         int32_t i;
         char    str[64];
+        ywLockGuard<1/*size*/>  guard;
+
+        if (!guard.WLock(&map_lock)) {
+            return NULL_CNKID;
+        }
 
         ar->initialize();
-        ar->dump(ywInt(last_id), "last_id");
-        ar->dump(ywInt(used_cnk_loc), "last alloc chunk loc");
+        if (!ar->dump_int(&last_id, "last_id")) return false;
+        if (!ar->dump_int(&used_cnk_loc, "cnk_loc")) return false;
         for (i = 0; i < last_id; ++i) {
             snprintf(str, sizeof(str)/sizeof(str[0]), "%d", i);
-            ar->dump(ywInt(chunk_map[i].get_int()), str);
+            if (!ar->dump(&chunk_map[i], str)) return false;
         }
         ar->finalize();
 
         return true;
+    }
+
+    ywCnkID get_last_id() {
+        return last_id;
     }
 
  private:

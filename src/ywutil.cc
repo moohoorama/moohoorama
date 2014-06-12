@@ -25,10 +25,8 @@ void sig_handler(int signo) {
 }
 
 void ywuGlobalInit() {
-    /*
     signal(SIGBUS, sig_handler);
     signal(SIGSEGV, sig_handler);
-    */
 //    signal(SIGINT, sig_handler);
 //    signal(SIGINT, SIG_IGN);
 }

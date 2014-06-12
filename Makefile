@@ -1,4 +1,4 @@
-OPTIMIZATION?=-O3
+OPTIMIZATION?=-O0
 #STD=-std=c99 -pedantic
 STD= -pedantic
 WARN=-Wall -Werror -frtti
@@ -42,8 +42,9 @@ $(shell ./build_config.sh build_config.mk)
 include build_config.mk
 
 LIBS=$(SOURCES:.cc=.o)
+EXE_LIBS=$(MAIN_SRC:.cc=.o)
 #LIBS=ywdlist.o ywtest.o ywq.o ywutil.o ywmain.o
-BIN=ywtest
+BIN=ywtest dumpcnk
 
 all: $(BIN)
 	@echo ""
@@ -68,11 +69,16 @@ gtest:
 	cmake .
 	make
 
-
-$(BIN): $(LIBS)
+ywtest: $(LIBS) main/ywtest.cc
 	cpplint.py include/*.h
 	$(Y_CXX) -o $@ $^ $(ARC) $(FINAL_LIBS)
 	nm $@ -f bsd -n -g -l -C  > $@.map
+
+dumpcnk: $(LIBS) main/dumpcnk.cc
+	cpplint.py include/*.h
+	$(Y_CXX) -o $@ $^ $(ARC) $(FINAL_LIBS)
+	nm $@ -f bsd -n -g -l -C  > $@.map
+
 
 test: $(BIN) all
 	@(./runtest)
@@ -84,4 +90,4 @@ callgrind: $(BIN) all
 	@(./runcall)
 
 clean:
-	rm $(BIN) $(LIBS)
+	rm $(BIN) $(LIBS) $(EXE_LIBS)

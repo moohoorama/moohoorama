@@ -225,8 +225,8 @@ void ywOrderStressTestClass::run() {
                 } while (!node->search_body(ywInt(val), &ret));
 
                 if (ret.compare(ywInt(val))) {
-                    ret.dump();
-                    ywInt(val).dump();
+                    ret.print();
+                    ywInt(val).print();
                     assert(false);
                 }
             }

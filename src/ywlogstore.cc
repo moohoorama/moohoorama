@@ -10,22 +10,29 @@ void ywLogStore::init(const char * fn, int32_t _io) {
     write_pos.set_null();
     prepare_log_cnk_cnt = 0;
 
-    if (io == DIRECT_IO) flag |= O_DIRECT;
-    fd = open(fn, flag, S_IRWXU);
-    if (fd == -1) {
-        perror("file open error:");
-        assert(fd != -1);
+    if (get_status() == STATUS_NONE) {
+        if (io == DIRECT_IO) flag |= O_DIRECT;
+        fd = open(fn, flag, S_IRWXU);
+        if (fd == -1) {
+            perror("file open error:");
+            assert(fd != -1);
+        }
+
+        change_status(STATUS_NONE, STATUS_PREACTIVE);
     }
-
-    init_and_read_master();
-
-    assert(create_flush_thread());
 }
 
-void ywLogStore::init_and_read_master() {
-    ywPos pos;
+bool ywLogStore::create_master() {
+    ywPos   pos;
+    ywCnkID cnk_id;
 
-    assert(cnk_mgr.alloc_chunk(MASTER_CNK) == MASTER_CNK_ID);
+    if (get_status() != STATUS_PREACTIVE) {
+        return false;
+    }
+
+    cnk_id = cnk_mgr.alloc_chunk(MASTER_CNK);
+
+    assert(cnk_id == MASTER_CNK_ID);
 
     pos = create_chunk(LOG_CNK);
     assert(pos.get() == 1 * CHUNK_SIZE);
@@ -35,15 +42,66 @@ void ywLogStore::init_and_read_master() {
 
     ywar_print  print_ar;
     cnk_mgr.dump(&print_ar);
-
     write_master_chunk();
+
+    assert(create_flush_thread());
+
+    change_status(STATUS_PREACTIVE, STATUS_ACTIVE);
+
+    return true;
 }
 
-void ywLogStore::write_master_chunk() {
-    Byte cnk[1024];
+bool ywLogStore::reload_master() {
+    ywPos pos;
 
-    ywar_bytestream   byte_ar(cnk);
-    cnk_mgr.dump(&byte_ar);
+    if (get_status() != STATUS_PREACTIVE) {
+        return false;
+    }
+
+    read_master_chunk();
+
+    pos = ywPos(cnk_mgr.get_last_id() * CHUNK_SIZE);
+    append_pos = pos;
+    write_pos  = pos;
+
+    ywar_print  print_ar;
+    cnk_mgr.dump(&print_ar);
+
+    assert(create_flush_thread());
+
+    change_status(STATUS_PREACTIVE, STATUS_ACTIVE);
+
+    return true;
+}
+
+void ywLogStore::read_master_chunk() {
+    ywBCID     bcid;
+    ywChunk   *body;
+
+    bcid = buff_cache.alloc_cache();
+    body = buff_cache.get_body(bcid);
+    read_chunk(body, MASTER_CNK_ID);
+
+    ywar_deserialize   ar(sizeof(body->body), body->body);
+    cnk_mgr.dump(&ar);
+
+    assert(buff_cache.dealloc_cache(bcid));
+}
+
+
+void ywLogStore::write_master_chunk() {
+    ywBCID     bcid;
+    ywChunk   *body;
+
+    bcid = buff_cache.alloc_cache();
+    body = buff_cache.get_body(bcid);
+
+    ywar_serialize   ar(sizeof(body->body), body->body);
+    cnk_mgr.dump(&ar);
+
+    write_chunk(body, MASTER_CNK_ID);
+
+    assert(buff_cache.dealloc_cache(bcid));
 }
 
 bool ywLogStore::create_flush_thread() {
@@ -57,20 +115,20 @@ bool ywLogStore::create_flush_thread() {
 void *ywLogStore::log_flusher(void *arg_ptr) {
     ywLogStore *log = reinterpret_cast<ywLogStore*>(arg_ptr);
 
-    log->running = true;
-    while (!log->done) {
+    log->flusher_enable = true;
+    while (log->get_status() == STATUS_ACTIVE) {
         log->reserve_space();
         if (!log->flush()) {
             ywWaitEvent::u_sleep(100, get_pc());
         }
     }
-    log->running = false;
+    log->flusher_enable = false;
 
     return NULL;
 }
 
 void ywLogStore::reserve_space() {
-    if (prepare_log_cnk_cnt < MAX_PREPARE_LOG_CNK_CNT) {
+    if (prepare_log_cnk_cnt < MAX_PREPARE_LOG_CNK_CNT - 1) {
         (void)create_chunk(LOG_CNK);
     }
 }
@@ -101,7 +159,7 @@ bool ywLogStore::flush() {
         id     = get_cnk_id(write_pos);
         offset = get_offset(write_pos);
 
-        ywBCID    bcid   = buff_cache.ht_find(id);
+        ywBCID    bcid   = buff_cache.find_cache(id);
         if (buff_cache.is_null(bcid)) {
             break;
         }
@@ -151,6 +209,9 @@ bool ywLogStore::flush() {
         buff_cache.set_victim(free_cnk_id[i]);
         --prepare_log_cnk_cnt;
     }
+    if (free_cnk_cnt) {
+        write_master_chunk();
+    }
 
     return true;
 }
@@ -165,7 +226,7 @@ void ywLogStore::wait_flush() {
 
 class logStoreConcTest {
  public:
-    static const int64_t TOTAL_TEST_SIZE = 8*GB;
+    static const int64_t TOTAL_TEST_SIZE = 2*GB;
     static const int64_t TEST_SIZE  = 512;
 
     void calc(int32_t thread_count) {
@@ -204,6 +265,11 @@ void logstore_basic_test(int32_t io_type, int32_t thread_count) {
     ywLogStore        ls("test.txt", io_type);
     int32_t           i;
     ywPerfChecker     perf;
+
+    printf("Create_master...");
+    sleep(5);
+    assert(ls.create_master());
+    printf("Done.\n");
 
     for (i = 0; i < thread_count; ++i) {
         tc[i].operation  = i;

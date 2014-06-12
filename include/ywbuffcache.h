@@ -13,7 +13,7 @@ typedef uint32_t ywHTID; /*Buffer Cache ID*/
 /* con => Contents */
 template <typename ConID, typename ConInfo, typename CacheBody>
 class ywBuffCache {
-    static const int32_t COLLISION_RETRY_COUNT = 5;
+    static const int32_t COLLISION_RETRY_COUNT = 4;
     static const int32_t HASHTABLE_RETRY_COUNT = 32;
     static const ssize_t BODY_SIZE = sizeof(CacheBody);
 
@@ -38,7 +38,7 @@ class ywBuffCache {
         _init(align_val);
     }
     ywBuffCache(intptr_t align_val, ywBCID count):_count(count) {
-        _ht_size = count;
+        _ht_size = count*8;
         _init(align_val);
     }
     ~ywBuffCache() {
@@ -87,6 +87,19 @@ class ywBuffCache {
         return &_info[bcid].sub_info;
     }
 
+    ywBCID find_cache(ConID con_id) {
+        ywHTID  htid = _ht_find(con_id);
+        if (htid != NULL_HTID) {
+            ywBCID  bcid = _ht[htid];
+
+            if (_info[bcid].con_id == con_id) {
+                return bcid;
+            }
+        }
+        return NULL_HTID;
+    }
+
+
     /* HashTable*/
     bool ht_regist(ywBCID  bcid, ConID con_id,
                    int32_t try_count = HASHTABLE_RETRY_COUNT) {
@@ -119,29 +132,8 @@ class ywBuffCache {
         return false;
     }
 
-    ywHTID ht_find(ConID con_id) {
-        ywHTID  idx = _get_ht(con_id);
-        ywBCID  bcid;
-        int     i = COLLISION_RETRY_COUNT;
-
-        do {
-            bcid = _ht[idx];
-            if (bcid == NULL_BCID) {
-                return NULL_HTID;
-            }
-            if (_info[bcid].con_id == con_id) {
-                if (_info[bcid].status != STATUS_UNUSED) {
-                    return idx;
-                }
-            }
-            ++idx;
-        } while (--i);
-
-        return NULL_HTID;
-    }
-
     bool set_victim(ConID con_id) {
-        ywHTID  htid = ht_find(con_id);
+        ywHTID  htid = _ht_find(con_id);
 
         if (htid == NULL_HTID) {
             return false;
@@ -172,7 +164,7 @@ class ywBuffCache {
         intptr_t  end_ptr;
         size_t   alloc_size =
             _count*(BODY_SIZE + sizeof(CacheInfo))
-            + _ht_size*sizeof(CacheInfo*)
+            + _ht_size*sizeof(*_ht)
             + align_val;
 
         if (!_count) {
@@ -205,6 +197,24 @@ class ywBuffCache {
         if (_count) {
             free(_buffer);
         }
+    }
+
+    ywHTID _ht_find(ConID con_id) {
+        ywHTID  idx = _get_ht(con_id);
+        ywBCID  bcid;
+        int     i = COLLISION_RETRY_COUNT;
+
+        do {
+            bcid = _ht[idx];
+            if (bcid != NULL_BCID) {
+                if (_info[bcid].con_id == con_id) {
+                    return idx;
+                }
+            }
+            ++idx;
+        } while (--i);
+
+        return NULL_HTID;
     }
 
     ywBCID       _count;

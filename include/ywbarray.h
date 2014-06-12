@@ -70,7 +70,7 @@ class ywBarray{
     int32_t   get_size() {
         return size;
     }
-    void     dump() {
+    void     print() {
         printHex(len, value, false/*info*/);
         printf(" ");
     }

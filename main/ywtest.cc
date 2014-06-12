@@ -32,9 +32,8 @@
 #include <vector>
 #include <algorithm>
 
-ywSymbol default_symbol("ywtest.map");
-
 ywSymbol *get_default_symbol() {
+    static ywSymbol default_symbol("ywtest.map");
     return &default_symbol;
 }
 
@@ -275,13 +274,13 @@ int32_t get_next_rnd(int32_t prev) {
 //    return (prev+1) % 64;
 }
 
-void *fbt = fb_create();
 
 TEST(FBTree, Generate) {
     int32_t rnd = 2;
     int32_t i;
     int32_t val;
     int32_t count = 0;
+    void *fbt = fb_create();
 
     rnd = 2;
     for (i = 0; i < DATA_SIZE; ++i) {
@@ -300,6 +299,7 @@ TEST(FBTree, Search) {
     int32_t rnd = 2;
     int32_t i;
     int32_t val;
+    void *fbt = fb_create();
 
     for (i = 0; i < TRY_COUNT; ++i) {
         if (i % DATA_SIZE == 0) {
@@ -315,6 +315,7 @@ TEST(FBTree, Remove) {
     int32_t rnd = 2;
     int32_t i;
     int32_t val;
+    void *fbt = fb_create();
 
     rnd = 2;
     for (i = 0; i < DATA_SIZE; ++i) {
@@ -641,7 +642,7 @@ TEST(SkipList, InsertPerformance) {
 }
 
 int main(int argc, char ** argv) {
-    ywGlobalInit();
+//    ywuGlobalInit();
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

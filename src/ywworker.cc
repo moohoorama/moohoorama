@@ -26,6 +26,9 @@ void ywWorkerPool::init() {
         args[i]  = &NULL_ARG_PTR;
     }
 
+    for (i = 0; i < MAX_THREAD_COUNT; ++i) {
+        running[i] = false;
+    }
     for (i = 0; i < thread_count; ++i) {
         assert(0 == pthread_create(
                 &pt[i], &attr, ywWorkerPool::work, NULL));
@@ -53,6 +56,7 @@ void *ywWorkerPool::work(void * /*arg_ptr*/) {
     ywTID         tid = tpool->get_thread_id();
     int32_t       sleep_level = 1;
 
+    assert(tpool->running[tid] == false);
     tpool->running[tid] = false;
 
     while (!tpool->done) {

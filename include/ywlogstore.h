@@ -45,27 +45,35 @@ class ywLogStore {
     static const uint32_t INFO_CNK   = 3;
     static const uint32_t SORTED_CNK = 4;
 
-    static const ywCnkID  MASTER_CNK_ID = 0;
+    static const ywCnkID  MASTER_CNK_ID = ywChunkMgr::MASTER_CNK_ID;
     static const int32_t  MAX_PREPARE_LOG_CNK_CNT = 16;
     static const ssize_t  FLUSH_UNIT = 256*KB;
     static const uint32_t FLUSH_COUNT = 32;
 
     static const int64_t  VIEW_DEFAULT = INT64_MAX;
 
- public:
+    typedef enum {
+        STATUS_NONE,
+        STATUS_PREACTIVE,
+        STATUS_ACTIVE,
+        STATUS_AFTERACTIVE,
+    } Status;
+
     explicit ywLogStore(const char * fn, int32_t _io):fd(-1),
     io(_io), buff_cache(DIO_ALIGN, MAX_PREPARE_LOG_CNK_CNT),
-    appender_view_pos(VIEW_DEFAULT), done(false), running(false) {
+    appender_view_pos(VIEW_DEFAULT), status(STATUS_NONE), flusher_enable(0) {
         init(fn, _io);
     }
 
     ~ywLogStore() {
-        done = true;
-        while (running) {
-            ywWaitEvent::u_sleep(100, get_pc());
+        if (change_status(STATUS_ACTIVE, STATUS_AFTERACTIVE)) {
+            while (load_consume(&flusher_enable)) {
+                ywWaitEvent::u_sleep(100, get_pc());
+            }
+            if (fd != -1)   { close(fd); }
+            printf("wait_count : %" PRId64 "\n", wait_count.sum());
+            change_status(STATUS_AFTERACTIVE, STATUS_NONE);
         }
-        if (fd != -1)   { close(fd); }
-        printf("wait_count : %" PRId64 "\n", wait_count.sum());
     }
 
     template<typename T>
@@ -88,6 +96,11 @@ class ywLogStore {
         return pos;
     }
 
+    bool  read_chunk(ywChunk *chunk, int32_t idx) {
+        ssize_t ret = pread(fd, chunk->body, CHUNK_SIZE, idx * CHUNK_SIZE);
+        return ret == CHUNK_SIZE;
+    }
+
     bool  write_chunk(ywChunk *chunk, int32_t idx) {
         ssize_t ret = pwrite(fd, chunk->body, CHUNK_SIZE, idx * CHUNK_SIZE);
         return ret == CHUNK_SIZE;
@@ -99,20 +112,20 @@ class ywLogStore {
 
     void wait_flush();
 
-    bool read(ssize_t offset, int32_t size, Byte * buf) {
-        return (pread(fd, buf, size, offset) == offset);
-    }
-
     uint64_t get_append_pos() { return append_pos.get(); }
     uint64_t get_write_pos()  { return write_pos.get(); }
 
+    bool create_master();
+    bool reload_master();
+
  private:
     void init(const char * fn, int32_t _io);
-    void init_and_read_master();
     bool create_flush_thread();
     void reserve_space();
-    void write_master_chunk();
     bool flush();
+
+    void read_master_chunk();
+    void write_master_chunk();
 
     ywPos create_chunk(int32_t type) {
         ywPos      pos;
@@ -167,11 +180,11 @@ class ywLogStore {
         uint32_t  _wait_count = 0;
         ywBCID    bcid;
 
-        bcid = buff_cache.ht_find(id);
+        bcid = buff_cache.find_cache(id);
         while (buff_cache.is_null(bcid)) {
             ++_wait_count;
             ywWaitEvent::u_sleep(10, get_pc());
-            bcid = buff_cache.ht_find(id);
+            bcid = buff_cache.find_cache(id);
         }
 
         wait_count.mutate(_wait_count);
@@ -179,6 +192,14 @@ class ywLogStore {
         ywChunk  *chunk = buff_cache.get_body(bcid);
 
         return &chunk->body[offset];
+    }
+
+    Status get_status() {
+        return load_consume(&status);
+    }
+
+    bool change_status(Status prev_status, Status new_status) {
+        return __sync_bool_compare_and_swap(&status, prev_status, new_status);
     }
 
     int32_t                 fd;
@@ -194,8 +215,8 @@ class ywLogStore {
 
     ywAccumulator<int64_t>  wait_count;
     ywAccumulator<int64_t>  appender_view_pos;
-    bool                    done;
-    bool                    running;
+    Status                  status;
+    int32_t                 flusher_enable;
 };
 
 extern void logstore_basic_test(int32_t io, int32_t thread_count);
