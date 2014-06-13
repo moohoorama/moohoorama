@@ -6,26 +6,6 @@
 #include <ywcommon.h>
 #include <ywutil.h>
 
-typedef uint32_t type_info;
-typedef int32_t (*compare_func)(type_info *left, type_info *right);
-typedef void    (*read_func)(type_info *src, Byte *buf);
-typedef void    (*write_func)(type_info *src, Byte *buf);
-typedef void    (*print_func)(type_info *src);
-typedef ssize_t (*get_img_size_func)(type_info *src);
-
-typedef struct TestModule {
-    const ssize_t            id;
-    const ssize_t            info_size;
-    const read_func          read;
-    const write_func         write;
-    const print_func         print;
-    const compare_func       compare;
-    const get_img_size_func  get_img_size;
-    const char              *name;
-} TypeModule;
-
-extern const TypeModule type_modules[];
-
 class ywInt {
  public:
     explicit ywInt() {
