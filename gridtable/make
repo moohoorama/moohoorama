@@ -1,1 +1,1 @@
-g++ -g -o3 -o test test.cpp
+g++ -g -o3 -o test test.cpp  -finline-limit=999

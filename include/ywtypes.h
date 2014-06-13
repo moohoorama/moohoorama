@@ -8,8 +8,8 @@
 
 typedef uint32_t type_info;
 typedef int32_t (*compare_func)(type_info *left, type_info *right);
-typedef bool    (*read_func)(type_info *src, Byte *buf);
-typedef bool    (*write_func)(type_info *src, Byte *buf);
+typedef void    (*read_func)(type_info *src, Byte *buf);
+typedef void    (*write_func)(type_info *src, Byte *buf);
 typedef void    (*print_func)(type_info *src);
 typedef ssize_t (*get_img_size_func)(type_info *src);
 
@@ -19,6 +19,7 @@ typedef struct TestModule {
     const read_func          read;
     const write_func         write;
     const print_func         print;
+    const compare_func       compare;
     const get_img_size_func  get_img_size;
     const char              *name;
 } TypeModule;
