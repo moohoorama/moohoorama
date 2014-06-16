@@ -7,7 +7,8 @@
 #include <ywutil.h>
 
 typedef uint32_t type_info;
-typedef int32_t (*compare_func)(type_info *left, type_info *right, void *l_meta, void *r_meta);
+typedef int32_t (*compare_func)(type_info *left, type_info *right,
+                                void *l_meta, void *r_meta);
 typedef void    (*read_func)(type_info *src, Byte *buf, void *meta);
 typedef void    (*write_func)(type_info *src, Byte *buf, void *meta);
 typedef void    (*print_func)(type_info *src, void *meta);
@@ -31,6 +32,33 @@ typedef struct TestModule {
 } TypeModule;
 
 extern const TypeModule type_modules[];
+
+typedef struct {
+    static const int32_t ID = 1;
+
+    int32_t val;
+} ywtInt;
+
+typedef struct {
+    static const int32_t ID = 2;
+
+    int64_t val;
+} ywtLong;
+
+typedef struct {
+    static const int32_t ID = 3;
+
+    intptr_t val;
+} ywtPtr;
+
+typedef struct {
+    static const int32_t ID = 4;
+    static const Byte    LONG_LEN = 250;
+
+    Byte     *value;
+    int32_t   len;
+} ywtBarray;
+
 
 
 class ywt_archive {
@@ -114,5 +142,7 @@ class ywt_read : public ywt_archive {
     ssize_t  _offset;
 };
 
+
+extern void type_basic_test();
 
 #endif  // INCLUDE_YWTYPE_H_

@@ -27,6 +27,7 @@
 #include <ywlogstore.h>
 #include <ywini.h>
 #include <ywsymbol.h>
+#include <ywtest.h>
 
 #include <map>
 #include <vector>
@@ -36,6 +37,8 @@ ywSymbol *get_default_symbol() {
     static ywSymbol default_symbol("ywtest.map");
     return &default_symbol;
 }
+
+TEST(YWType, basic) {type_basic_test(); }
 
 TEST(INIReader, basic) { ini_test(); }
 
