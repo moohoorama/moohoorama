@@ -17,9 +17,34 @@ typedef ssize_t (*get_size_func)(type_info *src, void *meta);
 const uint32_t TYPE_FLAG_FIX_SIZE = 0x00000000;
 const uint32_t TYPE_FLAG_VAR_SIZE = 0x00000001;
 
+const uint32_t TYPE_FLAG_NULL     = 0xffffffff;
+
 const uint32_t TYPE_FLAG_BASIC = TYPE_FLAG_FIX_SIZE;
 
 typedef struct TestModule {
+    TestModule(const int32_t            _id,
+               const ssize_t            _info_size,
+               const uint32_t           _flag,
+               const read_func          _read,
+               const write_func         _write,
+               const print_func         _print,
+               const compare_func       _compare,
+               const get_size_func      _get_size,
+               const char              *_name):
+        id(_id),
+        info_size(_info_size),
+        flag(_flag),
+        read(_read),
+        write(_write),
+        print(_print),
+        compare(_compare),
+        get_size(_get_size),
+        name(_name) {
+        check();
+    }
+    void check();
+
+ public:
     const int32_t            id;
     const ssize_t            info_size;
     const uint32_t           flag;
@@ -32,6 +57,11 @@ typedef struct TestModule {
 } TypeModule;
 
 extern const TypeModule type_modules[];
+
+template<typename T>
+TypeModule *get_type_module(T val) {
+    return type_modules[T::ID];
+}
 
 typedef struct {
     static const int32_t ID = 1;
@@ -59,22 +89,15 @@ typedef struct {
     int32_t   len;
 } ywtBarray;
 
-
-
-class ywt_archive {
-    virtual void initialize() = 0;
-    virtual bool dump(TestModule *module, type_info *val,
-                     const char * title, void * meta) = 0;
-    virtual void finalize() = 0;
-};
-
-
-class ywt_print : public ywt_archive {
+class ywt_print {
  public:
     void initialize() { }
 
-    bool dump(TestModule *module, type_info *val,
-                     const char * title, void * meta) {
+    template<typename T>
+    bool dump(T* _val, const char * title, void * meta) {
+        const TestModule *module = &type_modules[T::ID];
+        type_info        *val = reinterpret_cast<type_info*>(_val);
+
         printf("%24s :", title);
         module->print(val, meta);
         printf("\n");
@@ -85,17 +108,18 @@ class ywt_print : public ywt_archive {
     }
 };
 
-
-
-class ywt_write : public ywt_archive {
+class ywt_write {
  public:
-    explicit ywt_write(size_t size, Byte *buffer):
+    explicit ywt_write(ssize_t size, Byte *buffer):
         _size(size), _buffer(buffer), _offset(0) {
     }
     void initialize() { }
 
-    bool dump(TestModule *module, type_info *val,
-              const char * title, void * meta) {
+    template<typename T>
+    bool dump(T* _val, const char * title, void * meta) {
+        const TestModule *module = &type_modules[T::ID];
+        type_info        *val = reinterpret_cast<type_info*>(_val);
+
         ssize_t img_size = module->get_size(val, meta);
         if (_offset + img_size > _size) {
             return false;
@@ -108,21 +132,28 @@ class ywt_write : public ywt_archive {
     void finalize() {
     }
 
+    ssize_t get_used_size() {
+        return _offset;
+    }
+
  private:
     ssize_t  _size;
     Byte    *_buffer;
     ssize_t  _offset;
 };
 
-class ywt_read : public ywt_archive {
+class ywt_read {
  public:
-    explicit ywt_read(size_t size, Byte *buffer):
+    explicit ywt_read(ssize_t size, Byte *buffer):
         _size(size), _buffer(buffer), _offset(0) {
     }
     void initialize() { }
 
-    bool dump(TestModule *module, type_info *val,
-              const char * title, void * meta) {
+    template<typename T>
+    bool dump(T* _val, const char * title, void * meta) {
+        const TestModule *module = &type_modules[T::ID];
+        type_info        *val = reinterpret_cast<type_info*>(_val);
+
         module->read(val, &_buffer[_offset], meta);
 
         ssize_t img_size = module->get_size(val, meta);
@@ -134,6 +165,10 @@ class ywt_read : public ywt_archive {
         return true;
     }
     void finalize() {
+    }
+
+    ssize_t get_used_size() {
+        return _offset;
     }
 
  private:

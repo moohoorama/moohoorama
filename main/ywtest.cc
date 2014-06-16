@@ -27,7 +27,7 @@
 #include <ywlogstore.h>
 #include <ywini.h>
 #include <ywsymbol.h>
-#include <ywtest.h>
+#include <ywtype.h>
 
 #include <map>
 #include <vector>
