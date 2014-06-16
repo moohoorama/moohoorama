@@ -39,6 +39,14 @@ void inline_call() {
     printf("%d\n", val);
 }
 
+void test_(int a) {
+    printf("%d\n", a);
+}
+
+void test__(int a, int b) {
+    printf("%d %d\n", a, b);
+}
+
 /*
 template<typename func>
 bool call_type(int32_t id, Byte *buf) {
@@ -60,10 +68,18 @@ bool call_type(int32_t id, Byte *buf) {
     return true;
 }*/
 
+typedef void (*test_func_1)(int var);
+typedef void (*test_func_2)(int var, int var2);
+
+
+
 int main(int argc, char **argv) {
     GridTable<HtmlRenderer> gt;
+    test_func_2 func_ptr = reinterpret_cast<test_func_2>(test_);
     
+    func_ptr(4,5);
     call(increase);
+    
 //    inline_call();
 
     return 0;

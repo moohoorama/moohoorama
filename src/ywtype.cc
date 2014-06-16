@@ -38,25 +38,26 @@ template<typename T> int32_t comp_f(type_info *left, type_info *right,
     return r->val - l->val;
 }
 
-/* Integer */
 void print_ywtint(type_info *src, void * /*meta*/) {
     ywtInt *val = reinterpret_cast<ywtInt*>(src);
     printf("%" PRId32, val->val);
 }
 
-/* Long */
 void print_ywtlong(type_info *src, void * /*meta*/) {
     ywtLong *val = reinterpret_cast<ywtLong*>(src);
     printf("%" PRId64, val->val);
 }
 
-/* ptr */
+void print_ywtfloat(type_info *src, void * /*meta*/) {
+    ywtFloat *val = reinterpret_cast<ywtFloat*>(src);
+    printf("%f", val->val);
+}
+
 void print_ywtptr(type_info *src, void * /*meta*/) {
     ywtPtr *val = reinterpret_cast<ywtPtr*>(src);
     printf("%" PRId64, val->val);
 }
 
-/* Barray */
 void read_ywtbarray(type_info *src, Byte *buf, void * /*meta*/) {
     ywtBarray *val = reinterpret_cast<ywtBarray*>(src);
 
@@ -117,9 +118,10 @@ ssize_t get_size_ywtbarray(type_info *src, void * /*meta*/) {
 
 const TypeModule type_modules[] = {
     {0, 0, TYPE_FLAG_NULL, NULL, NULL, NULL, NULL, NULL, "NULL"},
-    TYPE_DECL_PRIMITIVE(ywtInt,  print_ywtint),
-    TYPE_DECL_PRIMITIVE(ywtLong, print_ywtlong),
-    TYPE_DECL_PRIMITIVE(ywtPtr,  print_ywtptr),
+    TYPE_DECL_PRIMITIVE(ywtInt,    print_ywtint),
+    TYPE_DECL_PRIMITIVE(ywtLong,   print_ywtlong),
+    TYPE_DECL_PRIMITIVE(ywtFloat,  print_ywtfloat),
+    TYPE_DECL_PRIMITIVE(ywtPtr,    print_ywtptr),
     TYPE_DECL(ywtBarray, TYPE_FLAG_VAR_SIZE,
               read_ywtbarray, write_ywtbarray,
               print_ywtbarray, comp_ywtbarray,
@@ -143,6 +145,7 @@ class type_test_class {
         arc->finalize();
     }
 
+    int32_t    mm;
     ywtInt     val1;
     ywtInt     val2;
     ywtInt     val3;
@@ -158,9 +161,9 @@ void type_basic_test() {
     ywt_read  read(sizeof(buf), buf);
     ywt_write write(sizeof(buf), buf);
 
-    tc.val1.val = 1111;
-    tc.val2.val = 2222;
-    tc.val3.val = 3333;
+    tc.val1.val = 0x1111;
+    tc.val2.val = 0x2222;
+    tc.val3.val = 0x3333;
     tc.ptr.val  = reinterpret_cast<intptr_t>(&tc);
 
     tc.dump(&prt);

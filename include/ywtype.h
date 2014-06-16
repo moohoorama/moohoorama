@@ -6,6 +6,7 @@
 #include <ywcommon.h>
 #include <ywutil.h>
 
+typedef uint8_t  TYPE_ID;
 typedef uint32_t type_info;
 typedef int32_t (*compare_func)(type_info *left, type_info *right,
                                 void *l_meta, void *r_meta);
@@ -22,7 +23,7 @@ const uint32_t TYPE_FLAG_NULL     = 0xffffffff;
 const uint32_t TYPE_FLAG_BASIC = TYPE_FLAG_FIX_SIZE;
 
 typedef struct TestModule {
-    TestModule(const int32_t            _id,
+    TestModule(const TYPE_ID            _id,
                const ssize_t            _info_size,
                const uint32_t           _flag,
                const read_func          _read,
@@ -45,7 +46,7 @@ typedef struct TestModule {
     void check();
 
  public:
-    const int32_t            id;
+    const TYPE_ID            id;
     const ssize_t            info_size;
     const uint32_t           flag;
     const read_func          read;
@@ -63,26 +64,24 @@ TypeModule *get_type_module(T val) {
     return type_modules[T::ID];
 }
 
+
+#define MAKE_PRIMITIVE_TYPE(_NAME, _TYPE, _ID)          \
+    class _NAME {                                       \
+     public:                                            \
+        static const TYPE_ID ID = _ID;                  \
+        _NAME() {                                       \
+        }                                               \
+        _NAME(_TYPE _val):val(_val) {                   \
+        }                                               \
+        _TYPE val;                                      \
+    }
+
+MAKE_PRIMITIVE_TYPE(ywtInt,   int32_t,  1);
+MAKE_PRIMITIVE_TYPE(ywtLong,  int64_t,  2);
+MAKE_PRIMITIVE_TYPE(ywtFloat, float,    3);
+MAKE_PRIMITIVE_TYPE(ywtPtr,   intptr_t, 4);
 typedef struct {
-    static const int32_t ID = 1;
-
-    int32_t val;
-} ywtInt;
-
-typedef struct {
-    static const int32_t ID = 2;
-
-    int64_t val;
-} ywtLong;
-
-typedef struct {
-    static const int32_t ID = 3;
-
-    intptr_t val;
-} ywtPtr;
-
-typedef struct {
-    static const int32_t ID = 4;
+    static const TYPE_ID ID = 5;
     static const Byte    LONG_LEN = 250;
 
     Byte     *value;
@@ -98,7 +97,7 @@ class ywt_print {
         const TestModule *module = &type_modules[T::ID];
         type_info        *val = reinterpret_cast<type_info*>(_val);
 
-        printf("%24s :", title);
+        printf("%12s [%12s]:", title, module->name);
         module->print(val, meta);
         printf("\n");
         return true;
