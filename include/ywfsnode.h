@@ -171,7 +171,6 @@ class ywFSNode {
 
         if (lockGuard.lock()) {
             idx = binary_search(value);
-            if (idx < 0)      idx = 0;
             if (0 == value->compare(slot[idx])) {
                 return _remove(idx);
             }
